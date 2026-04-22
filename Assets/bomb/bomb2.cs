@@ -6,7 +6,7 @@ public class Bomb2 : MonoBehaviour
 {
     public float explosionPower = 10f;
     public float explosionRadius = 3f;
-    public float timeToExplode = 5.0f; // 爆発までの秒数
+    public float timeToExplode = 7.0f; // 爆発までの秒数
 
     public bool isThrown = false;
     private bool isPolarityLocked = false; // 極性をロックするかどうか
@@ -95,6 +95,20 @@ public class Bomb2 : MonoBehaviour
             {
                 // 1撃で倒すため、HPの最大値以上の巨大なダメージを送る
                 targetEnemy.TakeDamage(9999f);
+            }
+
+            // ★追加：ボスにダメージを与える（固定ダメージの例として50）
+            Boss targetBoss = hit.GetComponent<Boss>();
+            if (targetBoss != null)
+            {
+                targetBoss.TakeDamage(50f); 
+            }
+
+            // ★追加：プレイヤーにダメージを与える（固定ダメージの例として1）
+            Controller targetPlayer = hit.GetComponent<Controller>();
+            if (targetPlayer != null)
+            {
+                targetPlayer.TakeDamage(1); 
             }
         }
 
