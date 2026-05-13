@@ -177,10 +177,14 @@ public class magnet : MonoBehaviour
 			}
 		}
 
-		Bomb bomb = targetRb.GetComponent<Bomb>();
-		if (bomb != null)
+		// šC³F targetRb ‚ª null ‚Å‚È‚¢ê‡‚Ì‚İ GetComponent ‚ğÀs‚·‚é
+		if (targetRb != null)
 		{
-			bomb.isThrown = false;
+			Bomb bomb = targetRb.GetComponent<Bomb>();
+			if (bomb != null)
+			{
+				bomb.isThrown = false;
+			}
 		}
 	}
 

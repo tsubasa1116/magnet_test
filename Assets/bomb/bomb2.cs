@@ -6,7 +6,7 @@ public class Bomb2 : MonoBehaviour
 {
     public float explosionPower = 10f;
     public float explosionRadius = 3f;
-    public float timeToExplode = 5.0f; // �����܂ł̕b��
+    public float timeToExplode = 7.0f; // �����܂ł̕b��
 
     public bool isThrown = false;
     private bool isPolarityLocked = false; // �ɐ������b�N���邩�ǂ���
@@ -95,6 +95,20 @@ public class Bomb2 : MonoBehaviour
             {
                 // 1���œ|�����߁AHP�̍ő�l�ȏ�̋���ȃ_���[�W�𑗂�
                 targetEnemy.TakeDamage(9999f);
+            }
+
+            // ���ǉ��F�{�X�Ƀ_���[�W��^����i�Œ�_���[�W�̗�Ƃ���50�j
+            Boss targetBoss = hit.GetComponent<Boss>();
+            if (targetBoss != null)
+            {
+                targetBoss.TakeDamage(50f);
+            }
+
+            // ���ǉ��F�v���C���[�Ƀ_���[�W��^����i�Œ�_���[�W�̗�Ƃ���1�j
+            Controller targetPlayer = hit.GetComponent<Controller>();
+            if (targetPlayer != null)
+            {
+                targetPlayer.TakeDamage(1);
             }
         }
 

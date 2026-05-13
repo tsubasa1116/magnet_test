@@ -28,7 +28,7 @@ public class Boss : MonoBehaviour
 	[SerializeField] private GameObject bombPrefab;
 	[SerializeField] private float throwForce = 10.0f;
 	[SerializeField] private float upwardForce = 6.0f;
-	[SerializeField] private float throwCooldown = 2.0f;
+	[SerializeField] private float throwCooldown = 3.0f;
 
 	[Header("�Q��")]
 	[SerializeField] private Transform targetPlayer;
