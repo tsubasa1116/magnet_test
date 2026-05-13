@@ -10,6 +10,9 @@ public class Controller : MonoBehaviour
 	float jumpForce = 10;
 	public bool isJumping;
 
+	// ★追加：プレイヤーの体力
+	public int hp = 3;
+
 	// ★追加：ジャンプ判定用のスフィアコライダーを登録する変数
 	[SerializeField] SphereCollider jumpCollider;
 
@@ -72,5 +75,25 @@ public class Controller : MonoBehaviour
 		// トリガー内に何かが入ったとき、それが地面（床）なら
 		// 床に "Ground" などのタグをつけておくとより正確
 		isJumping = false;
+	}
+
+	// ★追加：ダメージを受ける関数
+	public void TakeDamage(int damage)
+	{
+		hp -= damage;
+		Debug.Log("プレイヤーがダメージを受けた！ 残りHP: " + hp);
+
+		if (hp <= 0)
+		{
+			Die();
+		}
+	}
+
+	// ★追加：死亡処理
+	private void Die()
+	{
+		Debug.Log("プレイヤーがやられた！");
+		// プレイヤーを消す、またはゲームオーバーの処理などをここに書く
+		// 例: Destroy(gameObject);
 	}
 }
