@@ -59,7 +59,7 @@ public class magnet : MonoBehaviour
 	}
 
 	// ★追加：モードを切り替えるときの専用関数
-	void ChangeMode(int newMode)
+	public void ChangeMode(int newMode)
 	{
 		magnetMode = newMode;
 
