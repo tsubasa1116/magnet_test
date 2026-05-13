@@ -6,18 +6,18 @@ public class jump : MonoBehaviour
 {
     public AudioClip jumpSound;
 
-    // ジャンプする力（上向きの力）を定義
+    // ジャンプ力の定義
     [SerializeField] private float jumpForceX = 0f;
     [SerializeField] private float jumpForceY = 15.0f; // ※Impulseで飛ばすなら15～20くらいで飛びます
     [SerializeField] private float jumpForceZ = 0f;
 
     /// <summary>
-    /// Colliderが他のトリガーに入った時に呼び出される
+    /// Colliderがこのトリガーに入った時に呼び出される
     /// </summary>
-    /// <param name="other">当たった相手のオブジェクト</param>
+    /// <param name="other">侵入してきたオブジェクト</param>
     private void OnTriggerEnter(Collider other)
     {
-        // 当たった相手のタグが"Player"だった場合
+        // 侵入してきたオブジェクトのタグが"Player"だった場合
         if (other.gameObject.CompareTag("Player"))
         {
             // プレイヤーが持っている磁石スクリプトを取得
@@ -30,14 +30,14 @@ public class jump : MonoBehaviour
 					return;
 				}
 
-				// 床自身の極性をタグで判定
+				// 自身の極性をタグで判定
 				bool isThisN = gameObject.CompareTag("N_Pole");
                 bool isThisS = gameObject.CompareTag("S_Pole");
 
                 // プレイヤーの現在のモード
                 int mode = playerMagnet.magnetMode;
 
-                // 【同じ極同士だった場合】上にジャンプさせる
+                // 反発により同じ極同士の場合、上にジャンプさせる
                 if ((mode == 1 && isThisN) || (mode == 2 && isThisS))
                 {
                     // 音が設定されていれば鳴らす
@@ -49,12 +49,12 @@ public class jump : MonoBehaviour
                     Rigidbody playerRb = other.GetComponent<Rigidbody>();
                     if (playerRb != null)
                     {
-                        // 落下中の速度を一度リセットすると、毎回安定した高さまで飛びます
-                        Vector3 vel = playerRb.velocity;
+                        // 現在の落下速度などを一度リセットしないと、安定した高さで飛びません
+                        Vector3 vel = playerRb.linearVelocity;
                         vel.y = 0;
-                        playerRb.velocity = vel;
+                        playerRb.linearVelocity = vel;
 
-                        // プレイヤーに上向きの力を加える
+                        // プレイヤーに上方向の力を加える
                         playerRb.AddForce(new Vector3(jumpForceX, jumpForceY, jumpForceZ), ForceMode.Impulse);
                     }
 
@@ -69,7 +69,7 @@ public class jump : MonoBehaviour
         }
     }
 
-    // 床に乗ったままでモードを後から切り替えた時にも飛ぶように Stay も追加
+    // 上に乗ったままでモードが切り替わった時にも飛ぶように Stay も追加
     private void OnTriggerStay(Collider other)
     {
         OnTriggerEnter(other);
