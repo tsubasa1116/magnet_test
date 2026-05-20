@@ -6,10 +6,8 @@ public class Bomb2 : MonoBehaviour
 {
     public float explosionPower = 10f;
     public float explosionRadius = 3f;
-    public float timeToExplode = 7.0f; // ï¿½ï¿½ï¿½ï¿½ï¿½Ü‚Å‚Ì•bï¿½ï¿½
 
     public bool isThrown = false;
-    private bool isPolarityLocked = false; // ï¿½Éï¿½ï¿½ï¿½ï¿½ï¿½ï¿½bï¿½Nï¿½ï¿½ï¿½é‚©ï¿½Ç‚ï¿½ï¿½ï¿½
     private bool hasExploded = false;
 
     private Rigidbody rb;
@@ -21,7 +19,6 @@ public class Bomb2 : MonoBehaviour
 
     void Update()
     {
-        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ê‚½ï¿½ï¿½^ï¿½Cï¿½}ï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½ç‚µï¿½A0ï¿½É‚È‚ï¿½ï¿½ï¿½ï¿½ç”šï¿½ï¿½
         if (isThrown && !hasExploded)
         {
             timeToExplode -= Time.deltaTime;
@@ -33,21 +30,42 @@ public class Bomb2 : MonoBehaviour
         }
     }
 
+<<<<<<< HEAD
+    // ’Ç‹LF’n–Ê‚É‚Ô‚Â‚©‚Á‚½‚ç“]‚ª‚ç‚È‚¢‚æ‚¤‚É‹}ƒuƒŒ[ƒL‚ğ‚©‚¯‚é
+=======
     // ï¿½ï¿½ï¿½Ç‰ï¿½ï¿½Fï¿½ï¿½ï¿½ï¿½ï¿½É‚Ô‚Â‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½çŠŠï¿½ï¿½È‚ï¿½ï¿½æ‚¤ï¿½É‹}ï¿½uï¿½ï¿½ï¿½[ï¿½Lï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
     void OnCollisionEnter(Collision collision)
     {
         if (isThrown && !hasExploded && rb != null)
         {
+<<<<<<< HEAD
+            // ”š’e‚ª’n–Ê‚È‚Ç‚ÉÕ“Ë‚µ‚½‚çA‰ñ“]‚âˆÚ“®‚ğŒ¸Š‚³‚¹‚é‚½‚ß‚É’ïR‚ğ‘å‚«‚­‚·‚é
+            rb.linearDamping = 5f;    // ˆÚ“®‚Ì’ïR‚ğ‚©‚È‚è‹­‚­‚·‚é
+            rb.angularDamping = 5f;   // ‰ñ“]‚Ì’ïR‚ğ‘å‚«‚­‚µ‚ÄƒRƒƒRƒ‰ñ“]‚·‚é‚Ì‚ğ~‚ß‚é
+
+            // Š®‘S‚Éƒsƒ^ƒb‚Æ~‚ß‚½‚¢ê‡‚ÍˆÈ‰º‚Ì2s‚ÌƒRƒƒ“ƒgƒAƒEƒg‚ğŠO‚µ‚Ä‚­‚¾‚³‚¢
+=======
             // ï¿½{ï¿½ï¿½ï¿½ï¿½ï¿½nï¿½Ê‚È‚Ç‚É“ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Aï¿½]ï¿½ï¿½ï¿½ï¿½ÆŠï¿½ï¿½ï¿½ï¿½}ï¿½ï¿½ï¿½é‚½ï¿½ß‚É’ï¿½Rï¿½ï¿½å‚«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
             rb.linearDamping = 5f;          // ï¿½Ú“ï¿½ï¿½Ì’ï¿½Rï¿½ï¿½ï¿½ï¿½ï¿½È‚è‹­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
             rb.angularDamping = 5f;   // ï¿½ï¿½]ï¿½Ì’ï¿½Rï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÄƒRï¿½ï¿½ï¿½Rï¿½ï¿½ï¿½]ï¿½ï¿½ï¿½ï¿½Ì‚ï¿½ï¿½~ï¿½ß‚ï¿½
 
             // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Sï¿½Éƒsï¿½^ï¿½bï¿½Æ~ï¿½ß‚ï¿½ï¿½ï¿½ï¿½ê‡ï¿½ÍˆÈ‰ï¿½ï¿½ï¿½2ï¿½sï¿½ÌƒRï¿½ï¿½ï¿½ï¿½ï¿½gï¿½Aï¿½Eï¿½gï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
             // rb.velocity = Vector3.zero;
             // rb.angularVelocity = Vector3.zero;
         }
     }
 
+<<<<<<< HEAD
+    // “Š‚°‚ç‚ê‚½ó‘Ô‚ÉŒÄ‚Î‚ê‚éŠÖ”iƒvƒŒƒCƒ„[‘¤‚©‚çŒÄ‚Ôj
+    public void Launch()
+    {
+        isThrown = true;
+        isPolarityLocked = true; // ”½“]‚µ‚È‚¢‚æ‚¤‹É«‚ğŠm’èiƒƒbƒNj‚·‚é
+
+        // “Š‚°‚½ó‘Ô‚É‹ó‹C’ïR‚ğƒŠƒZƒbƒgi‰“‚­‚Ö”ò‚Î‚·‚½‚ßj
+=======
     // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ê‚½ï¿½uï¿½Ô‚ÉŒÄ‚Î‚ï¿½ï¿½Öï¿½ï¿½iï¿½vï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä‚Ôj
     public void Launch()
     {
@@ -55,6 +73,7 @@ public class Bomb2 : MonoBehaviour
         isPolarityLocked = true; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì‚Å‹Éï¿½ï¿½ï¿½ï¿½mï¿½ï¿½iï¿½ï¿½ï¿½bï¿½Nï¿½jï¿½ï¿½ï¿½ï¿½
 
         // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½uï¿½Ô‚É‹ï¿½Cï¿½ï¿½Rï¿½ï¿½ï¿½ï¿½ï¿½Zï¿½bï¿½gï¿½iï¿½ï¿½ï¿½ï¿½ï¿½æ‚­ï¿½ï¿½Î‚ï¿½ï¿½ï¿½ï¿½ßj
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
         if (rb != null)
         {
             rb.linearDamping = 0f;
@@ -62,10 +81,17 @@ public class Bomb2 : MonoBehaviour
         }
     }
 
+<<<<<<< HEAD
+    // ‹É«‚ğİ’è‚·‚éŒöŠJŠÖ”iŠO•”‚©‚ç•K—v‚Èê‡j
+    public void SetPolarity(string newTag)
+    {
+        // ƒƒbƒN‚³‚ê‚Ä‚¢‚½‚ç•ÏX‚µ‚È‚¢
+=======
     // ï¿½Éï¿½ï¿½ï¿½İ’è‚·ï¿½ï¿½ï¿½ï¿½Jï¿½Öï¿½ï¿½iï¿½ï¿½ï¿½ï¿½ï¿½Kï¿½vï¿½Èê‡ï¿½j
     public void SetPolarity(string newTag)
     {
         // ï¿½ï¿½ï¿½bï¿½Nï¿½ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½ï¿½ï¿½ÏXï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
         if (isPolarityLocked) return;
 
         if (newTag == "N_Pole" || newTag == "S_Pole")
@@ -89,6 +115,17 @@ public class Bomb2 : MonoBehaviour
                 hitRb.AddExplosionForce(explosionPower, transform.position, explosionRadius);
             }
 
+<<<<<<< HEAD
+            // •ÏXF”š”­‚ÉŠª‚«‚Ü‚ê‚½“G(enemy)‚ÍŠmÀ‚É‘¦€‚³‚¹‚é
+            enemy targetEnemy = hit.GetComponent<enemy>();
+            if (targetEnemy != null)
+            {
+                // 1Œ‚‚Å“|‚·‚½‚ßAHP‚ÌÅ‘å’lˆÈã‚Ì‹­‘å‚Èƒ_ƒ[ƒW‚ğ‘—‚é
+                targetEnemy.TakeDamage(9999f);
+            }
+
+            // ’Ç‹LFƒ{ƒX‚Éƒ_ƒ[ƒW‚ğ—^‚¦‚éiİ’èƒ_ƒ[ƒW‚Ì—á‚Æ‚µ‚Ä50j
+=======
             // ï¿½ï¿½ï¿½ÏXï¿½Fï¿½ï¿½ï¿½ï¿½ï¿½ÉŠï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ü‚ê‚½ï¿½G(enemy)ï¿½ÍŠmï¿½ï¿½ï¿½É‘ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
             enemy targetEnemy = hit.GetComponent<enemy>();
             if (targetEnemy != null)
@@ -98,13 +135,18 @@ public class Bomb2 : MonoBehaviour
             }
 
             // ï¿½ï¿½ï¿½Ç‰ï¿½ï¿½Fï¿½{ï¿½Xï¿½Éƒ_ï¿½ï¿½ï¿½[ï¿½Wï¿½ï¿½^ï¿½ï¿½ï¿½ï¿½iï¿½Å’ï¿½_ï¿½ï¿½ï¿½[ï¿½Wï¿½Ì—ï¿½Æ‚ï¿½ï¿½ï¿½50ï¿½j
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
             Boss targetBoss = hit.GetComponent<Boss>();
             if (targetBoss != null)
             {
                 targetBoss.TakeDamage(50f); 
             }
 
+<<<<<<< HEAD
+            // ’Ç‹LFƒvƒŒƒCƒ„[‚Éƒ_ƒ[ƒW‚ğ—^‚¦‚éiİ’èƒ_ƒ[ƒW‚Ì—á‚Æ‚µ‚Ä1j
+=======
             // ï¿½ï¿½ï¿½Ç‰ï¿½ï¿½Fï¿½vï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½[ï¿½Éƒ_ï¿½ï¿½ï¿½[ï¿½Wï¿½ï¿½^ï¿½ï¿½ï¿½ï¿½iï¿½Å’ï¿½_ï¿½ï¿½ï¿½[ï¿½Wï¿½Ì—ï¿½Æ‚ï¿½ï¿½ï¿½1ï¿½j
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
             Controller targetPlayer = hit.GetComponent<Controller>();
             if (targetPlayer != null)
             {

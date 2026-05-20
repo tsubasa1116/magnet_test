@@ -136,6 +136,18 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+<<<<<<< HEAD
+                },
+                {
+                    ""name"": ""Dash"",
+                    ""type"": ""Button"",
+                    ""id"": ""f881331e-40a6-467b-8fca-5de3af719865"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+=======
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
                 }
             ],
             ""bindings"": [
@@ -153,7 +165,11 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                 {
                     ""name"": ""up"",
                     ""id"": ""a75dc6e9-24fb-4b9d-814d-b4ed4da54f74"",
+<<<<<<< HEAD
+                    ""path"": ""<Keyboard>/w"",
+=======
                     ""path"": """",
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
@@ -164,7 +180,11 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                 {
                     ""name"": ""down"",
                     ""id"": ""de014c28-ad04-4c82-a500-844ff0a0c9d0"",
+<<<<<<< HEAD
+                    ""path"": ""<Keyboard>/s"",
+=======
                     ""path"": """",
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
@@ -175,7 +195,11 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                 {
                     ""name"": ""left"",
                     ""id"": ""b8df6592-9cc7-4a64-8fc4-4603d24d4a26"",
+<<<<<<< HEAD
+                    ""path"": ""<Keyboard>/a"",
+=======
                     ""path"": """",
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
@@ -186,7 +210,11 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                 {
                     ""name"": ""right"",
                     ""id"": ""4fb1974d-1939-4f05-84c1-ffa39ce194f9"",
+<<<<<<< HEAD
+                    ""path"": ""<Keyboard>/d"",
+=======
                     ""path"": """",
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
@@ -208,7 +236,11 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                 {
                     ""name"": """",
                     ""id"": ""3e7a622d-2b9b-43ba-b1a5-26dbad07c659"",
+<<<<<<< HEAD
+                    ""path"": ""<Gamepad>/buttonEast"",
+=======
                     ""path"": ""<Gamepad>/buttonSouth"",
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
@@ -228,6 +260,8 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                     ""isPartOfComposite"": false
                 },
                 {
+<<<<<<< HEAD
+=======
                     ""name"": ""2D Vector"",
                     ""id"": ""9a620ba5-d809-4f70-8764-479f67a48790"",
                     ""path"": ""2DVector"",
@@ -283,6 +317,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                     ""isPartOfComposite"": true
                 },
                 {
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
                     ""name"": """",
                     ""id"": ""f4fa6285-6230-4352-8e62-584d5e91f642"",
                     ""path"": ""<Gamepad>/rightStick"",
@@ -295,6 +330,20 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                 },
                 {
                     ""name"": """",
+<<<<<<< HEAD
+                    ""id"": ""87f0133b-ea5b-4cdc-a7e5-f507f9546c93"",
+                    ""path"": ""<Mouse>/delta"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Camera"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+=======
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
                     ""id"": ""6ef1be4f-0ab7-46f2-b4e8-f29db5aae098"",
                     ""path"": ""<Gamepad>/leftTrigger"",
                     ""interactions"": """",
@@ -303,6 +352,20 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                     ""action"": ""Invert"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+<<<<<<< HEAD
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""2eaa807a-f67e-400a-9462-5fbc3b3210b2"",
+                    ""path"": ""<Gamepad>/buttonSouth"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Dash"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+=======
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
                 }
             ]
         },
@@ -384,6 +447,10 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         m_Player_ManeuverGear = m_Player.FindAction("ManeuverGear", throwIfNotFound: true);
         m_Player_Camera = m_Player.FindAction("Camera", throwIfNotFound: true);
         m_Player_Invert = m_Player.FindAction("Invert", throwIfNotFound: true);
+<<<<<<< HEAD
+        m_Player_Dash = m_Player.FindAction("Dash", throwIfNotFound: true);
+=======
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Submit = m_UI.FindAction("Submit", throwIfNotFound: true);
@@ -475,6 +542,10 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_ManeuverGear;
     private readonly InputAction m_Player_Camera;
     private readonly InputAction m_Player_Invert;
+<<<<<<< HEAD
+    private readonly InputAction m_Player_Dash;
+=======
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
     /// <summary>
     /// Provides access to input actions defined in input action map "Player".
     /// </summary>
@@ -507,6 +578,13 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         /// </summary>
         public InputAction @Invert => m_Wrapper.m_Player_Invert;
         /// <summary>
+<<<<<<< HEAD
+        /// Provides access to the underlying input action "Player/Dash".
+        /// </summary>
+        public InputAction @Dash => m_Wrapper.m_Player_Dash;
+        /// <summary>
+=======
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
         /// Provides access to the underlying input action map instance.
         /// </summary>
         public InputActionMap Get() { return m_Wrapper.m_Player; }
@@ -547,6 +625,12 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
             @Invert.started += instance.OnInvert;
             @Invert.performed += instance.OnInvert;
             @Invert.canceled += instance.OnInvert;
+<<<<<<< HEAD
+            @Dash.started += instance.OnDash;
+            @Dash.performed += instance.OnDash;
+            @Dash.canceled += instance.OnDash;
+=======
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
         }
 
         /// <summary>
@@ -573,6 +657,12 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
             @Invert.started -= instance.OnInvert;
             @Invert.performed -= instance.OnInvert;
             @Invert.canceled -= instance.OnInvert;
+<<<<<<< HEAD
+            @Dash.started -= instance.OnDash;
+            @Dash.performed -= instance.OnDash;
+            @Dash.canceled -= instance.OnDash;
+=======
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
         }
 
         /// <summary>
@@ -766,6 +856,16 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnInvert(InputAction.CallbackContext context);
+<<<<<<< HEAD
+        /// <summary>
+        /// Method invoked when associated input action "Dash" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnDash(InputAction.CallbackContext context);
+=======
+>>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.
