@@ -13,16 +13,23 @@ public class magnet : MonoBehaviour
 	public int magnetMode = 1;
 	public bool isActive = false;
 
-	public GameObject NMugUI;
+    public float uiRotateSec = 0.3f; // UIが回転するのにかかる時間
+    private bool isChangeMode = false; // モードが切り替わっている途中かどうか「
+
+	public float buttonAnimSec = 0.2f; // ボタンが押されてから元に戻るまでの時間
+	public float buttonZoomScale = 1.2f; // ボタンが押されたときにどれくらい大きくなるか
+
+    public GameObject NMugUI;
 	public GameObject SMugUI;
-	public GameObject onMugUI;
-	public GameObject offMugUI;
+	public GameObject ModeButton;
+	//public GameObject onMugUI;
+	//public GameObject offMugUI;
 
 	private Rigidbody targetRb;
 	private bool isAttached = false;    // くっついているか
 
-	// Start is called before the first frame update
-	void Start()
+    // Start is called before the first frame update
+    void Start()
 	{
 		UpdateUI();
 	}
@@ -36,23 +43,23 @@ public class magnet : MonoBehaviour
 			if (magnetMode == 1) ChangeMode(2);
 			else ChangeMode(1);
 		}
-		if (Input.GetKeyDown(KeyCode.E))
-		{
-			if (isActive) isActive = false;
-			else isActive = true;
-			UpdateUI(); // オンオフを変えたらUIの表示を更新する
+		//if (Input.GetKeyDown(KeyCode.E))
+		//{
+		//	if (isActive) isActive = false;
+		//	else isActive = true;
+		//	UpdateUI(); // オンオフを変えたらUIの表示を更新する
 
-			// オフにした時は持っている物を離す
-			if (!isActive)
-			{
-				ReleaseTarget();
-			}
-			else
-			{
-				//オンにした時に既に違う極の物を持っていたら弾き飛ばす
-				CheckAndLaunchTarget();
-			}
-		}
+		//	// オフにした時は持っている物を離す
+		//	if (!isActive)
+		//	{
+		//		ReleaseTarget();
+		//	}
+		//	else
+		//	{
+		//		//オンにした時に既に違う極の物を持っていたら弾き飛ばす
+		//		CheckAndLaunchTarget();
+		//	}
+		//}
 
 		// 磁石のモードに合わせて引き寄せる
 		AttractObjects();
@@ -61,17 +68,67 @@ public class magnet : MonoBehaviour
 	// ★追加：モードを切り替えるときの専用関数
 	public void ChangeMode(int newMode)
 	{
-		magnetMode = newMode;
+		if(isChangeMode) return; // すでに切り替え中なら何もしない
 
-		UpdateUI();
-
-		if (isActive)
+		if(ModeButton != null)
 		{
-			CheckAndLaunchTarget();
-		}
-	}
+			StartCoroutine(AnimateButtonPress());
+        }
+        StartCoroutine(RotateUI(newMode)); // UI回転開始
+    }
+	private IEnumerator AnimateButtonPress()
+	{
+		Vector3 initScale = ModeButton.transform.localScale;
+		Vector3 targetScale = initScale * buttonZoomScale;
+		float halfSec = buttonAnimSec / 2f;
+        float time = 0.0f;
 
-	void CheckAndLaunchTarget()
+		while (time < halfSec)
+		{
+			time += Time.deltaTime;
+			float rate = time / halfSec;
+			ModeButton.transform.localScale = Vector3.Lerp(initScale, targetScale, rate);
+			yield return null;
+		}
+		time = 0.0f;
+
+		while (time < halfSec)
+		{
+			time += Time.deltaTime;
+			float rate = time / halfSec;
+			ModeButton.transform.localScale = Vector3.Lerp(targetScale, initScale, rate);
+			yield return null;
+		}
+		ModeButton.transform.localScale = initScale;
+    }
+
+    private IEnumerator RotateUI(int newMode)
+	{
+		isChangeMode = true;
+
+		GameObject currentUI = magnetMode == 1 ? NMugUI : SMugUI;
+
+		if (currentUI != null)
+		{
+			float time = 0.0f;
+			Vector3 start = currentUI.transform.localEulerAngles;
+
+			while (time < uiRotateSec)
+			{
+				time += Time.deltaTime;
+				float rate = time / uiRotateSec;
+				float angle = Mathf.Lerp(0f, 360f, rate);
+				currentUI.transform.localEulerAngles = new Vector3(start.x, start.y, start.z - angle);
+				yield return null;
+            }
+			currentUI.transform.localEulerAngles = start;
+        }
+		magnetMode = newMode;
+		UpdateUI();
+		CheckAndLaunchTarget();
+		isChangeMode = false;
+    }
+    void CheckAndLaunchTarget()
 	{
 		// もし何か持っている状態で、モードが「反発」に変わったら吹き飛ばす！
 		if (targetRb != null && isAttached)
@@ -91,8 +148,8 @@ public class magnet : MonoBehaviour
 	{
 		if (NMugUI != null) NMugUI.SetActive(magnetMode == 1);
 		if (SMugUI != null) SMugUI.SetActive(magnetMode == 2);
-		if (onMugUI != null) onMugUI.SetActive(!isActive);
-		if (offMugUI != null) offMugUI.SetActive(isActive);
+		//if (onMugUI != null) onMugUI.SetActive(!isActive);
+		//if (offMugUI != null) offMugUI.SetActive(isActive);
 	}
 
 	// ★追加：勢いよく吹き飛ばす（発射）処理
