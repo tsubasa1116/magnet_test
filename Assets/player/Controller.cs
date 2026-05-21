@@ -11,7 +11,7 @@ public class Controller : MonoBehaviour
 	float jumpForce = 10;
 	public bool isJumping;
 
-	public int hp = 3;
+	public int hp = 100;
 
 	[SerializeField] SphereCollider jumpCollider;
 

@@ -25,6 +25,10 @@ public class enemy_Sky : MonoBehaviour
     [SerializeField] private float searchRadius = 5.0f; // 探索する範囲
     [SerializeField] private float noticeTime = 1.0f;
 
+    [Header("攻撃")]
+    [SerializeField] private float attackInterval = 2.0f; // ビームを撃つ間隔
+    [SerializeField] private float beamSpeed = 10.0f;     // ビームの飛ぶ速度
+
     [Header("浮遊")]
     [SerializeField] private float hoverHeight = 2.0f;     // 地面からの基本の高さ
     [SerializeField] private float hoverRange = 0.5f;  // ふわふわの揺れ幅
@@ -38,6 +42,7 @@ public class enemy_Sky : MonoBehaviour
     [SerializeField] private Transform targetPlayer;
     [SerializeField] private GameObject markExclamation; // ！マーク
     [SerializeField] private GameObject markQuestion;    // ？マーク
+    [SerializeField] private GameObject beam;    // ビーム
 
     private float currentHp;
     private NavMeshAgent agent;
@@ -48,6 +53,7 @@ public class enemy_Sky : MonoBehaviour
     private EnemyState currentState = EnemyState.Wait;
     private float searchTimer; // 探索の残り時間を計るタイマー
     private float noticeTimer;
+    private float attackTimer; // 攻撃間隔を管理するタイマー
 
     private bool isMagnetized = false; // 磁力の影響(吹っ飛んでいる最中など)を受けているかどうか
     private float timeOffset;          // 個体ごとにフワフワのタイミングをずらすための乱数
@@ -88,6 +94,12 @@ public class enemy_Sky : MonoBehaviour
             agent.baseOffset = hoverHeight + Mathf.Sin((Time.time + timeOffset) * hoverSpeed) * hoverRange;
         }
 
+        // 攻撃タイマーの更新
+        if (attackTimer > 0f)
+        {
+            attackTimer -= Time.deltaTime;
+        }
+
         // 磁力で飛ばされている間はAIの思考（追跡など）をストップする
         if (isMagnetized) return;
         if (targetPlayer == null) return;
@@ -121,6 +133,9 @@ public class enemy_Sky : MonoBehaviour
                         // プレイヤーの反対方向の少し先に目的地を設定
                         Vector3 retreatPos = transform.position + dirAway * 2.0f;
                         agent.SetDestination(retreatPos);
+
+                        // 逃げながらも攻撃はする
+                        AimAndAttack();
                     }
                     // 攻撃範囲より外の場合は近づく
                     else if (distanceToPlayer > attackRange)
@@ -128,17 +143,11 @@ public class enemy_Sky : MonoBehaviour
                         agent.isStopped = false;
                         agent.SetDestination(targetPlayer.position);
                     }
-                    // ちょうどよい距離（keepDistanceとattackRangeの間）
+                    // ちょうどよい距離（distanceとattackRangeの間）
                     else
                     {
                         agent.isStopped = true;
-
-                        // 常にプレイヤーの方向を向かせる
-                        Vector3 lookDir = targetPlayer.position - transform.position;
-                        lookDir.y = 0; // 水平のみ回転
-                        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5.0f);
-
-                        Attack();
+                        AimAndAttack();
                     }
                 }
                 break;
@@ -158,6 +167,20 @@ public class enemy_Sky : MonoBehaviour
                 else if (agent.remainingDistance < 0.5f) ChangeState(EnemyState.Wait);
                 break;
         }
+    }
+
+    // プレイヤーの方向を向いて攻撃を行う
+    private void AimAndAttack()
+    {
+        // 常にプレイヤーの方向を向かせる
+        Vector3 lookDir = targetPlayer.position - transform.position;
+        lookDir.y = 0; // 水平のみ回転
+        if (lookDir != Vector3.zero)
+        {
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5.0f);
+        }
+
+        Attack();
     }
 
     // 磁力をN極・S極として感知して力を受ける処理
@@ -347,7 +370,39 @@ public class enemy_Sky : MonoBehaviour
         if (mark != null) mark.SetActive(false);
     }
 
-    private void Attack() { /* 攻撃処理 */ }
+    private void Attack()
+    {
+        if (attackTimer <= 0f)
+        {
+            FireBeam();
+            attackTimer = attackInterval;
+        }
+    }
+
+    private void FireBeam()
+    {
+        if (beam == null || targetPlayer == null) return;
+
+        // プレイヤーの方向を計算
+        Vector3 direction = (targetPlayer.position - transform.position).normalized;
+
+        // キャラクターの少し前方にビームを生成
+        Vector3 spawnPos = transform.position + direction * 1.5f;
+
+        // ビームの生成
+        GameObject firedBeam = Instantiate(beam, spawnPos, Quaternion.LookRotation(direction));
+
+        // ビームを飛ばす処理（ビームにRigidbodyがついている前提）
+        Rigidbody beamRb = firedBeam.GetComponent<Rigidbody>();
+        if (beamRb != null)
+        {
+            beamRb.linearVelocity = direction * beamSpeed;
+        }
+
+        // メモ: ダメージを与える処理について
+        // ビームのプレハブ側（beam）に `OnColliderEnter` や `OnTriggerEnter` を実装したスクリプトをアタッチして、
+        // プレイヤーに当たった時にプレイヤー側の `TakeDamage` のようなメソッドを呼び出すようにしてください。
+    }
 
     public void TakeDamage(float damageAmount)
     {

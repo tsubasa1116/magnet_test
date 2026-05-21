@@ -22,8 +22,8 @@ public class magnet : MonoBehaviour
     public GameObject NMugUI;
 	public GameObject SMugUI;
 	public GameObject ModeButton;
-	//public GameObject onMugUI;
-	//public GameObject offMugUI;
+	public GameObject onMugUI;
+	public GameObject offMugUI;
 
 	private Rigidbody targetRb;
 	private bool isAttached = false;    // くっついているか
@@ -38,28 +38,34 @@ public class magnet : MonoBehaviour
 	void Update()
 	{
 		// キー操作でモード切替（直接数字を変えるのではなく、専用関数を呼ぶ！）
-		if (Input.GetKeyDown(KeyCode.Q))
+		if (Input.GetKeyDown(KeyCode.Mouse1))
 		{
 			if (magnetMode == 1) ChangeMode(2);
 			else ChangeMode(1);
 		}
-		//if (Input.GetKeyDown(KeyCode.E))
-		//{
-		//	if (isActive) isActive = false;
-		//	else isActive = true;
-		//	UpdateUI(); // オンオフを変えたらUIの表示を更新する
-
-		//	// オフにした時は持っている物を離す
-		//	if (!isActive)
-		//	{
-		//		ReleaseTarget();
-		//	}
-		//	else
-		//	{
-		//		//オンにした時に既に違う極の物を持っていたら弾き飛ばす
-		//		CheckAndLaunchTarget();
-		//	}
-		//}
+		if (Input.GetKey(KeyCode.Mouse0))
+		{
+			if (!isActive)
+			{
+				isActive = true;
+				UpdateUI();
+				
+				//オンにした時に既に違う極の物を持っていたら弾き飛ばす
+                CheckAndLaunchTarget();
+			}
+			
+		}
+		else if (Input.GetKeyUp(KeyCode.Mouse0))
+		{
+			if (isActive)
+			{
+				isActive = false;
+                UpdateUI();
+				
+				// オフにした時は持っている物を離す
+				ReleaseTarget();
+			}
+		}
 
 		// 磁石のモードに合わせて引き寄せる
 		AttractObjects();
@@ -148,8 +154,8 @@ public class magnet : MonoBehaviour
 	{
 		if (NMugUI != null) NMugUI.SetActive(magnetMode == 1);
 		if (SMugUI != null) SMugUI.SetActive(magnetMode == 2);
-		//if (onMugUI != null) onMugUI.SetActive(!isActive);
-		//if (offMugUI != null) offMugUI.SetActive(isActive);
+		if (onMugUI != null) onMugUI.SetActive(isActive);
+		if (offMugUI != null) offMugUI.SetActive(!isActive);
 	}
 
 	// ★追加：勢いよく吹き飛ばす（発射）処理

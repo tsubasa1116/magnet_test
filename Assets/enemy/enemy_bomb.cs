@@ -25,6 +25,7 @@ public class enemy_bomb : MonoBehaviour
     [SerializeField] private float noticeTime   = 1.0f;
     [SerializeField] private float spinSpeed    = 360.0f; // 回転速度（度/秒）
     [SerializeField] private float attackSpeed  = 3.0f;
+    [SerializeField] private int attackDamage = 1;
 
     [Header("浮遊")]
     [SerializeField] private float hoverHeight = 2.0f;     // 地面からの基本の高さ
@@ -90,7 +91,7 @@ public class enemy_bomb : MonoBehaviour
             if(isHover) agent.baseOffset = hoverHeight + Mathf.Sin((Time.time + timeOffset) * hoverSpeed) * hoverRange;
         }
 
-        // 磁力で飛ばされている間はAIの思考（追跡など）をストップする
+        // 磁力で飛ばされている間はAIをストップする
         if (isMagnetized) return;
         if (targetPlayer == null) return;
 
@@ -123,17 +124,17 @@ public class enemy_bomb : MonoBehaviour
                         // 回転処理
                         Quaternion lookRotation = Quaternion.LookRotation(dirToPlayer.normalized);
                         float spinAngle = (Time.time * spinSpeed) % 360.0f;
-                        transform.rotation = lookRotation * Quaternion.Euler(0, 0, spinAngle);
+                        transform.rotation = lookRotation * Quaternion.Euler(0, 180, spinAngle);
 
                         // 3次元での直線追尾（体当たり）
                         transform.position = Vector3.MoveTowards(transform.position, targetCenterPos, attackSpeed * Time.deltaTime);
                     }
 
-                    // プレイヤーに接近した時の判定
-                    if (Vector3.Distance(transform.position, targetCenterPos) <= 0.5f)
-                    {
-                        Attack();
-                    }
+                    //// プレイヤーに接近した時の判定
+                    //if (Vector3.Distance(transform.position, targetCenterPos) <= 1.0f)
+                    //{
+                    //    Attack();
+                    //}
                 }
                 break;
 
@@ -363,7 +364,15 @@ public class enemy_bomb : MonoBehaviour
         if (mark != null) mark.SetActive(false);
     }
 
-    private void Attack() { /* 攻撃処理 */ }
+    private void Attack() 
+    {
+        var playerController = targetPlayer.GetComponent<Controller>();
+        if (playerController != null)
+        {
+            playerController.TakeDamage(attackDamage);
+        }
+        Die();
+    }
 
     public void TakeDamage(float damageAmount)
     {
@@ -374,5 +383,18 @@ public class enemy_bomb : MonoBehaviour
     private void Die()
     {
         Destroy(gameObject);
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        // 突撃でダメージ判定
+        if (currentState != EnemyState.Attack) return;
+
+        // ぶつかった相手がプレイヤーなら攻撃して自爆
+        var playerController = collision.gameObject.GetComponent<Controller>();
+        if (playerController != null)
+        {
+            Attack();
+        }
     }
 }
