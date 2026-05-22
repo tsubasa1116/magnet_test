@@ -16,6 +16,13 @@ public class player_HPBer : MonoBehaviour
     private float currentHP;
     private float displayHP;
 
+    [Header("Shake_パラメータ")]
+    [SerializeField] private RectTransform shakeTarget; // 揺らす対象（指定しなければこのスクリプトがついているオブジェクト）
+    [SerializeField] private float shakeDuration = 0.3f; // 揺れる時間
+    [SerializeField] private float shakeMagnitude = 10f; // 揺れの強さ
+    private float shakeTimer = 0f;
+    private Vector2 initialPosition;
+
     [Range(0, 100)] public float testHP = 100f;
 
     private float hpVel = 0.0f;
@@ -33,6 +40,16 @@ public class player_HPBer : MonoBehaviour
         currentHP = maxHP;
         displayHP = maxHP;
         startHP = maxHP;
+
+        if (shakeTarget == null)
+        {
+            shakeTarget = GetComponent<RectTransform>();
+        }
+        if (shakeTarget != null)
+        {
+            initialPosition = shakeTarget.anchoredPosition;
+        }
+
         UpdateHPBar();
     }
 
@@ -69,6 +86,11 @@ public class player_HPBer : MonoBehaviour
 
         if (player != null)
         {
+            // HPが減った場合にシェイクを開始する
+            if (currentHP > player.hp)
+            {
+                shakeTimer = shakeDuration;
+            }
             currentHP = player.hp;
         }
 
@@ -77,6 +99,31 @@ public class player_HPBer : MonoBehaviour
         //displayHP = Mathf.SmoothDamp(displayHP, currentHP, ref hpVel, smoothSpeed);        // スムーズダンピング 7
         displayHP = Mathf.MoveTowards(displayHP, currentHP, Time.deltaTime * smoothSpeed); // 一定速度 20
         UpdateHPBar();
+
+        HandleShake();
+    }
+
+    void HandleShake()
+    {
+        if (shakeTarget == null) return;
+
+        if (shakeTimer > 0)
+        {
+            shakeTimer -= Time.deltaTime;
+
+            // 時間経過に合わせて揺れを徐々に小さくする
+            float currentMagnitude = shakeMagnitude * (shakeTimer / shakeDuration);
+
+            float offsetX = Random.Range(-1f, 1f) * currentMagnitude;
+            float offsetY = Random.Range(-1f, 1f) * currentMagnitude;
+
+            shakeTarget.anchoredPosition = initialPosition + new Vector2(offsetX, offsetY);
+        }
+        else if (shakeTarget.anchoredPosition != initialPosition)
+        {
+            // シェイクが終わったら元の位置に戻す
+            shakeTarget.anchoredPosition = initialPosition;
+        }
     }
 
     void UpdateHPBar()
