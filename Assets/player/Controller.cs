@@ -27,7 +27,7 @@ public class Controller : MonoBehaviour
 	private PlayerControls controls;
 	private Vector2 moveInput;
 	
-<<<<<<< HEAD
+
 	// カメラ操作用の変数
 	private Vector2 cameraInput;
 	public Transform cameraTransform;   // カメラ（またはカメラの親のピボット）をInspectorで登録
@@ -40,14 +40,13 @@ public class Controller : MonoBehaviour
 	public float normalSpeed = 7f;
 	public float dashSpeed = 12f; 
 
-=======
-	// ★追加：カメラ操作用の変数
-	private Vector2 cameraInput;
-	public Transform cameraTransform;   // カメラ（またはカメラの親のピボット）をInspectorで登録
-	public float cameraSensitivity = 200f;
-	private float cameraPitch = 0f;     // 上下回転の蓄積
+	//// ★追加：カメラ操作用の変数
+	//private Vector2 cameraInput;
+	//public Transform cameraTransform;   // カメラ（またはカメラの親のピボット）をInspectorで登録
+	//public float cameraSensitivity = 200f;
+	//private float cameraPitch = 0f;     // 上下回転の蓄積
 
->>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
+
 	void Awake()
 	{
 		controls = new PlayerControls();
@@ -58,19 +57,17 @@ public class Controller : MonoBehaviour
 			PerformJump();
 		};
 
-<<<<<<< HEAD
-=======
+
 		// ★修正：自動生成されたプロパティ名に合わせて _3DManeuverGear を使う
->>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
+
 		controls.Player.ManeuverGear.performed += ctx =>
 		{
 			StartManeuverGear();
 		};
 
-<<<<<<< HEAD
-=======
+
 		// ★追加：Invert（極の入れ替え）の入力
->>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
+
 		controls.Player.Invert.performed += ctx =>
 		{
 			PerformInvert();
@@ -99,13 +96,12 @@ public class Controller : MonoBehaviour
 		{
 			cameraTransform = Camera.main.transform;
 		}
-<<<<<<< HEAD
+
 
 		// ★追加：マウスカーソルを画面中央にロック（非表示にする）
 		Cursor.lockState = CursorLockMode.Locked;
 		Cursor.visible = false;
-=======
->>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
+
 	}
 	
 	void Update()
@@ -128,17 +124,15 @@ public class Controller : MonoBehaviour
 			return; 
 		}
 
-<<<<<<< HEAD
 		// ジャンプ入力
-=======
 		// ★追加：キーボードからのジャンプ入力
->>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
+
 		if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
 		{
 			PerformJump();
 		}
 
-<<<<<<< HEAD
+
 		// ★変更：Input Systemから移動量を取得する
 		moveInput = controls.Player.Move.ReadValue<Vector2>();
 
@@ -173,7 +167,7 @@ public class Controller : MonoBehaviour
 		var horizontalRotation = Quaternion.AngleAxis(camYaw, Vector3.up);
 		var velocity = horizontalRotation * new Vector3(moveInput.x, 0, moveInput.y).normalized;
 
-=======
+
 		// ★修正：FindActionを使わず、直接 Move プロパティから値を読み取る
 		moveInput = controls.Player.Move.ReadValue<Vector2>();
 
@@ -195,12 +189,12 @@ public class Controller : MonoBehaviour
 		}
 		
 		// カメラのY軸回転を基準にして移動方向を決定
-		float camYaw = cameraTransform != null ? cameraTransform.eulerAngles.y : Camera.main.transform.eulerAngles.y;
-		var horizontalRotation = Quaternion.AngleAxis(camYaw, Vector3.up);
-		var velocity = horizontalRotation * new Vector3(moveInput.x, 0, moveInput.y).normalized;
+		//float camYaw = cameraTransform != null ? cameraTransform.eulerAngles.y : Camera.main.transform.eulerAngles.y;
+		//var horizontalRotation = Quaternion.AngleAxis(camYaw, Vector3.up);
+		//var velocity = horizontalRotation * new Vector3(moveInput.x, 0, moveInput.y).normalized;
 
 		var speed = Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed ? 10 : 7;
->>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
+
 		var rotationSpeed = 600 * Time.deltaTime;
 
 		if (velocity.magnitude > 0.5f)
@@ -209,18 +203,13 @@ public class Controller : MonoBehaviour
 		}
 		transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationSpeed);
 
-<<<<<<< HEAD
+
 		Vector3 nextPosition = rb.position + velocity * currentSpeed * Time.deltaTime;
 		rb.MovePosition(nextPosition);
 	}
 
-=======
-		Vector3 nextPosition = rb.position + velocity * speed * Time.deltaTime;
-		rb.MovePosition(nextPosition);
-	}
 
 	// ★追加：両方から呼び出せるようにジャンプ処理を関数化
->>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
 	private void PerformJump()
 	{
 		if (isMagnetMoving)
@@ -234,39 +223,30 @@ public class Controller : MonoBehaviour
 		}
 	}
 
-<<<<<<< HEAD
-=======
 	// ★追加：磁極の反転処理
->>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
+
 	private void PerformInvert()
 	{
 		if (magnetScript != null)
 		{
-<<<<<<< HEAD
-			int newMode = magnetScript.magnetMode == 1 ? 2 : 1;
-			magnetScript.ChangeMode(newMode);
-=======
 			// 現在のモードが 1(N極) なら 2(S極) へ、そうでなければ 1(N極) に切り替える
 			int newMode = magnetScript.magnetMode == 1 ? 2 : 1;
 			
 			// magnetスクリプトのメソッドを呼び出してモードを変更
 			magnetScript.ChangeMode(newMode);
 			
->>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
 			Debug.Log("極を反転しました: " + (newMode == 1 ? "N極" : "S極"));
 		}
 	}
 
-<<<<<<< HEAD
+
 	// ★変更：スティック、マウス、タッチパッドすべてに対応させたカメラ処理
-=======
+
 	// ★追加：カメラの回転処理関数
->>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
 	private void HandleCameraRotation()
 	{
 		if (cameraTransform == null) return;
 
-<<<<<<< HEAD
 		float finalYaw = 0f;
 		float finalPitch = 0f;
 
@@ -293,7 +273,7 @@ public class Controller : MonoBehaviour
 
 		// 上下の回転（X軸）適用 - 制限をかけるため別計算
 		cameraPitch -= finalPitch;
-=======
+
 		// Time.deltaTimeを掛けることで、フレームレートに依存せず一定の速度で回転するようになります。
 		// 感度(cameraSensitivity)は Inspector で 150～300 などの大きめの値に設定してみてください。
 		float currentSensitivity = cameraSensitivity * Time.deltaTime;
@@ -303,7 +283,7 @@ public class Controller : MonoBehaviour
 
 		// 上下の回転（X軸） - 制限をかけるため別計算
 		cameraPitch -= cameraInput.y * currentSensitivity;
->>>>>>> f5a27c0cbc25f7df077a8b8eaabb67fe3e35fb7d
+
 		cameraPitch = Mathf.Clamp(cameraPitch, -60f, 60f); // 上下向きすぎ防止
 
 		// 新しい回転を適用
