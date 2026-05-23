@@ -3,55 +3,55 @@ using UnityEngine;
 using UnityEngine.AI;
 
 [RequireComponent(typeof(NavMeshAgent))]
-[RequireComponent(typeof(Rigidbody))] // ���ǉ��F�������Z�Ő�����΂����߂ɕK�v
+[RequireComponent(typeof(Rigidbody))] // 追記：磁力の物理演算で吹き飛ばすために必要
 public class enemy : MonoBehaviour
 {
     private enum EnemyState
     {
-        Wait,   // �ҋ@�i�����ʒu�ɂ���j
-        Notice, // �������ċ����Ă���i�����~�܂��Ă���j
-        Chase,  // �ǐՁi�����Ēǂ������Ă���j
-        Attack, // �U��
-        Search, // �������ăE���E���T���Ă���
-        Return  // ���߂ď����ʒu�ɋA���Ă���
+        Wait,   // 待機（初期位置にいる）
+        Notice, // 発見（立ち止まって驚いている）
+        Chase,  // 追跡（プレイヤーを見つけて追いかけている）
+        Attack, // 攻撃
+        Search, // 探索（見失って周囲をウロウロ探している）
+        Return  // 戻る（諦めて初期位置に帰っている）
     }
 
-    [Header("�p�����[�^")]
+    [Header("パラメータ")]
     [SerializeField] private float maxHp = 100.0f;
     [SerializeField] private float found = 10.0f;
     [SerializeField] private float attackRange = 2.0f;
-    [SerializeField] private float searchTime = 3.0f;   // ����������E���E�����鎞��
-    [SerializeField] private float searchRadius = 5.0f; // �E���E������͈�
+    [SerializeField] private float searchTime = 3.0f;   // 見失って探索する時間
+    [SerializeField] private float searchRadius = 5.0f; // 探索する範囲
     [SerializeField] private float noticeTime = 1.0f;
 
-    [Header("���̓p�����[�^")] // ���ǉ��F���΂̗͂̐ݒ�
-    [SerializeField] private float magnetRadius = 8.0f;  // �{���Ȃǂ����m���鋗��
-    [SerializeField] private float magnetForce = 50.0f;  // ���������E���������
+    [Header("磁力パラメータ")] // 追記：磁力の影響による力の設定
+    [SerializeField] private float magnetRadius = 8.0f;  // 爆弾などを感知する距離
+    [SerializeField] private float magnetForce = 50.0f;  // 引力・斥力の強さ
 
-    [Header("�Q��")]
+    [Header("対象")]
     [SerializeField] private Transform targetPlayer;
-    [SerializeField] private GameObject markExclamation; // �I
-    [SerializeField] private GameObject markQuestion;    // �H
+    [SerializeField] private GameObject markExclamation; // ！マーク
+    [SerializeField] private GameObject markQuestion;    // ？マーク
 
     private float currentHp;
     private NavMeshAgent agent;
-    private Rigidbody rb; // ���ǉ��F�������Z�p
+    private Rigidbody rb; // 追記：物理演算用
 
     private Vector3 startPosition;
 
     private EnemyState currentState = EnemyState.Wait;
-    private float searchTimer; // �E���E���̎c�莞�Ԃ��v��^�C�}�[
+    private float searchTimer; // 探索中の残り時間を計るタイマー
     private float noticeTimer;
 
-    private bool isMagnetized = false; // ���ǉ��F���͂Ő������ł���Œ����ǂ���
+    private bool isMagnetized = false; // 追記：磁力で吹き飛んでいる最中かどうか
 
     void Start()
     {
         currentHp = maxHp;
         agent = GetComponent<NavMeshAgent>();
-        rb = GetComponent<Rigidbody>(); // ���ǉ�
+        rb = GetComponent<Rigidbody>(); // 物理成分を取得
 
-        // ���i��NavMeshAgent�œ����̂ŕ���(Rigidbody)�̓I�t�ɂ��Ă���
+        // 基本はNavMeshAgentで動くので物理(Rigidbody)はオフにしておく
         if (rb != null) rb.isKinematic = true;
 
         startPosition = transform.position;
@@ -60,21 +60,21 @@ public class enemy : MonoBehaviour
         if (markQuestion != null) markQuestion.SetActive(false);
     }
 
-    void FixedUpdate() // ���ǉ��F�����I�ȗ͂̔����FixedUpdate�ōs��
+    void FixedUpdate() // 追記：物理的な力の処理はFixedUpdateで行う
     {
         MagneticInteraction();
     }
 
     void Update()
     {
-        // ���ǉ��F���͂Ŕ�΂���Ă���Ԃ�AI�̎v�l�i�ǐՂȂǁj���X�g�b�v����
+        // 追記：磁力で吹き飛ばされている間はAIの思考（追跡など）をストップする
         if (isMagnetized) return;
 
         if (targetPlayer == null) return;
 
         float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
 
-        // ���̏�Ԃɂ���Ă�邱�Ƃ�ς���
+        // 今の状態によってやることを変える
         switch (currentState)
         {
             case EnemyState.Wait:
@@ -118,28 +118,28 @@ public class enemy : MonoBehaviour
         }
     }
 
-    // ���ǉ��F���͂�N�ɁES�ɂ����m���ė͂������鏈��
+    // 追記：磁力のN極・S極を感知して力を受ける処理
     private void MagneticInteraction()
     {
-        // �������g�̃^�O���m�F
+        // 自身の極性タグを確認
         bool isMyN = gameObject.CompareTag("N_Pole");
         bool isMyS = gameObject.CompareTag("S_Pole");
 
-        if (!isMyN && !isMyS) return; // ���������Ή����Ă��Ȃ���Ζ���
+        if (!isMyN && !isMyS) return; // 極性が設定されていなければ無視
 
         Collider[] colliders = Physics.OverlapSphere(transform.position, magnetRadius);
         bool feelingMagnet = false;
         Vector3 totalForce = Vector3.zero;
 
-        // ���������Ă���Ώۂ��L�^
+        // 磁力でくっつく対象を記録
         Transform attachedTarget = null;
         float minDistance = float.MaxValue;
 
         foreach (Collider col in colliders)
         {
-            if (col.gameObject == gameObject) continue; // �������g�͏��O
+            if (col.gameObject == gameObject) continue; // 自分自身は除外
 
-            // ���肪 enemy (����) �������犱���Ȃ��i��������j
+            // 相手が enemy (敵同士) なら干渉しない（衝突回避）
             if (col.GetComponent<enemy>() != null) continue;
 
             bool isOtherN = col.CompareTag("N_Pole");
@@ -147,22 +147,22 @@ public class enemy : MonoBehaviour
 
             if (isOtherN || isOtherS)
             {
-                // �������瑊��ւ̕����Ƌ���
+                // 自分から相手への方向と距離を計算
                 Vector3 dirToOther = col.transform.position - transform.position;
                 float distance = dirToOther.magnitude;
 
-                // �������߂�����ꍇ��0���h�~
+                // 近づきすぎた場合に距離が0になるのを防止
                 float safeDistance = distance < 0.5f ? 0.5f : distance;
 
-                // �������߂��Ȃ�قǔ���I�ɗ͂������Ȃ�悤�ɂ���
+                // 近いほど強い力を受けるようにする
                 float force = magnetForce * (1.0f + (magnetRadius - safeDistance) / magnetRadius);
 
-                // �Ⴄ�Ɂi�����񂹂�E�������j
+                // 違う極（引き寄せる・くっつく）
                 if ((isMyN && isOtherS) || (isMyS && isOtherN))
                 {
                     feelingMagnet = true;
 
-                    // �\���ɋ߂���΁u�܂Ƃ����v�����ɂ��邽�߂̔���
+                    // 十分に近ければ「まとわりつく」状態にするための判定
                     if (distance < 2.0f)
                     {
                         if (distance < minDistance)
@@ -173,70 +173,70 @@ public class enemy : MonoBehaviour
                     }
                     else
                     {
-                        // �܂��������͒ʏ�ʂ��������i�G���g�݂̂Ɍ������͂�������j
+                        // まだ遠い場合は通常通り引き寄せる力を加算
                         totalForce += dirToOther.normalized * force;
                     }
                 }
-                // �����Ɂi�����������j
+                // 同じ極（反発して吹き飛ぶ）
                 else if ((isMyN && isOtherN) || (isMyS && isOtherS))
                 {
-                    // �G���g�ւ̔����͂̂݉�����
+                    // 相手から遠ざかる反発力を加算する
                     totalForce -= dirToOther.normalized * force;
                     feelingMagnet = true;
                 }
             }
         }
 
-        // ���͂��󂯂Ă���ۂ̐؂�ւ� (NavMeshAgent��Rigidbody�̐؂�ւ�)
+        // 力を受けている際の切り替え (NavMeshAgentとRigidbodyの切り替え)
         if (feelingMagnet)
         {
             if (agent.enabled)
             {
-                agent.enabled = false;   // �ړ�AI���ꎞ��~
-                rb.isKinematic = false;  // �������Z���I��
+                agent.enabled = false;   // AI移動を一時停止
+                rb.isKinematic = false;  // 物理演算をオン
                 isMagnetized = true;
 
-                // �z���񂹂��₷�����邽�߂ɁA��C��R���ꎞ�I�ɉ�����
+                // 吹き飛びやすくするために、空気抵抗を一時的に設定
                 rb.linearDamping = 0.5f;
             }
 
-            // ������ԁi�܂Ƃ����j�̏���
+            // 吸着状態（まとわりつく）の処理
             if (attachedTarget != null)
             {
-                // ���ǉ��F���e�Ȃǂɖ����������ɂ͎���(mass)���ꎞ�I�ɋɏ��ɂ��đ���������͂��Ȃ���
+                // 追記：相手の挙動を邪魔しないように質量(mass)を極小にする
                 rb.mass = 0.01f;
 
-                // ����̒��S�Ɍ����Ĕ��ɋ����͂ň������葱����i�������j
+                // 相手の中心に向けて引力を発生させ引き寄せ続ける
                 Vector3 stickDir = attachedTarget.position - transform.position;
 
-                // �o�E���h�i�����ɂ��\��j��h�����߁A���x�𐧌�����������
+                // バウンドを防ぐため速度を制限しつつ引き寄せる
                 rb.linearVelocity = stickDir.normalized * 5f;
 
-                // �͋Z�ŃX���b�v�i���C�Ȃǂ𖳎����Ē���t���j������BVelocityChange���g���ċ����I�ɓ������B
+                // 無理やり貼り付かせるために加速度モードで加算
                 rb.AddForce(stickDir.normalized * (magnetForce * 5f), ForceMode.Acceleration);
             }
             else
             {
-                // ���ǉ��F�������Ă��Ȃ����͌��̎��ʂɖ߂��i�f�t�H���g��1�̏ꍇ�j
+                // 追記：吸着していない時は元の質量に戻す
                 rb.mass = 1.0f;
 
                 if (totalForce.magnitude > 0.1f)
                 {
-                    // ForceMode.VelocityChange (���ʖ����ő����ɉ���) ���g���ăO���b�ƈ����񂹂�
+                    // ForceMode.VelocityChange (質量無視で即座に加速) を使って吹き飛ばす
                     rb.AddForce(totalForce * Time.fixedDeltaTime, ForceMode.VelocityChange);
                 }
             }
         }
         else if (isMagnetized)
         {
-            // ���͂̉e���͈͂���O��A������������������AI(NavMesh)�ɖ߂�
+            // 磁力の影響範囲から外れ、速度が落ち着いたらAI(NavMesh)に戻る
             if (rb.linearVelocity.magnitude < 0.5f)
             {
-                rb.mass = 1.0f; // �����ʂ����ɖ߂�
+                rb.mass = 1.0f; // 質量を元に戻す
                 rb.isKinematic = true;
                 isMagnetized = false;
 
-                // NavMesh�i�����鏰�j�̏�ɒ��n�ł��Ă��邩�m�F���Ă��畜�A
+                // NavMesh（歩ける床）の上に着地できているか確認してから復帰
                 NavMeshHit hit;
                 if (NavMesh.SamplePosition(transform.position, out hit, 2.0f, NavMesh.AllAreas))
                 {
@@ -247,11 +247,11 @@ public class enemy : MonoBehaviour
         }
     }
 
-    // ���[�h��؂�ւ���
+    // 状態の切り替え制御
     private void ChangeState(EnemyState nextState)
     {
         currentState = nextState;
-        if (!agent.enabled) return; // ���͂Ŕ��ł��鎞�̓G���[�h�~
+        if (!agent.enabled) return; // 磁力で飛んでいる時はエラー防止
 
         agent.isStopped = false;
 
@@ -300,7 +300,7 @@ public class enemy : MonoBehaviour
         if (mark != null) mark.SetActive(false);
     }
 
-    private void Attack() { /* �U������ */ }
+    private void Attack() { /* 攻撃処理 */ }
 
     public void TakeDamage(float damageAmount)
     {
