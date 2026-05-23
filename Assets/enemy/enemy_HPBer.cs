@@ -16,8 +16,8 @@ public class EnemyHPBar : MonoBehaviour
     [Header("バー速度")]
     [SerializeField] private float blueBarSpeed = 0.5f;
     [SerializeField] private float whiteBarSpeed = 0.5f;
-    [SerializeField] private float damageDelay = 0.5f;
-    private float delayTimer = 0.0f;
+    [SerializeField] private float damageWait = 0.5f;
+    private float waitTimer = 0.0f;
 
     [Header("シェイク")]
     [SerializeField] private float shakeDuration = 0.2f;
@@ -28,7 +28,7 @@ public class EnemyHPBar : MonoBehaviour
 
     [Header("デバッグ")]
     [SerializeField] private float testDamageValue = 20.0f;
-    [SerializeField] private float testHealValue = 20.0f;
+    [SerializeField] private float testHealValue = 100.0f;
 
     private void Start()
     {
@@ -61,9 +61,9 @@ public class EnemyHPBar : MonoBehaviour
         }
 
         // 2. 白色バーの更新
-        if (delayTimer > 0.0f)
+        if (waitTimer > 0.0f)
         {
-            delayTimer -= Time.deltaTime;
+            waitTimer -= Time.deltaTime;
         }
         else if (whiteBar != null)
         {
@@ -109,7 +109,7 @@ public class EnemyHPBar : MonoBehaviour
         currentHP = Mathf.Clamp(currentHP, 0.0f, maxHP);
         targetFillAmount = currentHP / maxHP;
 
-        delayTimer = damageDelay;
+        waitTimer = damageWait;
         currentShakeTimer = shakeDuration;
     }
 
@@ -118,7 +118,7 @@ public class EnemyHPBar : MonoBehaviour
         currentHP += healAmount;
         currentHP = Mathf.Clamp(currentHP, 0.0f, maxHP);
         targetFillAmount = currentHP / maxHP;
-        delayTimer = 0.0f;
+        waitTimer = 0.0f;
     }
 
     private void UpdateShake()

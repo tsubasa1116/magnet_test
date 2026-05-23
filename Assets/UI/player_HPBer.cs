@@ -5,8 +5,11 @@ public class player_HPBer : MonoBehaviour
 {
     [Header("HP_UI")]
     [SerializeField] private Image HPBer;
+    [SerializeField] private Image backHPBer;
     [SerializeField] private RectTransform nowPoint;
-    [SerializeField] private float smoothSpeed = 5.0f;
+    [SerializeField] private float smoothSpeed = 20.0f;
+    [SerializeField] private float backSpeed = 10.0f;
+    [SerializeField] private float backWait = 1.0f;
 
     [Header("Player Tracking")]
     [SerializeField] private Controller player;
@@ -15,6 +18,8 @@ public class player_HPBer : MonoBehaviour
     public  float maxHP = 100.0f;
     private float currentHP;
     private float displayHP;
+    private float backDisplayHP;
+    private float waitTimer = 0f;
 
     [Header("Shake_パラメータ")]
     [SerializeField] private RectTransform shakeTarget; // 揺らす対象（指定しなければこのスクリプトがついているオブジェクト）
@@ -39,6 +44,7 @@ public class player_HPBer : MonoBehaviour
         }
         currentHP = maxHP;
         displayHP = maxHP;
+        backDisplayHP = maxHP;
         startHP = maxHP;
 
         if (shakeTarget == null)
@@ -90,6 +96,7 @@ public class player_HPBer : MonoBehaviour
             if (currentHP > player.hp)
             {
                 shakeTimer = shakeDuration;
+                waitTimer = backWait;
             }
             currentHP = player.hp;
         }
@@ -98,6 +105,14 @@ public class player_HPBer : MonoBehaviour
         //displayHP = Mathf.Lerp(displayHP, currentHP, Time.deltaTime * smoothSpeed);        // 線形補間 5
         //displayHP = Mathf.SmoothDamp(displayHP, currentHP, ref hpVel, smoothSpeed);        // スムーズダンピング 7
         displayHP = Mathf.MoveTowards(displayHP, currentHP, Time.deltaTime * smoothSpeed); // 一定速度 20
+        if (waitTimer > 0f)
+        {
+            waitTimer -= Time.deltaTime;
+        }
+        else
+        {
+            backDisplayHP = Mathf.MoveTowards(backDisplayHP, currentHP, Time.deltaTime * backSpeed);
+        }
         UpdateHPBar();
 
         HandleShake();
@@ -128,16 +143,20 @@ public class player_HPBer : MonoBehaviour
 
     void UpdateHPBar()
     {
-        float hpPer = displayHP / maxHP;
         if (HPBer != null)
         {
-            HPBer.fillAmount = hpPer;
+            HPBer.fillAmount = displayHP / maxHP;
+        }
+
+        if (backHPBer != null)
+        {
+            backHPBer.fillAmount = backDisplayHP / maxHP;
         }
 
         if (nowPoint != null)
         {
+            float hpPer = displayHP / maxHP;
             float targeetAngle = (1.0f - hpPer) * 360.0f;
-
             nowPoint.localRotation = Quaternion.Euler(0, 0, -targeetAngle);
         }
     }
