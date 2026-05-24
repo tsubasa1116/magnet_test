@@ -47,6 +47,7 @@ public class enemy_Sky : MonoBehaviour
     private float currentHp;
     private NavMeshAgent agent;
     private Rigidbody rb; // 物理演算用
+    private Animator anim;
 
     private Vector3 startPosition;
 
@@ -63,6 +64,7 @@ public class enemy_Sky : MonoBehaviour
         currentHp = maxHp;
         agent = GetComponent<NavMeshAgent>();
         rb = GetComponent<Rigidbody>();
+        anim = GetComponent<Animator>();
 
         // 通常時はNavMeshAgentで移動するため物理演算(Rigidbody)はオフにしておく
         if (rb != null)
@@ -382,6 +384,11 @@ public class enemy_Sky : MonoBehaviour
     private void FireBeam()
     {
         if (beam == null || targetPlayer == null) return;
+
+        if (anim != null)
+        {
+            anim.SetTrigger("beam");
+        }
 
         // プレイヤーの方向を計算
         Vector3 direction = (targetPlayer.position - transform.position).normalized;

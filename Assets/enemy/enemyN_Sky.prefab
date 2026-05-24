@@ -290,6 +290,8 @@ MonoBehaviour:
   searchTime: 3
   searchRadius: 5
   noticeTime: 1
+  attackInterval: 2
+  beamSpeed: 10
   hoverHeight: 2
   hoverRange: 0.5
   hoverSpeed: 2
@@ -298,6 +300,7 @@ MonoBehaviour:
   targetPlayer: {fileID: 0}
   markExclamation: {fileID: 1820217899386737699}
   markQuestion: {fileID: 7968903115264302740}
+  beam: {fileID: 8601114592838297921, guid: b50d4e0668ca7a94882bbe7eebd5a497, type: 3}
 --- !u!1 &6692062763078083192
 GameObject:
   m_ObjectHideFlags: 0
