@@ -16,9 +16,14 @@ public class title : MonoBehaviour
     [SerializeField] private int cursorIndex = 0;
     [SerializeField] public float maskSpeed = 25.0f;
 
+    [SerializeField] private float inputComboCnt = 0.2f;
+    [SerializeField] private float lastInputTime = 0.0f;
+
+
     [Header("PressAnyButton点滅")]
     [SerializeField] public CanvasGroup pressButton; // 点滅させるため、Imageより楽
     [SerializeField] public float blinkSpeed = 2.0f;
+    [SerializeField] public AnimationCurve blinkCurve;
 
     [Header("スコア表示")]
     [SerializeField] public RectTransform score;
@@ -33,7 +38,23 @@ public class title : MonoBehaviour
 
     void Update()
     {
-        pressButton.alpha = 0.6f + 0.5f * Mathf.Sin(Time.time * blinkSpeed); // 点滅
+        //float sin = 0.5f + 0.5f * Mathf.Sin(Time.time * blinkSpeed); // 点滅
+        //float strokeSin = Mathf.Pow(sin, 1.1f); // 点滅の強さを調整
+        //pressButton.alpha = 0.01f + 0.99f * strokeSin;
+
+        //// PressAnyButton点滅
+        //float cos = Mathf.Cos(Time.time * blinkSpeed * 2.0f);
+        //float t = (cos + 1.0f) / 2.0f;
+        //pressButton.alpha = Mathf.Lerp(0.01f, 1.0f, t);
+
+        //// PressAnyButton点滅（一定速度で往復）
+        //float t = Mathf.PingPong(Time.time * blinkSpeed, 0.97f) + 0.03f;
+        //t = Mathf.Clamp01(t); // 0.0f～1.0fの範囲に制限
+        //t = t * t;
+        //pressButton.alpha = Mathf.Lerp(0.01f, 1.0f, t);
+
+        float t = Mathf.PingPong(Time.time * blinkSpeed, 1.0f);
+        pressButton.alpha = blinkCurve.Evaluate(t);
 
         if (!isOpen && Input.GetKeyDown(KeyCode.Return))
         {
@@ -76,6 +97,9 @@ public class title : MonoBehaviour
     // カーソル移動
     void MoveCursor(int direction)
     {
+        bool isCombo = (Time.time - lastInputTime) < inputComboCnt;
+        lastInputTime = Time.time;
+
         // カーソルの位置調節
         cursorIndex += direction;
         if(cursorIndex < 0) cursorIndex = cursorPosY.Length - 1;
@@ -85,7 +109,7 @@ public class title : MonoBehaviour
         pos.y = cursorPosY[cursorIndex];
         cursor.anchoredPosition = pos;
 
-        cursorMain.anchoredPosition = new Vector2(-427, 0);
+        if(!isCombo) cursorMain.anchoredPosition = new Vector2(-427, 0);
     }
 
     private IEnumerator FadeWait(float wait)

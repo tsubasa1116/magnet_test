@@ -202,7 +202,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -616.4, y: -337}
+  m_AnchoredPosition: {x: -624.60004, y: -337}
   m_SizeDelta: {x: 334, y: 43}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &78146914
@@ -444,7 +444,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -321, y: 67}
+  m_AnchoredPosition: {x: -326, y: 67}
   m_SizeDelta: {x: 1009, y: 206}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &343032331
@@ -525,8 +525,61 @@ MonoBehaviour:
   - -337
   cursorIndex: 0
   maskSpeed: 25
+  inputComboCnt: 0.3
+  lastInputTime: 0
   pressButton: {fileID: 14211211}
-  blinkSpeed: 2
+  blinkSpeed: 0.25
+  blinkCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: -3.8421054
+      outSlope: -3.8421054
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.19
+      value: 0.27
+      inSlope: -2.3242786
+      outSlope: -2.3242786
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.5
+      value: 0.02
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.81
+      value: 0.27
+      inSlope: 2.3242786
+      outSlope: 2.3242786
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 3.8421054
+      outSlope: 3.8421054
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   score: {fileID: 2135001271}
   scoreText: {fileID: 594962308}
   isFadeIn: 0
@@ -700,7 +753,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -700, y: -112}
+  m_AnchoredPosition: {x: -708.2, y: -112}
   m_SizeDelta: {x: 164, y: 41}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &551744020
@@ -1143,7 +1196,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -605, y: -112.6}
+  m_AnchoredPosition: {x: -593.3, y: -112.6}
   m_SizeDelta: {x: 427, y: 59}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1580603270
@@ -1381,7 +1434,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -681.9, y: -222}
+  m_AnchoredPosition: {x: -690.10004, y: -222}
   m_SizeDelta: {x: 203, y: 41}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2002731389
