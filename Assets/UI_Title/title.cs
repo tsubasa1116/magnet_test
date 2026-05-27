@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using UnityEngine.SceneManagement;
 
 public class title : MonoBehaviour
 {
@@ -18,7 +19,6 @@ public class title : MonoBehaviour
 
     [SerializeField] private float inputComboCnt = 0.2f;
     [SerializeField] private float lastInputTime = 0.0f;
-
 
     [Header("PressAnyButton点滅")]
     [SerializeField] public CanvasGroup pressButton; // 点滅させるため、Imageより楽
@@ -79,6 +79,24 @@ public class title : MonoBehaviour
 
             if (Input.GetKeyDown(KeyCode.UpArrow))   MoveCursor(-1);
             if (Input.GetKeyDown(KeyCode.DownArrow)) MoveCursor(1);
+
+            if (Input.GetKeyDown(KeyCode.Return))
+            {
+                if (cursorIndex == 0)
+                {
+                    SceneManager.LoadScene("SampleScene");
+                }
+                if (cursorIndex == 1)
+                {
+                    // オプション画面に遷移（未実装）
+                }
+                if (cursorIndex == 2)
+                {
+                    UnityEditor.EditorApplication.isPlaying = false; // エディタ上で停止
+                    Application.Quit();
+                }
+            }
+            
         }
     }
 
