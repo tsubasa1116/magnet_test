@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem; 
 
 public class magnet : MonoBehaviour
 {
@@ -28,11 +29,62 @@ public class magnet : MonoBehaviour
 	private Rigidbody targetRb;
 	private bool isAttached = false;    // くっついているか
 
+	// ★追加: Input Systemのコントローラー
+	private PlayerControls controls;
+
     // Start is called before the first frame update
     void Start()
 	{
 		UpdateUI();
 	}
+
+	// ★追加: Input Systemの初期化とイベント登録
+	void Awake()
+	{
+		controls = new PlayerControls();
+
+		// Magnet ON OFFボタンが押されたとき（ON）
+		controls.Player.MagnetONOFF.started += ctx => StartMagnet();
+		// Magnet ON OFFボタンが離されたとき（OFF）
+		controls.Player.MagnetONOFF.canceled += ctx => StopMagnet();
+	}
+
+	void OnEnable()
+	{
+		controls.Enable();
+	}
+
+	void OnDisable()
+	{
+		controls.Disable();
+	}
+
+	// ★追加: 磁石ONの処理
+	private void StartMagnet()
+	{
+		if (!isActive)
+		{
+			isActive = true;
+			UpdateUI();
+			
+			//オンにした時に既に違う極の物を持っていたら弾き飛ばす
+			CheckAndLaunchTarget();
+		}
+	}
+
+	// ★追加: 磁石OFFの処理
+	private void StopMagnet()
+	{
+		if (isActive)
+		{
+			isActive = false;
+			UpdateUI();
+			
+			// オフにした時は持っている物を離す
+			ReleaseTarget();
+		}
+	}
+
 
 	// Update is called once per frame
 	void Update()
@@ -43,29 +95,9 @@ public class magnet : MonoBehaviour
 			if (magnetMode == 1) ChangeMode(2);
 			else ChangeMode(1);
 		}
-		if (Input.GetKey(KeyCode.Mouse0))
-		{
-			if (!isActive)
-			{
-				isActive = true;
-				UpdateUI();
-				
-				//オンにした時に既に違う極の物を持っていたら弾き飛ばす
-                CheckAndLaunchTarget();
-			}
-			
-		}
-		else if (Input.GetKeyUp(KeyCode.Mouse0))
-		{
-			if (isActive)
-			{
-				isActive = false;
-                UpdateUI();
-				
-				// オフにした時は持っている物を離す
-				ReleaseTarget();
-			}
-		}
+
+		// ↑古いInput.GetKeyDownやInput.GetKeyUpの処理は削除して、
+		// Input Systemのイベント（StartMagnet, StopMagnet）に任せます。
 
 		// 磁石のモードに合わせて引き寄せる
 		AttractObjects();
