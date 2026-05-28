@@ -36,6 +36,7 @@ public class enemy : MonoBehaviour
     [Header("攻撃")]
     [SerializeField] private Animator anim;
     [SerializeField] private float attackInterval = 2.0f;
+    [SerializeField] private int attackDamage = 10;
     [SerializeField] private float attackTimer;
 
     private float currentHp;
@@ -351,11 +352,37 @@ public class enemy : MonoBehaviour
         }
     }
 
+    //[SerializeField, Range(0.0f, 1.0f)] private float animStartPer = 0.2f;
+    [SerializeField, Range(0.0f, 1.0f)] private float damageDelay = 0.3f;
     private void AttackEnemy()
     {
         if (anim != null)
         {
             anim.SetTrigger("beam");
+            //anim.Play("Attack_v1", 0, animStartPer);
+        }
+
+        StartCoroutine(DelayDamageCoroutine());
+    }
+
+    private IEnumerator DelayDamageCoroutine()
+    {
+        // 指定した秒数だけ、処理を一時停止する
+        yield return new WaitForSeconds(damageDelay);
+
+        // 待っている間に敵が倒されたり、プレイヤーが消えたりしていないかチェック
+        if (targetPlayer == null || currentState != EnemyState.Attack) yield break;
+
+        // パンチが振り下ろされた瞬間にまだ射程内にいるか再確認する
+        float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
+        if (distanceToPlayer <= attackRange + 0.5f) // 少しだけ判定に猶予を持たせる
+        {
+            Controller playerControl = targetPlayer.GetComponent<Controller>();
+            if (playerControl != null)
+            {
+                playerControl.hp -= attackDamage;
+                Debug.Log("ぬ");
+            }
         }
     }
 

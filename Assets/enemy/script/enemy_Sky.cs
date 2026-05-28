@@ -380,6 +380,7 @@ public class enemy_Sky : MonoBehaviour
             attackTimer = attackInterval;
         }
     }
+    [SerializeField, Range(0.0f, 1.0f)] private float animStartPer = 0.3f;
 
     private void FireBeam()
     {
@@ -387,7 +388,7 @@ public class enemy_Sky : MonoBehaviour
 
         if (anim != null)
         {
-            anim.SetTrigger("beam");
+            anim.Play("Attack_v1", 0, animStartPer);
         }
 
         // プレイヤーの方向を計算
