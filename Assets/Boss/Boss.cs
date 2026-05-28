@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI; // NavMeshAgent���g������
+using UnityEngine.AI; // NavMeshAgentを使用するため
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class Boss : MonoBehaviour
@@ -16,7 +16,7 @@ public class Boss : MonoBehaviour
 		Return
 	}
 
-	[Header("�p�����[�^")]
+	[Header("パラメータ")]
 	[SerializeField] private float maxHp = 500.0f;
 	[SerializeField] private float found = 55.0f;
 	[SerializeField] private float attackRange = 50.0f;
@@ -24,19 +24,19 @@ public class Boss : MonoBehaviour
 	[SerializeField] private float searchRadius = 5.0f;
 	[SerializeField] private float noticeTime = 1.0f;
 
-	[Header("�����i�{���j�ݒ�")]
+	[Header("攻撃(ボム)設定")]
 	[SerializeField] private GameObject bombPrefab;
 	[SerializeField] private float throwForce = 10.0f;
 	[SerializeField] private float upwardForce = 6.0f;
 	[SerializeField] private float throwCooldown = 3.0f;
 
-	[Header("�Q��")]
+	[Header("対象")]
 	[SerializeField] private Transform targetPlayer;
 
-	[Header("��e�E�X�^���ݒ�")]
-	[Tooltip("�̓�����ȂǂŎ~�܂鎞�ԁi�b�j")]
+	[Header("物理・スタン設定")]
+	[Tooltip("衝突時などに立ち止まる時間(秒)")]
 	[SerializeField] private float stunDuration = 0.5f;
-	[Tooltip("�Ռ���臒l�irelativeVelocity.magnitude�j: ����ȏ�Ȃ�X�^�����N����")]
+	[Tooltip("衝撃の閾値(relativeVelocity.magnitude): これ以上ならスタンが発生")]
 	[SerializeField] private float stunVelocityThreshold = 1.0f;
 
 	private float currentHp;
@@ -303,24 +303,24 @@ public class Boss : MonoBehaviour
 
 	private void Die()
 	{
-		// �����~
+		// コルーチン停止
 		StopAllCoroutines();
 
-		// NavMeshAgent �𖳌������ē����Ăяo���G���[��h��
+		// NavMeshAgent を無効化して呼び出し時のエラーを防ぐ
 		if (agent != null)
 		{
 			try
 			{
 				agent.isStopped = true;
 			}
-			catch { /* �����ȏ�ԂȂ疳�� */ }
+			catch { /* 例外時は無視 */ }
 
 			agent.updatePosition = false;
 			agent.updateRotation = false;
 			agent.enabled = false;
 		}
 
-		// �������~�߂�
+		// 物理挙動を止める
 		if (rb != null)
 		{
 			rb.linearVelocity = Vector3.zero;
@@ -328,30 +328,30 @@ public class Boss : MonoBehaviour
 			rb.isKinematic = true;
 		}
 
-		// �K�v�Ȃ炱���ŃG�t�F�N�g��h���b�v�𐶐��i�C�Ӂj
+		// 必要ならここで死亡エフェクトやアイテムドロップを生成 (任意)
 		// e.g. if (deathEffect != null) Instantiate(deathEffect, transform.position, Quaternion.identity);
 
 		Destroy(gameObject);
 	}
 
-	// ---------- ���S�w���p�[ ----------
+	// ---------- 安全な制御用ヘルパー ----------
 
 	private void DisableAgentForPhysics()
 	{
 		if (agent == null) return;
 
-		// ��� NavMeshAgent �̎����X�V�͎~�߂ĕ�������ɔC����
+		// NavMeshAgent の自動更新を一旦止めて物理挙動に任せる
 		agent.updatePosition = false;
 		agent.updateRotation = false;
 
-		// NavMesh ��ɔz�u����Ă��Ă��L���ȏꍇ�̂� isStopped �𑀍삷��
+		// NavMesh 上に配置されており有効な場合のみ isStopped を操作する
 		if (agent.enabled && agent.isOnNavMesh)
 		{
 			agent.isStopped = true;
 		}
 		else
 		{
-			// �f�o�b�O�p�i�K�v�Ȃ�L���ɂ���j  �X�p���ɂȂ�ꍇ�̓R�����g�A�E�g��
+			// デバッグ用(必要なら有効化)。スパムになる場合はコメントアウトする
 			Debug.Log("[boss] DisableAgentForPhysics: agent not on NavMesh or disabled; skipping isStopped.");
 		}
 	}
@@ -426,7 +426,7 @@ public class Boss : MonoBehaviour
 		return false;
 	}
 
-	// �ǉ��Fagent.remainingDistance �������S�ɎQ�Ƃł��邩
+	// 追記：agent.remainingDistance を安全に参照できるかチェック
 	private bool IsAgentUsable()
 	{
 		return agent != null && agent.enabled && agent.isOnNavMesh;

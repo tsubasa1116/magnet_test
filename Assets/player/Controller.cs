@@ -2,264 +2,247 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.VFX; // â˜…è¿½åŠ : VFXã‚’ä½¿ã†ãŸã‚ã«å¿…è¦
 
 public class Controller : MonoBehaviour
 {
-	// Šù‘¶‚Ì•Ï”
-	Quaternion targetRotation;
-	Rigidbody rb;
-	float jumpForce = 10;
-	public bool isJumping;
+    Quaternion targetRotation;
+    Rigidbody rb;
+    float jumpForce = 10;
+    public bool isJumping;
+    public int hp = 100;
 
-	public int hp = 100;
+    [SerializeField] SphereCollider jumpCollider;
 
-	[SerializeField] SphereCollider jumpCollider;
+    // ç£çŸ³ãƒ»ç«‹ä½“æ©Ÿå‹•ç”¨ã®å¤‰æ•°
+    [SerializeField] float magnetRange = 30f;
+    [SerializeField] float magnetSpeed = 10f;
+    private bool isMagnetMoving = false;
+    private Vector3 magnetTargetPoint;
+    private SpringJoint swingJoint;
+    private magnet magnetScript;
 
-	// ¥ÎE—§‘Ì‹@“®—p‚Ì•Ï”
-	[SerializeField] float magnetRange = 30f;
-	[SerializeField] float magnetSpeed = 10f;
-	private bool isMagnetMoving = false;
-	private Vector3 magnetTargetPoint;
-	private SpringJoint swingJoint;
-	private magnet magnetScript;
+    // ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ©ãƒ¼å…¥åŠ›ç”¨ã®å¤‰æ•°
+    private PlayerControls controls;
+    private Vector2 moveInput;
+    private Vector2 cameraInput;
 
-	// ƒRƒ“ƒgƒ[ƒ‰[“ü—Í—p‚Ì•Ï”
-	private PlayerControls controls;
-	private Vector2 moveInput;
-	
-	// š’Ç‰ÁFƒJƒƒ‰‘€ì—p‚Ì•Ï”
-	private Vector2 cameraInput;
-	public Transform cameraTransform;   // ƒJƒƒ‰i‚Ü‚½‚ÍƒJƒƒ‰‚Ìe‚Ìƒsƒ{ƒbƒgj‚ğInspector‚Å“o˜^
-	public float cameraSensitivity = 200f;
-	private float cameraPitch = 0f;     // ã‰º‰ñ“]‚Ì’~Ï
+    // ã‚«ãƒ¡ãƒ©æ“ä½œç”¨ã®å¤‰æ•°
+    public Transform cameraTransform;
+    public float cameraSensitivity = 10f;
+    private float cameraPitch = 0f;
 
-	void Awake()
-	{
-		controls = new PlayerControls();
+    [Header("Effects")]
+    [SerializeField] private ParticleSystem dashEffect; // ã“ã‚Œã¯ParticleSystemã®ã¾ã¾ï¼ˆã‚‚ã—ãƒ€ãƒƒã‚·ãƒ¥ã‚‚VFXãªã‚‰VisualEffectã«å¤‰æ›´ã—ã¦ãã ã•ã„ï¼‰
+    [SerializeField] private VisualEffect hitEffect;    // â˜…å¤‰æ›´: ParticleSystem ã‹ã‚‰ VisualEffect ã«æ›¸ãæ›ãˆ
+    private bool wasDashing = false;
 
-		// ƒWƒƒƒ“ƒv‚Ì“ü—Í
-		controls.Player.Jump.performed += ctx => 
-		{
-			PerformJump();
-		};
+    [Header("Dash Settings")]
+    public float normalSpeed = 7f;
+    public float dashSpeed = 12f;
 
-		// šC³F©“®¶¬‚³‚ê‚½ƒvƒƒpƒeƒB–¼‚É‡‚í‚¹‚Ä _3DManeuverGear ‚ğg‚¤
-		controls.Player.ManeuverGear.performed += ctx =>
-		{
-			StartManeuverGear();
-		};
+    [Header("Jump Settings")]
+    public float airSpeedMultiplier = 0.8f;
 
-		// š’Ç‰ÁFInverti‹É‚Ì“ü‚ê‘Ö‚¦j‚Ì“ü—Í
-		controls.Player.Invert.performed += ctx =>
-		{
-			PerformInvert();
-		};
-	}
+    [Header("Gravity Settings")]
+    public float gravityMultiplier = 1.5f;
 
-	void OnEnable()
-	{
-		controls.Enable();
-	}
+    void Awake()
+    {
+        controls = new PlayerControls();
+        controls.Player.Jump.performed += ctx => PerformJump();
+        controls.Player.ManeuverGear.performed += ctx => StartManeuverGear();
+        controls.Player.Invert.performed += ctx => PerformInvert();
+    }
 
-	void OnDisable()
-	{
-		controls.Disable();
-	}
+    void OnEnable() { controls.Enable(); }
+    void OnDisable() { controls.Disable(); }
 
-	void Start()
-	{
-		rb = GetComponent<Rigidbody>();
-		magnetScript = GetComponentInChildren<magnet>();
-		isJumping = false;
-		targetRotation = transform.rotation;
+    void Start()
+    {
+        rb = GetComponent<Rigidbody>();
+        magnetScript = GetComponentInChildren<magnet>();
+        isJumping = false;
+        targetRotation = transform.rotation;
 
-		// ƒJƒƒ‰‚ªİ’è‚³‚ê‚Ä‚¢‚È‚¢ê‡‚ÍƒƒCƒ“ƒJƒƒ‰‚ğ©“®æ“¾
-		if (cameraTransform == null && Camera.main != null)
-		{
-			cameraTransform = Camera.main.transform;
-		}
-	}
-	
-	void Update()
-	{
-		if (isMagnetMoving)
-		{
-			Vector3 directionToTarget = (magnetTargetPoint - transform.position).normalized;
-			transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(directionToTarget), 600 * Time.deltaTime);
+        if (cameraTransform == null && Camera.main != null)
+        {
+            cameraTransform = Camera.main.transform;
+        }
 
-			if (swingJoint != null)
-			{
-				swingJoint.maxDistance = Mathf.MoveTowards(swingJoint.maxDistance, 0f, magnetSpeed * Time.deltaTime);
-			}
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 
-			// \•ª‚É‹ß‚Ã‚¢‚½‚ç‰ğœ
-			if (Vector3.Distance(transform.position, magnetTargetPoint) < 5.0f)
-			{
-				StopSwing();
-			}
-			return; 
-		}
+        if (dashEffect != null)
+        {
+            var mainModule = dashEffect.main;
+            mainModule.loop = true;
+            mainModule.simulationSpace = ParticleSystemSimulationSpace.World;
 
-		// š’Ç‰ÁFƒL[ƒ{[ƒh‚©‚ç‚ÌƒWƒƒƒ“ƒv“ü—Í
-		if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
-		{
-			PerformJump();
-		}
+            var emissionModule = dashEffect.emission;
+            if (emissionModule.rateOverTime.constant <= 0f)
+            {
+                emissionModule.rateOverTime = 20f;
+            }
+        }
+    }
+    
+    void Update()
+    {
+        if (isMagnetMoving)
+        {
+            HandleMagnetMovement();
+            return; 
+        }
 
-		// šC³FFindAction‚ğg‚í‚¸A’¼Ú Move ƒvƒƒpƒeƒB‚©‚ç’l‚ğ“Ç‚İæ‚é
-		moveInput = controls.Player.Move.ReadValue<Vector2>();
+        moveInput = controls.Player.Move.ReadValue<Vector2>();
+        cameraInput = controls.Player.Camera.ReadValue<Vector2>();
+        bool isDash = controls.Player.Dash.IsPressed();
 
-		// š’Ç‰ÁFƒL[ƒ{[ƒh‚ÌWASD‚Å‚ÌˆÚ“®“ü—Í‚ğ‰ÁZ (—Dæ)
-		if (Keyboard.current != null)
-		{
-			float keyboardX = 0f;
-			float keyboardY = 0f;
+        bool isEffectActive = isDash && moveInput.magnitude > 0.1f;
+        if (dashEffect != null)
+        {
+            if (isEffectActive && !wasDashing)
+            {
+                dashEffect.Play();
+            }
+            else if (!isEffectActive && wasDashing)
+            {
+                dashEffect.Stop();
+            }
+        }
+        wasDashing = isEffectActive;
 
-			if (Keyboard.current.dKey.isPressed) keyboardX += 1f;
-			if (Keyboard.current.aKey.isPressed) keyboardX -= 1f;
-			if (Keyboard.current.wKey.isPressed) keyboardY += 1f;
-			if (Keyboard.current.sKey.isPressed) keyboardY -= 1f;
+        HandleMovement(isDash);
+    }
 
-			if (keyboardX != 0f || keyboardY != 0f)
-			{
-				moveInput = new Vector2(keyboardX, keyboardY).normalized;
-			}
-		}
-		
-		// ƒJƒƒ‰‚ÌY²‰ñ“]‚ğŠî€‚É‚µ‚ÄˆÚ“®•ûŒü‚ğŒˆ’è
-		float camYaw = cameraTransform != null ? cameraTransform.eulerAngles.y : Camera.main.transform.eulerAngles.y;
-		var horizontalRotation = Quaternion.AngleAxis(camYaw, Vector3.up);
-		var velocity = horizontalRotation * new Vector3(moveInput.x, 0, moveInput.y).normalized;
+    void FixedUpdate()
+    {
+        if (rb != null && gravityMultiplier > 1f)
+        {
+            rb.AddForce(Physics.gravity * (gravityMultiplier - 1f), ForceMode.Acceleration);
+        }
+    }
 
-		var speed = Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed ? 10 : 7;
-		var rotationSpeed = 600 * Time.deltaTime;
+    // ç§»å‹•å‡¦ç†
+    private void HandleMovement(bool isDash)
+    {
+        float currentSpeed = isDash ? dashSpeed : normalSpeed;
+        if (isJumping) currentSpeed *= airSpeedMultiplier;
 
-		if (velocity.magnitude > 0.5f)
-		{
-			targetRotation = Quaternion.LookRotation(velocity, Vector3.up);
-		}
-		transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationSpeed);
+        float camYaw = cameraTransform != null ? cameraTransform.eulerAngles.y : Camera.main.transform.eulerAngles.y;
+        var horizontalRotation = Quaternion.AngleAxis(camYaw, Vector3.up);
+        var velocity = horizontalRotation * new Vector3(moveInput.x, 0, moveInput.y).normalized;
 
-		Vector3 nextPosition = rb.position + velocity * speed * Time.deltaTime;
-		rb.MovePosition(nextPosition);
-	}
+        if (velocity.magnitude > 0.1f)
+        {
+            targetRotation = Quaternion.LookRotation(velocity, Vector3.up);
+        }
+        
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, 600 * Time.deltaTime);
+        Vector3 nextPosition = rb.position + velocity * currentSpeed * Time.deltaTime;
+        rb.MovePosition(nextPosition);
+    }
 
-	// š’Ç‰ÁF—¼•û‚©‚çŒÄ‚Ño‚¹‚é‚æ‚¤‚ÉƒWƒƒƒ“ƒvˆ—‚ğŠÖ”‰»
-	private void PerformJump()
-	{
-		if (isMagnetMoving)
-		{
-			StopSwing();
-		}
-		else if (!isJumping)
-		{
-			rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-			isJumping = true;
-		}
-	}
+    private void PerformJump()
+    {
+        if (isMagnetMoving) StopSwing();
+        else if (!isJumping)
+        {
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+            isJumping = true;
+        }
+    }
 
-	// š’Ç‰ÁF¥‹É‚Ì”½“]ˆ—
-	private void PerformInvert()
-	{
-		if (magnetScript != null)
-		{
-			// Œ»İ‚Ìƒ‚[ƒh‚ª 1(N‹É) ‚È‚ç 2(S‹É) ‚ÖA‚»‚¤‚Å‚È‚¯‚ê‚Î 1(N‹É) ‚ÉØ‚è‘Ö‚¦‚é
-			int newMode = magnetScript.magnetMode == 1 ? 2 : 1;
-			
-			// magnetƒXƒNƒŠƒvƒg‚Ìƒƒ\ƒbƒh‚ğŒÄ‚Ño‚µ‚Äƒ‚[ƒh‚ğ•ÏX
-			magnetScript.ChangeMode(newMode);
-			
-			Debug.Log("‹É‚ğ”½“]‚µ‚Ü‚µ‚½: " + (newMode == 1 ? "N‹É" : "S‹É"));
-		}
-	}
+    private void PerformInvert()
+    {
+        if (magnetScript != null)
+        {
+            int newMode = magnetScript.magnetMode == 1 ? 2 : 1;
+            magnetScript.ChangeMode(newMode);
+            Debug.Log("æ¥µã‚’åè»¢ã—ã¾ã—ãŸ: " + (newMode == 1 ? "Næ¥µ" : "Sæ¥µ"));
+        }
+    }
 
-	// š’Ç‰ÁFƒJƒƒ‰‚Ì‰ñ“]ˆ—ŠÖ”
-	private void HandleCameraRotation()
-	{
-		if (cameraTransform == null) return;
+    private void StartManeuverGear()
+    {
+        if (isMagnetMoving) return;
+        Transform camT = cameraTransform != null ? cameraTransform : Camera.main.transform;
+        Ray ray = new Ray(camT.position, camT.forward);
+        
+        if (Physics.Raycast(ray, out RaycastHit hit, magnetRange))
+        {
+            bool isSPole = hit.collider.CompareTag("S_Pole");
+            bool isNPole = hit.collider.CompareTag("N_Pole");
+            bool canGrapple = false;
 
-		// Time.deltaTime‚ğŠ|‚¯‚é‚±‚Æ‚ÅAƒtƒŒ[ƒ€ƒŒ[ƒg‚ÉˆË‘¶‚¹‚¸ˆê’è‚Ì‘¬“x‚Å‰ñ“]‚·‚é‚æ‚¤‚É‚È‚è‚Ü‚·B
-		// Š´“x(cameraSensitivity)‚Í Inspector ‚Å 150`300 ‚È‚Ç‚Ì‘å‚«‚ß‚Ì’l‚Éİ’è‚µ‚Ä‚İ‚Ä‚­‚¾‚³‚¢B
-		float currentSensitivity = cameraSensitivity * Time.deltaTime;
+            if (magnetScript != null)
+            {
+                if (magnetScript.magnetMode == 1 && isSPole) canGrapple = true;
+                if (magnetScript.magnetMode == 2 && isNPole) canGrapple = true;
+            }
 
-		// ¶‰E‚Ì‰ñ“]iY²j
-		cameraTransform.Rotate(Vector3.up, cameraInput.x * currentSensitivity, Space.World);
+            if (canGrapple)
+            {
+                isMagnetMoving = true;
+                magnetTargetPoint = hit.point;
+                
+                swingJoint = gameObject.AddComponent<SpringJoint>();
+                swingJoint.autoConfigureConnectedAnchor = false;
+                swingJoint.connectedAnchor = magnetTargetPoint;
 
-		// ã‰º‚Ì‰ñ“]iX²j - §ŒÀ‚ğ‚©‚¯‚é‚½‚ß•ÊŒvZ
-		cameraPitch -= cameraInput.y * currentSensitivity;
-		cameraPitch = Mathf.Clamp(cameraPitch, -60f, 60f); // ã‰ºŒü‚«‚·‚¬–h~
+                float distanceFromPoint = Vector3.Distance(transform.position, magnetTargetPoint);
+                swingJoint.maxDistance = distanceFromPoint * 0.8f; 
+                swingJoint.minDistance = 0f;
+                swingJoint.spring = 10f;
+                swingJoint.damper = 5f;
+                swingJoint.massScale = 4.5f;
 
-		// V‚µ‚¢‰ñ“]‚ğ“K—p
-		cameraTransform.localEulerAngles = new Vector3(cameraPitch, cameraTransform.localEulerAngles.y, 0f);
-	}
+                rb.AddForce(camT.forward * 10f, ForceMode.Impulse);
+            }
+        }
+    }
 
-	// š•ÏXF—§‘Ì‹@“®‚ÌŠJnˆ—‚ğŠÖ”‰»
-	private void StartManeuverGear()
-	{
-		if (isMagnetMoving) return;
+    private void HandleMagnetMovement()
+    {
+        Vector3 directionToTarget = (magnetTargetPoint - transform.position).normalized;
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(directionToTarget), 600 * Time.deltaTime);
 
-		Transform camT = cameraTransform != null ? cameraTransform : Camera.main.transform;
-		
-		// ‰æ–Ê’†‰›iƒJƒƒ‰‚ÌŒü‚«j‚ÉRay‚ğ”ò‚Î‚·
-		Ray ray = new Ray(camT.position, camT.forward);
-		
-		if (Physics.Raycast(ray, out RaycastHit hit, magnetRange))
-		{
-			bool isSPole = hit.collider.CompareTag("S_Pole");
-			bool isNPole = hit.collider.CompareTag("N_Pole");
-			bool canGrapple = false;
+        if (swingJoint != null)
+            swingJoint.maxDistance = Mathf.MoveTowards(swingJoint.maxDistance, 0f, magnetSpeed * Time.deltaTime);
 
-			if (magnetScript != null)
-			{
-				if (magnetScript.magnetMode == 1 && isSPole) canGrapple = true;
-				if (magnetScript.magnetMode == 2 && isNPole) canGrapple = true;
-			}
+        if (Vector3.Distance(transform.position, magnetTargetPoint) < 5.0f)
+            StopSwing();
+    }
 
-			if (canGrapple)
-			{
-				isMagnetMoving = true;
-				magnetTargetPoint = hit.point;
-				
-				swingJoint = gameObject.AddComponent<SpringJoint>();
-				swingJoint.autoConfigureConnectedAnchor = false;
-				swingJoint.connectedAnchor = magnetTargetPoint;
+    private void StopSwing()
+    {
+        isMagnetMoving = false;
+        if (swingJoint != null) Destroy(swingJoint);
+    }
 
-				float distanceFromPoint = Vector3.Distance(transform.position, magnetTargetPoint);
-				swingJoint.maxDistance = distanceFromPoint * 0.8f; 
-				swingJoint.minDistance = 0f;
+    private void OnTriggerEnter(Collider other)
+    {
+        isJumping = false;
+    }
 
-				swingJoint.spring = 10f;
-				swingJoint.damper = 5f;
-				swingJoint.massScale = 4.5f;
+    public void TakeDamage(int damage)
+    {
+        hp -= damage;
+        Debug.Log("ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒãƒ€ãƒ¡ãƒ¼ã‚¸ã‚’å—ã‘ãŸï¼ æ®‹ã‚ŠHP: " + hp);
 
-				rb.AddForce(camT.forward * 10f, ForceMode.Impulse);
-			}
-		}
-	}
+        // â˜…å¤‰æ›´: VFX Graphã«ç¢ºå®Ÿã«ã€ŒOnPlayã€ã‚¤ãƒ™ãƒ³ãƒˆã‚’é€ä¿¡ã™ã‚‹
+        if (hitEffect != null)
+        {
+            hitEffect.Reinit(); // ä¸€åº¦ãƒªã‚»ãƒƒãƒˆ
+            hitEffect.SendEvent("OnPlay"); // å¼·åˆ¶çš„ã«OnPlayã‚¤ãƒ™ãƒ³ãƒˆã‚’ç™ºç«ã•ã›ã‚‹
+        }
 
-	private void StopSwing()
-	{
-		isMagnetMoving = false;
-		if (swingJoint != null)
-		{
-			Destroy(swingJoint);
-		}
-	}
+        if (hp <= 0) Die();
+    }
 
-	private void OnTriggerEnter(Collider other)
-	{
-		isJumping = false;
-	}
-
-	public void TakeDamage(int damage)
-	{
-		hp -= damage;
-		Debug.Log("ƒvƒŒƒCƒ„[‚ªƒ_ƒ[ƒW‚ğó‚¯‚½I c‚èHP: " + hp);
-		if (hp <= 0) Die();
-	}
-
-	private void Die()
-	{
-		Debug.Log("ƒvƒŒƒCƒ„[‚ª‚â‚ç‚ê‚½I");
-	}
+    private void Die()
+    {
+        Debug.Log("ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒã‚„ã‚‰ã‚ŒãŸï¼");
+    }
 }

@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 public class EnemyHPBar : MonoBehaviour
 {
-    [Header("HP�e�N�X�`��")]
+    [Header("HPテクスチャ")]
     [SerializeField] private Image blueBar;
     [SerializeField] private Image whiteBar;
     [SerializeField] private RectTransform hpBarObj;
@@ -13,20 +13,20 @@ public class EnemyHPBar : MonoBehaviour
     [SerializeField] private float currentHP;
     private float targetFillAmount = 1.0f;
 
-    [Header("�o�[���x")]
+    [Header("バー速度")]
     [SerializeField] private float blueBarSpeed = 0.5f;
     [SerializeField] private float whiteBarSpeed = 0.5f;
     [SerializeField] private float damageWait = 0.5f;
     private float waitTimer = 0.0f;
 
-    [Header("�V�F�C�N")]
+    [Header("シェイク")]
     [SerializeField] private float shakeDuration = 0.2f;
     [SerializeField] private float shakeSpeed = 50.0f;
     [SerializeField] private float shakeAmplitude = 10.0f;
     private float currentShakeTimer = 0.0f;
     private Vector2 originalPosition;
 
-    [Header("�f�o�b�O")]
+    [Header("デバッグ")]
     [SerializeField] private float testDamageValue = 20.0f;
     [SerializeField] private float testHealValue = 100.0f;
 
@@ -45,7 +45,7 @@ public class EnemyHPBar : MonoBehaviour
 
     private void Update()
     {
-        // 1. �F�o�[�̍X�V
+        // 1. 青色バーの更新
         if (blueBar != null)
         {
             if (blueBar.fillAmount > targetFillAmount)
@@ -60,7 +60,7 @@ public class EnemyHPBar : MonoBehaviour
             }
         }
 
-        // 2. ���F�o�[�̍X�V
+        // 2. 白色バーの更新
         if (waitTimer > 0.0f)
         {
             waitTimer -= Time.deltaTime;
@@ -81,12 +81,12 @@ public class EnemyHPBar : MonoBehaviour
             }
         }
 
-        // 3. �V�F�C�N�X�V
+        // 3. シェイク更新
         UpdateShake();
     }
 
     // =========================================================
-    //  �C���X�y�N�^�[�́u�c�̎O�_���[�_�[�v������s�ł���f�o�b�O�֐�
+    //  インスペクターの「縦の三点リーダー」から実行できるデバッグ関数
     // =========================================================
 
     [ContextMenu("Debug/Apply Test Damage")]
