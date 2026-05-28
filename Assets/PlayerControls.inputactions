@@ -59,6 +59,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "Magnet ON OFF",
+                    "type": "Button",
+                    "id": "e72915b0-2122-4421-b956-4ea7bb368772",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -166,7 +175,7 @@
                     "id": "47db9d65-2234-4702-9407-3bc60c24c7f7",
                     "path": "<Mouse>/delta",
                     "interactions": "",
-                    "processors": "ScaleVector2(x=0.1,y=0.1)",
+                    "processors": "ScaleVector2(x=0.2,y=0.2)",
                     "groups": "",
                     "action": "Camera",
                     "isComposite": false,
@@ -197,7 +206,7 @@
                 {
                     "name": "",
                     "id": "900ee0b0-5b87-4061-9cb2-e7ee01aa8395",
-                    "path": "<Gamepad>/rightTrigger",
+                    "path": "<Gamepad>/buttonWest",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -235,6 +244,28 @@
                     "processors": "",
                     "groups": "",
                     "action": "Invert",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "104eb006-2cf9-4624-a8d3-d89b4e134ec0",
+                    "path": "<Gamepad>/rightTrigger",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Magnet ON OFF",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "8f922378-b520-4c79-8428-d75b532af689",
+                    "path": "<Mouse>/leftButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Magnet ON OFF",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
