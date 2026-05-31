@@ -1284,9 +1284,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 114691645}
     - target: {fileID: 1751560553512713761, guid: 6573b477901a8e14592967071f766162, type: 3}
+      propertyPath: lightingLayer
+      value: 
+      objectReference: {fileID: 232885610}
+    - target: {fileID: 1751560553512713761, guid: 6573b477901a8e14592967071f766162, type: 3}
       propertyPath: suggestMenuUI
       value: 
       objectReference: {fileID: 1554169948}
+    - target: {fileID: 1751560553512713761, guid: 6573b477901a8e14592967071f766162, type: 3}
+      propertyPath: lightingAlpha.Array.size
+      value: 5
+      objectReference: {fileID: 0}
     - target: {fileID: 1751560553512713761, guid: 6573b477901a8e14592967071f766162, type: 3}
       propertyPath: 'configImage.Array.data[0]'
       value: 
@@ -1324,6 +1332,22 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 214279311}
     - target: {fileID: 1751560553512713761, guid: 6573b477901a8e14592967071f766162, type: 3}
+      propertyPath: 'lightingAlpha.Array.data[0]'
+      value: 0.9
+      objectReference: {fileID: 0}
+    - target: {fileID: 1751560553512713761, guid: 6573b477901a8e14592967071f766162, type: 3}
+      propertyPath: 'lightingAlpha.Array.data[1]'
+      value: 0.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 1751560553512713761, guid: 6573b477901a8e14592967071f766162, type: 3}
+      propertyPath: 'lightingAlpha.Array.data[2]'
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 1751560553512713761, guid: 6573b477901a8e14592967071f766162, type: 3}
+      propertyPath: 'lightingAlpha.Array.data[3]'
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1751560553512713761, guid: 6573b477901a8e14592967071f766162, type: 3}
       propertyPath: sliderSetting.Array.data[0].handle
       value: 
       objectReference: {fileID: 263103579}
@@ -1339,6 +1363,18 @@ PrefabInstance:
       propertyPath: sliderSetting.Array.data[3].handle
       value: 
       objectReference: {fileID: 1972877600}
+    - target: {fileID: 1751560553512713761, guid: 6573b477901a8e14592967071f766162, type: 3}
+      propertyPath: sliderSetting.Array.data[0].sliderIndex
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1751560553512713761, guid: 6573b477901a8e14592967071f766162, type: 3}
+      propertyPath: sliderSetting.Array.data[1].sliderIndex
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1751560553512713761, guid: 6573b477901a8e14592967071f766162, type: 3}
+      propertyPath: sliderSetting.Array.data[2].sliderIndex
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 2742919435140676647, guid: 6573b477901a8e14592967071f766162, type: 3}
       propertyPath: m_Name
       value: pauseManager
@@ -1394,6 +1430,7 @@ GameObject:
   - component: {fileID: 232885608}
   - component: {fileID: 232885607}
   - component: {fileID: 232885606}
+  - component: {fileID: 232885610}
   m_Layer: 5
   m_Name: lighting
   m_TagString: Untagged
@@ -1505,6 +1542,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 232885604}
   m_CullTransparentMesh: 1
+--- !u!225 &232885610
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 232885604}
+  m_Enabled: 1
+  m_Alpha: 0.5
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &240528308
 GameObject:
   m_ObjectHideFlags: 0

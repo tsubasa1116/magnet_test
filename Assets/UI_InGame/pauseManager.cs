@@ -17,6 +17,8 @@ public class pauseManager : MonoBehaviour
 
     [Header("ポーズUI")]
     [SerializeField] private GameObject pauseUI;
+    [SerializeField] public CanvasGroup lightingLayer;
+    [SerializeField] private float[] lightingAlpha;
 
     [Header("画面切り替え用UI")]
     [SerializeField] private GameObject suggestMenuUI;
@@ -73,6 +75,9 @@ public class pauseManager : MonoBehaviour
 
     private bool isPause = false;
     private bool isOpen = false;
+
+    void Start(){ UpdateLighting();}
+
 
     void Update()
     {
@@ -285,6 +290,7 @@ public class pauseManager : MonoBehaviour
         // 現在選んでいる縦カーソル（cursorIndex）と同じスライダーを取得
         SliderSetting currentSlider = sliderSetting[cursorIndex];
 
+       
         if (cursorIndex == 3)
         {
             if (isAnim) return;
@@ -320,6 +326,8 @@ public class pauseManager : MonoBehaviour
         Vector3 pos = currentSlider.handle.anchoredPosition;
         pos.x = sliderPosX[currentSlider.sliderIndex];
         currentSlider.handle.anchoredPosition = pos;
+
+        if (cursorIndex == 2) UpdateLighting();
     }
 
     // すべてのスライダーの見た目を現在のインデックス位置に合わせる関数
@@ -387,6 +395,23 @@ public class pauseManager : MonoBehaviour
         target.anchoredPosition = startAnchoredPos; // 元に戻す
 
         isAnim= false;
+    }
+
+    private void UpdateLighting()
+    {
+        if (lightingLayer == null) return;
+
+        int targetIndex = 2;
+
+        if (targetIndex < sliderSetting.Length)
+        {
+            int currentIndex = sliderSetting[targetIndex].sliderIndex;
+            
+            lightingLayer.alpha = lightingAlpha[currentIndex];
+        }
+
+        
+
     }
 
 }
