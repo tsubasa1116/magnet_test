@@ -23,6 +23,8 @@ public class enemy : MonoBehaviour
     [SerializeField] private float searchTime = 3.0f;   // 索敵している時間
     [SerializeField] private float searchRadius = 5.0f; // 索敵範囲
     [SerializeField] private float noticeTime = 1.0f;
+    [SerializeField] private float lookBackSpeed = 8.0f; // プレイヤー注視の振り返る速度
+
 
     [Header("磁力パラメータ")] // 磁力の影響力の設定
     [SerializeField] private float magnetRadius = 8.0f;  // 磁力を感知する距離
@@ -110,6 +112,17 @@ public class enemy : MonoBehaviour
                 else
                 {
                     agent.isStopped = true;
+                    anim.SetBool("run", false);
+                    // 常にプレイヤーの方向を向くようにする
+                    Vector3 directionToPlayer = targetPlayer.position - transform.position;
+                    directionToPlayer.y = 0; // Y軸無視
+
+                    if (directionToPlayer != Vector3.zero)
+                    {
+                        Quaternion targetRotation = Quaternion.LookRotation(directionToPlayer);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * lookBackSpeed);
+                    }
+
                     Attack();
                 }
                 break;
@@ -269,7 +282,7 @@ public class enemy : MonoBehaviour
         agent.isStopped = false;
 
         if (nextState == EnemyState.Wait)
-        {
+        {// 待機
             agent.isStopped = true;
             if (anim != null)
             {
@@ -280,7 +293,7 @@ public class enemy : MonoBehaviour
             
         }
         else if (nextState == EnemyState.Notice)
-        {
+        {// 発見
             agent.isStopped = true;
             noticeTimer = noticeTime;
             if (markExclamation != null) markExclamation.SetActive(true);
@@ -293,7 +306,7 @@ public class enemy : MonoBehaviour
             }
         }
         else if (nextState == EnemyState.Chase)
-        {
+        {// 追跡
             agent.isStopped = false;
             if (anim != null)
             {
@@ -303,7 +316,7 @@ public class enemy : MonoBehaviour
             }
         }
         else if (nextState == EnemyState.Search)
-        {
+        {// 索敵
             if (anim != null)
             {
                 anim.SetBool("run",  false);
@@ -316,7 +329,7 @@ public class enemy : MonoBehaviour
             WanderAround();
         }
         else if (nextState == EnemyState.Return)
-        {
+        {// 帰還
             if (anim != null)
             {
                 anim.SetBool("walk", false);

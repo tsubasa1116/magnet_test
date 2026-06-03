@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class player_HPBer : MonoBehaviour
@@ -11,11 +12,16 @@ public class player_HPBer : MonoBehaviour
     [SerializeField] private float backSpeed = 10.0f;
     [SerializeField] private float backWait = 1.0f;
 
+    [Header("HP_Numbers")]
+    [SerializeField] private Sprite[] numberSprite;
+    [SerializeField] private Image[] digitImage;
+    [SerializeField] private bool zeroPadding = false;
+
     [Header("Player Tracking")]
     [SerializeField] private Controller player;
 
     [Header("HP_パラメータ")]
-    public  float maxHP = 100.0f;
+    public float maxHP = 100.0f;
     private float currentHP;
     private float displayHP;
     private float backDisplayHP;
@@ -38,7 +44,7 @@ public class player_HPBer : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        if(player != null)
+        if (player != null)
         {
             maxHP = player.hp;
         }
@@ -116,6 +122,11 @@ public class player_HPBer : MonoBehaviour
         UpdateHPBar();
 
         HandleShake();
+
+        if (Input.GetKeyDown(KeyCode.KeypadEnter))
+        {
+            UnityEditor.EditorApplication.isPlaying = false; // エディタ上で停止
+        }
     }
 
     void HandleShake()
@@ -159,5 +170,37 @@ public class player_HPBer : MonoBehaviour
             float targeetAngle = (1.0f - hpPer) * 360.0f;
             nowPoint.localRotation = Quaternion.Euler(0, 0, -targeetAngle);
         }
+
+        UpdateHPNumber();
+    }
+
+    void UpdateHPNumber()
+    {
+        // 表示用HPを整数にする（0未満にならないようにMathf.Maxを使用、四捨五入や切り上げなどはお好みで変更可）
+        int hpInt = Mathf.Max(0, (int)displayHP);
+
+        // 1の位のImageから順番に処理
+        for (int i = 0; i < digitImage.Length; i++)
+        {
+            if (digitImage[i] == null) continue;
+
+            // 1番下の桁を取得する (100なら、100/10＝あまり0)
+            int digit = hpInt % 10;
+            hpInt /= 10; // 次の桁を計算するために10で割る
+
+            // スプライト割り当て
+            digitImage[i].sprite = numberSprite[digit];
+
+            // 0埋め
+            if (!zeroPadding && displayHP < Mathf.Pow(10, i) && i > 0)
+            {
+                digitImage[i].enabled = false;
+            }
+            else
+            {
+                digitImage[i].enabled = true;
+            }
+        }
+
     }
 }

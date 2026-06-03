@@ -258,7 +258,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 5c8e4e62ce790f2468e4405d9bd10801, type: 3}
       propertyPath: m_Name
-      value: modelFlyingenemy_v5
+      value: enemy_skyv2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -356,8 +356,8 @@ MonoBehaviour:
   attackInterval: 2
   beamSpeed: 10
   hoverHeight: 2
-  hoverRange: 0.5
-  hoverSpeed: 2
+  hoverRange: 0.2
+  hoverSpeed: 1.6
   magnetRadius: 8
   magnetForce: 50
   targetPlayer: {fileID: 0}

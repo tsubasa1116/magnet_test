@@ -24,6 +24,7 @@ public class pauseManager : MonoBehaviour
     [SerializeField] private GameObject suggestMenuUI;
     [SerializeField] private GameObject optionMenuUI;
     [SerializeField] private GameObject ingameUI;
+    [SerializeField] private GameObject idleCursor;
 
     [Header("メインメニュー（3項目）")]
     [SerializeField] private Image[] suggestImage;
@@ -154,12 +155,14 @@ public class pauseManager : MonoBehaviour
         {
             suggestMenuUI.SetActive(true);
             optionMenuUI.SetActive(false);
+            idleCursor.SetActive(false);
             UpdateSelectMenu(); // 画像の選択状態を更新
         }
         else if (newState == PauseState.Option)
         {
             // suggestMenuUI.SetActive(false);
             optionMenuUI.SetActive(true);
+            idleCursor.SetActive(true);
             cursorMain.anchoredPosition = new Vector2(-770, 0);
 
             UpdateAllSlider();
@@ -192,6 +195,15 @@ public class pauseManager : MonoBehaviour
                 suggestText[i].gameObject.SetActive(false);
                 configImage[i].gameObject.SetActive(false);
             }
+        }
+        if (suggestIndex == 0)
+        {
+            optionMenuUI.SetActive(true);
+            idleCursor.SetActive(false);
+        }
+        else
+        {
+            optionMenuUI.SetActive(false);
         }
     }
 
