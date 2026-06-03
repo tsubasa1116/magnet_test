@@ -52,6 +52,7 @@ public class enemy : MonoBehaviour
     private float noticeTimer;
 
     private bool isMagnetized = false; // 磁力で制御されているかどうかを判定
+    private bool isAttack = false; // 攻撃アニメーション中かどうか
 
 
     void Start()
@@ -92,23 +93,28 @@ public class enemy : MonoBehaviour
         // 現在の状態によって行うことを変える
         switch (currentState)
         {
+            // 待機
             case EnemyState.Wait:
                 if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
                 break;
-
+            // 発見
             case EnemyState.Notice:
                 noticeTimer -= Time.deltaTime;
                 if (noticeTimer <= 0) ChangeState(EnemyState.Chase);
                 break;
-
+            // 追跡
             case EnemyState.Chase:
                 if (distanceToPlayer <= attackRange) ChangeState(EnemyState.Attack);
                 else if (distanceToPlayer > found + 5.0f) ChangeState(EnemyState.Search);
                 else agent.SetDestination(targetPlayer.position);
                 break;
-
+            // 攻撃
             case EnemyState.Attack:
-                if (distanceToPlayer > attackRange) ChangeState(EnemyState.Chase);
+                // 攻撃範囲から出たら追跡に戻る
+                if (distanceToPlayer > attackRange && !isAttack)
+                {
+                    ChangeState(EnemyState.Chase);
+                }
                 else
                 {
                     agent.isStopped = true;
@@ -126,7 +132,7 @@ public class enemy : MonoBehaviour
                     Attack();
                 }
                 break;
-
+            // 索敵
             case EnemyState.Search:
                 if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
                 else
@@ -136,7 +142,7 @@ public class enemy : MonoBehaviour
                     else if (agent.remainingDistance < 0.5f) WanderAround();
                 }
                 break;
-
+            // 帰還
             case EnemyState.Return:
                 if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
                 else if (agent.remainingDistance < 0.5f) ChangeState(EnemyState.Wait);
@@ -376,6 +382,7 @@ public class enemy : MonoBehaviour
         }
 
         StartCoroutine(DelayDamageCoroutine());
+        StartCoroutine(WaitAttackAnimation());
     }
 
     private IEnumerator DelayDamageCoroutine()
@@ -397,6 +404,28 @@ public class enemy : MonoBehaviour
                 Debug.Log("ぬ");
             }
         }
+    }
+
+    private IEnumerator WaitAttackAnimation()
+    {
+        isAttack = true;
+
+        // AnimatorにSetTriggerが反映されてステートが遷移するまで待機
+        yield return new WaitForSeconds(0.1f);
+
+        if (anim != null)
+        {
+            // 現在遷移しているアニメーションの長さを取得して、その分待機する
+            float animLength = anim.GetCurrentAnimatorStateInfo(0).length;
+            yield return new WaitForSeconds(animLength);
+        }
+        else
+        {
+            yield return new WaitForSeconds(1.0f);
+        }
+
+        isAttack = false;
+
     }
 
     public void TakeDamage(float damageAmount)
