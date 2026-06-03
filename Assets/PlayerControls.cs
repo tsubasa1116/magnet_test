@@ -154,6 +154,15 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Aim"",
+                    ""type"": ""Button"",
+                    ""id"": ""a8c67e7a-54a3-410c-929a-673a79ca02d9"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -354,6 +363,17 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                     ""action"": ""Magnet ON OFF"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""ef99af8d-f1b2-41c8-b625-81716a79d525"",
+                    ""path"": ""<Gamepad>/rightStickPress"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Aim"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -369,6 +389,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         m_Player_ManeuverGear = m_Player.FindAction("ManeuverGear", throwIfNotFound: true);
         m_Player_Invert = m_Player.FindAction("Invert", throwIfNotFound: true);
         m_Player_MagnetONOFF = m_Player.FindAction("Magnet ON OFF", throwIfNotFound: true);
+        m_Player_Aim = m_Player.FindAction("Aim", throwIfNotFound: true);
     }
 
     ~@PlayerControls()
@@ -456,6 +477,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_ManeuverGear;
     private readonly InputAction m_Player_Invert;
     private readonly InputAction m_Player_MagnetONOFF;
+    private readonly InputAction m_Player_Aim;
     /// <summary>
     /// Provides access to input actions defined in input action map "Player".
     /// </summary>
@@ -495,6 +517,10 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Player/MagnetONOFF".
         /// </summary>
         public InputAction @MagnetONOFF => m_Wrapper.m_Player_MagnetONOFF;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/Aim".
+        /// </summary>
+        public InputAction @Aim => m_Wrapper.m_Player_Aim;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -542,6 +568,9 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
             @MagnetONOFF.started += instance.OnMagnetONOFF;
             @MagnetONOFF.performed += instance.OnMagnetONOFF;
             @MagnetONOFF.canceled += instance.OnMagnetONOFF;
+            @Aim.started += instance.OnAim;
+            @Aim.performed += instance.OnAim;
+            @Aim.canceled += instance.OnAim;
         }
 
         /// <summary>
@@ -574,6 +603,9 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
             @MagnetONOFF.started -= instance.OnMagnetONOFF;
             @MagnetONOFF.performed -= instance.OnMagnetONOFF;
             @MagnetONOFF.canceled -= instance.OnMagnetONOFF;
+            @Aim.started -= instance.OnAim;
+            @Aim.performed -= instance.OnAim;
+            @Aim.canceled -= instance.OnAim;
         }
 
         /// <summary>
@@ -663,5 +695,12 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnMagnetONOFF(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Aim" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnAim(InputAction.CallbackContext context);
     }
 }
