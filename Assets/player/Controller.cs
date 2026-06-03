@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.VFX; // ★追加: VFXを使うために必要
 
 public class Controller : MonoBehaviour
 {
@@ -28,33 +29,34 @@ public class Controller : MonoBehaviour
 
     // カメラ操作用の変数
     public Transform cameraTransform;
-    public float cameraSensitivity = 10f; // ★マウス/スティック共通の感度
+    public float cameraSensitivity = 10f;
     private float cameraPitch = 0f;
 
-    // ダッシュ用の変数
+    [Header("Effects")]
+    [SerializeField] private ParticleSystem dashEffect; // これはParticleSystemのまま（もしダッシュもVFXならVisualEffectに変更してください）
+    [SerializeField] private VisualEffect hitEffect;    // ★変更: ParticleSystem から VisualEffect に書き換え
+    private bool wasDashing = false;
+
     [Header("Dash Settings")]
     public float normalSpeed = 7f;
     public float dashSpeed = 12f;
 
+    [Header("Jump Settings")]
+    public float airSpeedMultiplier = 0.8f;
+
+    [Header("Gravity Settings")]
+    public float gravityMultiplier = 1.5f;
+
     void Awake()
     {
         controls = new PlayerControls();
-
-        // 1発だけ押されたときの処理 (Buttonアクション)
         controls.Player.Jump.performed += ctx => PerformJump();
         controls.Player.ManeuverGear.performed += ctx => StartManeuverGear();
         controls.Player.Invert.performed += ctx => PerformInvert();
     }
 
-    void OnEnable()
-    {
-        controls.Enable();
-    }
-
-    void OnDisable()
-    {
-        controls.Disable();
-    }
+    void OnEnable() { controls.Enable(); }
+    void OnDisable() { controls.Disable(); }
 
     void Start()
     {
@@ -68,9 +70,21 @@ public class Controller : MonoBehaviour
             cameraTransform = Camera.main.transform;
         }
 
-        // マウスカーソルを画面中央にロックして非表示にする
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+
+        if (dashEffect != null)
+        {
+            var mainModule = dashEffect.main;
+            mainModule.loop = true;
+            mainModule.simulationSpace = ParticleSystemSimulationSpace.World;
+
+            var emissionModule = dashEffect.emission;
+            if (emissionModule.rateOverTime.constant <= 0f)
+            {
+                emissionModule.rateOverTime = 20f;
+            }
+        }
     }
     
     void Update()
@@ -81,22 +95,41 @@ public class Controller : MonoBehaviour
             return; 
         }
 
-        // 入力値の取得 (Valueアクションと状態判定)
         moveInput = controls.Player.Move.ReadValue<Vector2>();
         cameraInput = controls.Player.Camera.ReadValue<Vector2>();
         bool isDash = controls.Player.Dash.IsPressed();
 
-        // カメラと移動の実行
-        HandleCameraRotation();
+        bool isEffectActive = isDash && moveInput.magnitude > 0.1f;
+        if (dashEffect != null)
+        {
+            if (isEffectActive && !wasDashing)
+            {
+                dashEffect.Play();
+            }
+            else if (!isEffectActive && wasDashing)
+            {
+                dashEffect.Stop();
+            }
+        }
+        wasDashing = isEffectActive;
+
         HandleMovement(isDash);
+    }
+
+    void FixedUpdate()
+    {
+        if (rb != null && gravityMultiplier > 1f)
+        {
+            rb.AddForce(Physics.gravity * (gravityMultiplier - 1f), ForceMode.Acceleration);
+        }
     }
 
     // 移動処理
     private void HandleMovement(bool isDash)
     {
         float currentSpeed = isDash ? dashSpeed : normalSpeed;
+        if (isJumping) currentSpeed *= airSpeedMultiplier;
 
-        // カメラの向きを基準に移動方向を決定
         float camYaw = cameraTransform != null ? cameraTransform.eulerAngles.y : Camera.main.transform.eulerAngles.y;
         var horizontalRotation = Quaternion.AngleAxis(camYaw, Vector3.up);
         var velocity = horizontalRotation * new Vector3(moveInput.x, 0, moveInput.y).normalized;
@@ -107,40 +140,13 @@ public class Controller : MonoBehaviour
         }
         
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, 600 * Time.deltaTime);
-
         Vector3 nextPosition = rb.position + velocity * currentSpeed * Time.deltaTime;
         rb.MovePosition(nextPosition);
     }
 
-    // カメラ回転処理
-    private void HandleCameraRotation()
-    {
-        if (cameraTransform == null) return;
-
-        // マウスの場合は値が大きく、右スティックの場合は値が小さいため、デバイスによって感度の補正をかける
-        bool isMouse = controls.Player.Camera.activeControl?.device is Pointer;
-        float sensitivityMultiplier = isMouse ? 0.05f : (10f * Time.deltaTime);
-
-        float finalYaw = cameraInput.x * cameraSensitivity * sensitivityMultiplier;
-        float finalPitch = cameraInput.y * cameraSensitivity * sensitivityMultiplier;
-
-        // 左右回転適用 (Y軸)
-        cameraTransform.Rotate(Vector3.up, finalYaw, Space.World);
-
-        // 上下回転適用 (X軸)
-        cameraPitch -= finalPitch;
-        cameraPitch = Mathf.Clamp(cameraPitch, -60f, 60f);
-
-        cameraTransform.localEulerAngles = new Vector3(cameraPitch, cameraTransform.localEulerAngles.y, 0f);
-    }
-
-    // ジャンプ処理
     private void PerformJump()
     {
-        if (isMagnetMoving)
-        {
-            StopSwing();
-        }
+        if (isMagnetMoving) StopSwing();
         else if (!isJumping)
         {
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
@@ -148,7 +154,6 @@ public class Controller : MonoBehaviour
         }
     }
 
-    // 極反転処理
     private void PerformInvert()
     {
         if (magnetScript != null)
@@ -159,11 +164,9 @@ public class Controller : MonoBehaviour
         }
     }
 
-    // 立体機動の開始
     private void StartManeuverGear()
     {
         if (isMagnetMoving) return;
-
         Transform camT = cameraTransform != null ? cameraTransform : Camera.main.transform;
         Ray ray = new Ray(camT.position, camT.forward);
         
@@ -191,7 +194,6 @@ public class Controller : MonoBehaviour
                 float distanceFromPoint = Vector3.Distance(transform.position, magnetTargetPoint);
                 swingJoint.maxDistance = distanceFromPoint * 0.8f; 
                 swingJoint.minDistance = 0f;
-
                 swingJoint.spring = 10f;
                 swingJoint.damper = 5f;
                 swingJoint.massScale = 4.5f;
@@ -201,30 +203,22 @@ public class Controller : MonoBehaviour
         }
     }
 
-    // 立体機動中の移動処理
     private void HandleMagnetMovement()
     {
         Vector3 directionToTarget = (magnetTargetPoint - transform.position).normalized;
         transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(directionToTarget), 600 * Time.deltaTime);
 
         if (swingJoint != null)
-        {
             swingJoint.maxDistance = Mathf.MoveTowards(swingJoint.maxDistance, 0f, magnetSpeed * Time.deltaTime);
-        }
 
         if (Vector3.Distance(transform.position, magnetTargetPoint) < 5.0f)
-        {
             StopSwing();
-        }
     }
 
     private void StopSwing()
     {
         isMagnetMoving = false;
-        if (swingJoint != null)
-        {
-            Destroy(swingJoint);
-        }
+        if (swingJoint != null) Destroy(swingJoint);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -236,6 +230,14 @@ public class Controller : MonoBehaviour
     {
         hp -= damage;
         Debug.Log("プレイヤーがダメージを受けた！ 残りHP: " + hp);
+
+        // ★変更: VFX Graphに確実に「OnPlay」イベントを送信する
+        if (hitEffect != null)
+        {
+            hitEffect.Reinit(); // 一度リセット
+            hitEffect.SendEvent("OnPlay"); // 強制的にOnPlayイベントを発火させる
+        }
+
         if (hp <= 0) Die();
     }
 

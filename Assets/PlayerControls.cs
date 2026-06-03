@@ -145,6 +145,15 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Magnet ON OFF"",
+                    ""type"": ""Button"",
+                    ""id"": ""e72915b0-2122-4421-b956-4ea7bb368772"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -283,7 +292,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                 {
                     ""name"": """",
                     ""id"": ""900ee0b0-5b87-4061-9cb2-e7ee01aa8395"",
-                    ""path"": ""<Gamepad>/rightTrigger"",
+                    ""path"": ""<Gamepad>/buttonWest"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
@@ -323,6 +332,28 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                     ""action"": ""Invert"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""104eb006-2cf9-4624-a8d3-d89b4e134ec0"",
+                    ""path"": ""<Gamepad>/rightTrigger"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Magnet ON OFF"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""8f922378-b520-4c79-8428-d75b532af689"",
+                    ""path"": ""<Mouse>/leftButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Magnet ON OFF"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -337,6 +368,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         m_Player_Dash = m_Player.FindAction("Dash", throwIfNotFound: true);
         m_Player_ManeuverGear = m_Player.FindAction("ManeuverGear", throwIfNotFound: true);
         m_Player_Invert = m_Player.FindAction("Invert", throwIfNotFound: true);
+        m_Player_MagnetONOFF = m_Player.FindAction("Magnet ON OFF", throwIfNotFound: true);
     }
 
     ~@PlayerControls()
@@ -423,6 +455,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_Dash;
     private readonly InputAction m_Player_ManeuverGear;
     private readonly InputAction m_Player_Invert;
+    private readonly InputAction m_Player_MagnetONOFF;
     /// <summary>
     /// Provides access to input actions defined in input action map "Player".
     /// </summary>
@@ -458,6 +491,10 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Player/Invert".
         /// </summary>
         public InputAction @Invert => m_Wrapper.m_Player_Invert;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/MagnetONOFF".
+        /// </summary>
+        public InputAction @MagnetONOFF => m_Wrapper.m_Player_MagnetONOFF;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -502,6 +539,9 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
             @Invert.started += instance.OnInvert;
             @Invert.performed += instance.OnInvert;
             @Invert.canceled += instance.OnInvert;
+            @MagnetONOFF.started += instance.OnMagnetONOFF;
+            @MagnetONOFF.performed += instance.OnMagnetONOFF;
+            @MagnetONOFF.canceled += instance.OnMagnetONOFF;
         }
 
         /// <summary>
@@ -531,6 +571,9 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
             @Invert.started -= instance.OnInvert;
             @Invert.performed -= instance.OnInvert;
             @Invert.canceled -= instance.OnInvert;
+            @MagnetONOFF.started -= instance.OnMagnetONOFF;
+            @MagnetONOFF.performed -= instance.OnMagnetONOFF;
+            @MagnetONOFF.canceled -= instance.OnMagnetONOFF;
         }
 
         /// <summary>
@@ -613,5 +656,12 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnInvert(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Magnet ON OFF" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnMagnetONOFF(InputAction.CallbackContext context);
     }
 }
