@@ -14853,8 +14853,12 @@ MonoBehaviour:
   magnetSpeed: 10
   cameraTransform: {fileID: 0}
   cameraSensitivity: 200
+  dashEffect: {fileID: 0}
+  hitEffect: {fileID: 0}
   normalSpeed: 7
   dashSpeed: 12
+  airSpeedMultiplier: 0.8
+  gravityMultiplier: 1.5
 --- !u!1 &358183737
 GameObject:
   m_ObjectHideFlags: 0
@@ -44282,7 +44286,7 @@ MonoBehaviour:
   currentHP: 0
   blueBarSpeed: 0.4
   whiteBarSpeed: 0.5
-  damageDelay: 1.5
+  damageWait: 0.5
   shakeDuration: 0.5
   shakeSpeed: 0.5
   shakeAmplitude: 50
@@ -44610,8 +44614,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::player_HPBer
   HPBer: {fileID: 1114106513}
+  backHPBer: {fileID: 0}
   nowPoint: {fileID: 1990802689}
   smoothSpeed: 35
+  backSpeed: 10
+  backWait: 1
   player: {fileID: 355729285}
   maxHP: 100
   shakeTarget: {fileID: 0}
