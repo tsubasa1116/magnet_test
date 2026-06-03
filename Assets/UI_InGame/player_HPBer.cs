@@ -28,7 +28,7 @@ public class player_HPBer : MonoBehaviour
     private float waitTimer = 0f;
 
     [Header("Shake_パラメータ")]
-    [SerializeField] private RectTransform shakeTarget; // 揺らす対象（指定しなければこのスクリプトがついているオブジェクト）
+    [SerializeField] private RectTransform shakeTarget;  // 揺らす対象（指定しなければこのスクリプトがついているオブジェクト）
     [SerializeField] private float shakeDuration = 0.3f; // 揺れる時間
     [SerializeField] private float shakeMagnitude = 10f; // 揺れの強さ
     private float shakeTimer = 0f;

@@ -15,10 +15,10 @@ public static class UltimatePlayModeStopper
         var go = new GameObject("UltimatePlayModeStopper");
         go.hideFlags = HideFlags.HideAndDontSave; // ヒエラルキーから隠す
         Object.DontDestroyOnLoad(go);             // シーン遷移しても消えないようにする
-        go.AddComponent<InputWatcher>();
+        go.AddComponent<exitShortcut>();
     }
 
-    private class InputWatcher : MonoBehaviour
+    private class exitShortcut : MonoBehaviour
     {
         void Update()
         {
