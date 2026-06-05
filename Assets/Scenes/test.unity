@@ -2770,6 +2770,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 15036676568657827, guid: 32188658e4fe3c64a9638c5bbbacc42f, type: 3}
   m_PrefabInstance: {fileID: 1050101625444236924}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &473691909 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2112466881081600442, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
+  m_PrefabInstance: {fileID: 1412041504}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
 --- !u!1001 &504506306
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5893,7 +5904,7 @@ Transform:
   m_GameObject: {fileID: 1175132517}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 9.11, y: 3.9, z: -36.2}
+  m_LocalPosition: {x: 9.11, y: 3.9, z: -11.51}
   m_LocalScale: {x: 3, y: 6, z: 3}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -6201,16 +6212,28 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 4a35cbd2fce73d24e8256bd4f78a07c1, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4a35cbd2fce73d24e8256bd4f78a07c1, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4a35cbd2fce73d24e8256bd4f78a07c1, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4a35cbd2fce73d24e8256bd4f78a07c1, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 10.391946
+      value: 7.16
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 4a35cbd2fce73d24e8256bd4f78a07c1, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.5
+      value: -1.05
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 4a35cbd2fce73d24e8256bd4f78a07c1, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -43.472332
+      value: -35.47
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 4a35cbd2fce73d24e8256bd4f78a07c1, type: 3}
       propertyPath: m_LocalRotation.w
@@ -6239,6 +6262,10 @@ PrefabInstance:
     - target: {fileID: -8679921383154817045, guid: 4a35cbd2fce73d24e8256bd4f78a07c1, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 4a35cbd2fce73d24e8256bd4f78a07c1, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -6361737139097759600, guid: 4a35cbd2fce73d24e8256bd4f78a07c1, type: 3}
       propertyPath: m_IsActive
@@ -7052,8 +7079,18 @@ PrefabInstance:
       propertyPath: player
       value: 
       objectReference: {fileID: 355729285}
+    - target: {fileID: 7025293726310422737, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
+      propertyPath: ecgImage
+      value: 
+      objectReference: {fileID: 1644493635}
+    - target: {fileID: 7025293726310422737, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
+      propertyPath: ecgImageSub
+      value: 
+      objectReference: {fileID: 473691909}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 2304090861203081801, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
+    - {fileID: 4199088172310708147, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
@@ -7502,6 +7539,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 109352472}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1644493635 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3978805499339681269, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
+  m_PrefabInstance: {fileID: 1412041504}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
 --- !u!4 &1720596876 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4753014964945797936, guid: 9d1e7d5ac7ac1774ba500c9742edada0, type: 3}

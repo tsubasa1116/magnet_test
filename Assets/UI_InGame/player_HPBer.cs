@@ -34,6 +34,19 @@ public class player_HPBer : MonoBehaviour
     private float shakeTimer = 0f;
     private Vector2 initialPosition;
 
+    [Header("心電図")]
+    [SerializeField] private Image ecgImage;               // 心電図を表示するUI Image
+    [SerializeField] private Image ecgImageSub;
+    [SerializeField] private Sprite[] ecgSprite01;           // 9x5で分割したスプライト配列（計45枚）
+    [SerializeField] private Sprite[] ecgSprite02;
+    [SerializeField] private Sprite[] ecgSprite03;
+    [SerializeField] private float baseFps = 15.0f;           // 通常時（HP満タン）の1秒あたりのフレーム数
+    [SerializeField] private bool speedUpOnLowHP = true;   // HP低下時にアニメーションを加速させるか
+    [SerializeField] private float maxSpeedUp = 3.0f; // HPが0に近いときの最大加速倍率
+
+    private float ecgTimer = 0f;
+    private int ecgFrameIndex = 0;
+
     [Range(0, 100)] public float testHP = 100f;
 
     private float hpVel = 0.0f;
@@ -122,11 +135,7 @@ public class player_HPBer : MonoBehaviour
         UpdateHPBar();
 
         HandleShake();
-
-        if (Input.GetKeyDown(KeyCode.KeypadEnter))
-        {
-            UnityEditor.EditorApplication.isPlaying = false; // エディタ上で停止
-        }
+        HandleECGAnimation();
     }
 
     void HandleShake()
@@ -202,5 +211,62 @@ public class player_HPBer : MonoBehaviour
             }
         }
 
+    }
+
+    void HandleECGAnimation()
+    {
+        if (ecgImage == null || ecgSprite01 == null || ecgSprite01.Length == 0 ||
+            ecgSprite02 == null || ecgSprite02.Length == 0 || ecgSprite03 == null || ecgSprite03.Length == 0) return;
+        
+        float speedByLowHP = 1.0f;
+
+        // HPが低いときにアニメーションを加速させる計算
+        if (speedUpOnLowHP && maxHP > 0)
+        {
+            // 0~1にしてバグ防止
+            float hpRatio = Mathf.Clamp01(displayHP / maxHP);
+            // HP100 ＝ 1倍、HP0 ＝ maxSpeedMultiplier倍
+            speedByLowHP = Mathf.Lerp(maxSpeedUp, 1.0f, hpRatio);
+        }
+        // タイマーを進める
+        ecgTimer += Time.deltaTime * speedByLowHP;
+        // 1フレームあたりの時間
+        float timePerFrame = 1.0f / baseFps;
+        // タイマーが1フレームの時間を超えたらコマを進める
+        if (ecgTimer >= timePerFrame)
+        {
+            int framesToAdvance = Mathf.FloorToInt(ecgTimer / timePerFrame);
+
+            Sprite[] targetSprite;
+
+            if (currentHP <= 100 && currentHP >= 50)
+            {
+                targetSprite = ecgSprite01;
+            }
+            else if (currentHP < 50 && currentHP >= 20)
+            {
+                targetSprite = ecgSprite02;
+            }
+            else
+            {
+                targetSprite = ecgSprite03;
+            }
+
+            
+            // 次のフレームインデックスを計算
+            ecgFrameIndex = (ecgFrameIndex + framesToAdvance) % targetSprite.Length;
+            // 余った時間をタイマーに残す
+            ecgTimer %= timePerFrame;
+            if (targetSprite[ecgFrameIndex] != null)
+            {
+                ecgImage.sprite = targetSprite[ecgFrameIndex];
+
+                int prevFrameIndex = (ecgFrameIndex - 1 + targetSprite.Length) % targetSprite.Length;
+                if (targetSprite[prevFrameIndex] != null && ecgImageSub != null)
+                {
+                    ecgImageSub.sprite = targetSprite[prevFrameIndex];
+                }
+            }
+        }
     }
 }
