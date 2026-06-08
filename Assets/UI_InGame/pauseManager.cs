@@ -3,7 +3,6 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using static pauseManager;
 
 public class pauseManager : MonoBehaviour
 {
@@ -11,7 +10,9 @@ public class pauseManager : MonoBehaviour
     {
         None,
         MenuSelect, // 3項目を選ぶメインメニュー状態
-        Option  // オプション設定状態
+        Option,  // オプション設定状態
+        Checkpoint, // チェックポイント確認状態
+        Title, // タイトル確認状態
     }
     private PauseState currentState = PauseState.None;
 
@@ -33,7 +34,7 @@ public class pauseManager : MonoBehaviour
     [SerializeField] private Sprite[] normalSprite;
     [SerializeField] private Sprite[] selectSprite;
     [SerializeField] public Vector2 startText = new(-1250, -168);
-    [SerializeField] public Vector2 newText   = new(-595, -168);
+    [SerializeField] public Vector2[] newText   = { new(-595, -168), new(-665, -168), new(-702, -168) };
     [SerializeField] public float moveTextSpeed = 4.0f;
     private int suggestIndex = 0;
     private bool skipTextSlide = false;
@@ -71,6 +72,20 @@ public class pauseManager : MonoBehaviour
 
     [SerializeField] private float arrowMove = 30.0f;      // 動くピクセル
     [SerializeField] private float arrowMoveTime = 0.1f; // 往路にかかる時間
+    
+    [Header("チェックポイントチェック")]
+    [SerializeField] private GameObject CPcheckUI;
+    [SerializeField] private Image[] suggestImageCP;
+    [SerializeField] private Sprite[] normalSpriteCP;
+    [SerializeField] private Sprite[] selectSpriteCP;
+    private int suggestIndexCP = 0;
+    
+    [Header("タイトルチェック")]
+    [SerializeField] private GameObject TCcheckUI;
+    [SerializeField] private Image[] suggestImageTC;
+    [SerializeField] private Sprite[] normalSpriteTC;
+    [SerializeField] private Sprite[] selectSpriteTC;
+    private int suggestIndexTC = 0;
 
     private bool isAnim = false;
 
@@ -88,11 +103,14 @@ public class pauseManager : MonoBehaviour
             suggestBack.anchoredPosition = Vector2.MoveTowards(suggestBack.anchoredPosition,
                                            newPos, Time.unscaledDeltaTime * (moveSpeed * 1000));
 
-            if (suggestIndex < suggestText.Length && suggestText[suggestIndex] != null)
+            if (currentState == PauseState.MenuSelect)
             {
-                suggestText[suggestIndex].rectTransform.anchoredPosition = 
-                    Vector2.MoveTowards(suggestText[suggestIndex].rectTransform.anchoredPosition,
-                                        newText,Time.unscaledDeltaTime * (moveTextSpeed * 1000));
+                if (suggestIndex < suggestText.Length && suggestText[suggestIndex] != null)
+                {
+                    suggestText[suggestIndex].rectTransform.anchoredPosition =
+                        Vector2.MoveTowards(suggestText[suggestIndex].rectTransform.anchoredPosition,
+                                            newText[suggestIndex], Time.unscaledDeltaTime * (moveTextSpeed * 1000));
+                }
             }
 
             // UIが開ききってからキー操作を受け付ける
@@ -123,6 +141,32 @@ public class pauseManager : MonoBehaviour
                     if (Input.GetKeyDown(KeyCode.RightArrow)) MoveSlider(1);
 
                 }
+                else if (currentState == PauseState.Checkpoint)
+                {
+                    skipTextSlide = true;
+
+                    // メインメニューのカーソル操作
+                    if (Input.GetKeyDown(KeyCode.UpArrow)) CPCursor(-1);
+                    if (Input.GetKeyDown(KeyCode.DownArrow)) CPCursor(1);
+
+                    if (Input.GetKeyDown(KeyCode.Return))
+                    {
+                        EnterMenu();
+                    }
+                }
+                else if (currentState == PauseState.Title)
+                {
+                    skipTextSlide = true;
+
+                    // メインメニューのカーソル操作
+                    if (Input.GetKeyDown(KeyCode.UpArrow)) TCCursor(-1);
+                    if (Input.GetKeyDown(KeyCode.DownArrow)) TCCursor(1);
+
+                    if (Input.GetKeyDown(KeyCode.Return))
+                    {
+                        EnterMenu();
+                    }
+                }
             }
         }
         if (Input.GetKeyDown(KeyCode.P))
@@ -136,6 +180,14 @@ public class pauseManager : MonoBehaviour
                 else if (currentState == PauseState.Option)
                 {
                     skipTextSlide = true;
+                    ChangeState(PauseState.MenuSelect); // オプションからメインメニューへ戻る
+                }
+                else if (currentState == PauseState.Checkpoint)
+                {
+                    ChangeState(PauseState.MenuSelect); // オプションからメインメニューへ戻る
+                }
+                else if (currentState == PauseState.Title)
+                {
                     ChangeState(PauseState.MenuSelect); // オプションからメインメニューへ戻る
                 }
             }
@@ -156,6 +208,8 @@ public class pauseManager : MonoBehaviour
             suggestMenuUI.SetActive(true);
             optionMenuUI.SetActive(false);
             idleCursor.SetActive(false);
+            CPcheckUI.SetActive(false);
+            TCcheckUI.SetActive(false);
             UpdateSelectMenu(); // 画像の選択状態を更新
         }
         else if (newState == PauseState.Option)
@@ -166,6 +220,20 @@ public class pauseManager : MonoBehaviour
             cursorMain.anchoredPosition = new Vector2(-770, 0);
 
             UpdateAllSlider();
+        }
+        else if (newState == PauseState.Checkpoint)
+        {
+            suggestIndexCP = 1;
+            CPcheckUI.SetActive(true);
+            skipTextSlide = true;
+            UpdateSelectMenu();
+        }
+        else if (newState == PauseState.Title)
+        {
+            suggestIndexTC = 1;
+            TCcheckUI.SetActive(true);
+            skipTextSlide = true;
+            UpdateSelectMenu();
         }
     }
 
@@ -178,7 +246,7 @@ public class pauseManager : MonoBehaviour
             {
                 if (skipTextSlide)
                 {
-                    suggestText[i].rectTransform.anchoredPosition = newText;
+                    suggestText[i].rectTransform.anchoredPosition = newText[suggestIndex];
                     skipTextSlide = false;
                 }
                 else
@@ -186,12 +254,14 @@ public class pauseManager : MonoBehaviour
                     suggestText[i].rectTransform.anchoredPosition = startText;
                 }
                 suggestImage[i].sprite = selectSprite[i];
+                suggestImage[i].SetNativeSize();
                 suggestText[i].gameObject.SetActive(true);
                 configImage[i].gameObject.SetActive(true);
             }
             else
             {
                 suggestImage[i].sprite = normalSprite[i];
+                suggestImage[i].SetNativeSize();
                 suggestText[i].gameObject.SetActive(false);
                 configImage[i].gameObject.SetActive(false);
             }
@@ -204,6 +274,34 @@ public class pauseManager : MonoBehaviour
         else
         {
             optionMenuUI.SetActive(false);
+        }
+
+        for (int i = 0; i < suggestImageCP.Length; i++)
+        {
+            if (i == suggestIndexCP)
+            {
+                suggestImageCP[i].sprite = selectSpriteCP[i];
+                suggestImageCP[i].SetNativeSize();
+            }
+            else
+            {
+                suggestImageCP[i].sprite = normalSpriteCP[i];
+                suggestImageCP[i].SetNativeSize();
+            }
+        }
+
+        for (int i = 0; i < suggestImageTC.Length; i++)
+        {
+            if (i == suggestIndexTC)
+            {
+                suggestImageTC[i].sprite = selectSpriteTC[i];
+                suggestImageTC[i].SetNativeSize();
+            }
+            else
+            {
+                suggestImageTC[i].sprite = normalSpriteTC[i];
+                suggestImageTC[i].SetNativeSize();
+            }
         }
     }
 
@@ -219,20 +317,70 @@ public class pauseManager : MonoBehaviour
         UpdateSelectMenu();
     }
 
+    void CPCursor(int direction)
+    {
+        suggestIndexCP += direction;
+
+        // ループ処理
+        if (suggestIndexCP < 0) suggestIndexCP = suggestImageCP.Length - 1;
+        if (suggestIndexCP >= suggestImageCP.Length) suggestIndexCP = 0;
+
+        UpdateSelectMenu();
+    }
+
+    void TCCursor(int direction)
+    {
+        suggestIndexTC += direction;
+
+        // ループ処理
+        if (suggestIndexTC < 0) suggestIndexTC = suggestImageTC.Length - 1;
+        if (suggestIndexTC >= suggestImageTC.Length) suggestIndexTC = 0;
+
+        UpdateSelectMenu();
+    }
+
     // メインメニューの決定処理
     void EnterMenu()
     {
-        switch (suggestIndex)
+        switch (currentState)
         {
-            case 0: // オプション
-                ChangeState(PauseState.Option);
+            case PauseState.MenuSelect:
+                switch (suggestIndex)
+                {
+                    case 0: // オプション
+                        ChangeState(PauseState.Option);
+                        break;
+                    case 1: // チェックポイント
+                        ChangeState(PauseState.Checkpoint);
+                        break;
+                    case 2: // タイトルに戻る
+                        ChangeState(PauseState.Title);
+                        break;
+                }
                 break;
-            case 1: // チェックポイント
-                Debug.Log("チェックポイント");
+                case PauseState.Checkpoint:
+                switch (suggestIndexCP)
+                {
+                    case 0:
+                        Debug.Log("チェック");
+                        break;
+                    case 1:
+                        ChangeState(PauseState.MenuSelect);
+                        break;
+                }
                 break;
-            case 2: // タイトルに戻る
-                ResumeGame();
-                SceneManager.LoadScene("TitleScene");
+
+                case PauseState.Title:
+                switch (suggestIndexTC)
+                {
+                    case 0:
+                        ResumeGame();
+                        SceneManager.LoadScene("TitleScene");
+                        break;
+                    case 1:
+                        ChangeState(PauseState.MenuSelect);
+                        break;
+                }
                 break;
         }
     }
@@ -273,7 +421,7 @@ public class pauseManager : MonoBehaviour
         {
             isOpen = true;
             pauseUI.SetActive(true); // ポーズUI表示
-            ChangeState(PauseState.MenuSelect);
+            //ChangeState(PauseState.MenuSelect);
         }
     }
 
