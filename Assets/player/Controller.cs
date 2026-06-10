@@ -10,7 +10,7 @@ public class Controller : MonoBehaviour
     Rigidbody rb;
     float jumpForce = 10;
     public bool isJumping;
-    public int hp = 100;
+    public int hp = 10;
 
     [SerializeField] SphereCollider jumpCollider;
 
@@ -34,7 +34,10 @@ public class Controller : MonoBehaviour
 
     [Header("Effects")]
     [SerializeField] private ParticleSystem dashEffect; // これはParticleSystemのまま（もしダッシュもVFXならVisualEffectに変更してください）
-    [SerializeField] private VisualEffect hitEffect;    // ★変更: ParticleSystem から VisualEffect に書き換え
+    
+    // ★変更: VisualEffect から GameObject に変更し、Prefabをアタッチできるようにする
+    [SerializeField] private GameObject explosionPrefab;
+    [SerializeField] private GameObject hitEffectPrefab;
     private bool wasDashing = false;
 
     [Header("Dash Settings")]
@@ -231,18 +234,29 @@ public class Controller : MonoBehaviour
         hp -= damage;
         Debug.Log("プレイヤーがダメージを受けた！ 残りHP: " + hp);
 
-        // ★変更: VFX Graphに確実に「OnPlay」イベントを送信する
-        if (hitEffect != null)
+        // ★修正: SendEventではなく標準のPlay()メソッドを呼ぶ
+        if (hitEffectPrefab != null)
         {
-            hitEffect.Reinit(); // 一度リセット
-            hitEffect.SendEvent("OnPlay"); // 強制的にOnPlayイベントを発火させる
+            Instantiate(hitEffectPrefab, transform.position, Quaternion.identity);
         }
 
-        if (hp <= 0) Die();
+        if (hp <= 0) 
+        {
+            Die();
+        }
     }
 
     private void Die()
     {
         Debug.Log("プレイヤーがやられた！");
+
+        // ★修正: 爆発エフェクトのプレハブは「死亡時」のみ生成する
+        if (explosionPrefab != null)
+        {
+            Instantiate(explosionPrefab, transform.position, Quaternion.identity);
+        }
+
+        // ★任意: プレイヤー自身を非表示にする
+        // gameObject.SetActive(false);
     }
 }
