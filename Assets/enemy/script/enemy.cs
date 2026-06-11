@@ -410,22 +410,8 @@ public class enemy : MonoBehaviour
     {
         isAttack = true;
 
-        // AnimatorにSetTriggerが反映されてステートが遷移するまで待機
-        yield return new WaitForSeconds(0.1f);
-
-        if (anim != null)
-        {
-            // 現在遷移しているアニメーションの長さを取得して、その分待機する
-            float animLength = anim.GetCurrentAnimatorStateInfo(0).length;
-            yield return new WaitForSeconds(animLength);
-        }
-        else
-        {
-            yield return new WaitForSeconds(1.0f);
-        }
-
+        yield return anim.WaitForCurrentAnimationEnd();
         isAttack = false;
-
     }
 
     public void TakeDamage(float damageAmount)
