@@ -23,6 +23,8 @@ public class enemy : MonoBehaviour
     [SerializeField] private float searchTime = 3.0f;   // 索敵している時間
     [SerializeField] private float searchRadius = 5.0f; // 索敵範囲
     [SerializeField] private float noticeTime = 1.0f;
+    [SerializeField] private float lookBackSpeed = 8.0f; // プレイヤー注視の振り返る速度
+
 
     [Header("磁力パラメータ")] // 磁力の影響力の設定
     [SerializeField] private float magnetRadius = 8.0f;  // 磁力を感知する距離
@@ -50,6 +52,7 @@ public class enemy : MonoBehaviour
     private float noticeTimer;
 
     private bool isMagnetized = false; // 磁力で制御されているかどうかを判定
+    private bool isAttack = false; // 攻撃アニメーション中かどうか
 
 
     void Start()
@@ -90,30 +93,46 @@ public class enemy : MonoBehaviour
         // 現在の状態によって行うことを変える
         switch (currentState)
         {
+            // 待機
             case EnemyState.Wait:
                 if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
                 break;
-
+            // 発見
             case EnemyState.Notice:
                 noticeTimer -= Time.deltaTime;
                 if (noticeTimer <= 0) ChangeState(EnemyState.Chase);
                 break;
-
+            // 追跡
             case EnemyState.Chase:
                 if (distanceToPlayer <= attackRange) ChangeState(EnemyState.Attack);
                 else if (distanceToPlayer > found + 5.0f) ChangeState(EnemyState.Search);
                 else agent.SetDestination(targetPlayer.position);
                 break;
-
+            // 攻撃
             case EnemyState.Attack:
-                if (distanceToPlayer > attackRange) ChangeState(EnemyState.Chase);
+                // 攻撃範囲から出たら追跡に戻る
+                if (distanceToPlayer > attackRange && !isAttack)
+                {
+                    ChangeState(EnemyState.Chase);
+                }
                 else
                 {
                     agent.isStopped = true;
+                    anim.SetBool("run", false);
+                    // 常にプレイヤーの方向を向くようにする
+                    Vector3 directionToPlayer = targetPlayer.position - transform.position;
+                    directionToPlayer.y = 0; // Y軸無視
+
+                    if (directionToPlayer != Vector3.zero)
+                    {
+                        Quaternion targetRotation = Quaternion.LookRotation(directionToPlayer);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * lookBackSpeed);
+                    }
+
                     Attack();
                 }
                 break;
-
+            // 索敵
             case EnemyState.Search:
                 if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
                 else
@@ -123,7 +142,7 @@ public class enemy : MonoBehaviour
                     else if (agent.remainingDistance < 0.5f) WanderAround();
                 }
                 break;
-
+            // 帰還
             case EnemyState.Return:
                 if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
                 else if (agent.remainingDistance < 0.5f) ChangeState(EnemyState.Wait);
@@ -269,7 +288,7 @@ public class enemy : MonoBehaviour
         agent.isStopped = false;
 
         if (nextState == EnemyState.Wait)
-        {
+        {// 待機
             agent.isStopped = true;
             if (anim != null)
             {
@@ -280,7 +299,7 @@ public class enemy : MonoBehaviour
             
         }
         else if (nextState == EnemyState.Notice)
-        {
+        {// 発見
             agent.isStopped = true;
             noticeTimer = noticeTime;
             if (markExclamation != null) markExclamation.SetActive(true);
@@ -293,7 +312,7 @@ public class enemy : MonoBehaviour
             }
         }
         else if (nextState == EnemyState.Chase)
-        {
+        {// 追跡
             agent.isStopped = false;
             if (anim != null)
             {
@@ -303,7 +322,7 @@ public class enemy : MonoBehaviour
             }
         }
         else if (nextState == EnemyState.Search)
-        {
+        {// 索敵
             if (anim != null)
             {
                 anim.SetBool("run",  false);
@@ -316,7 +335,7 @@ public class enemy : MonoBehaviour
             WanderAround();
         }
         else if (nextState == EnemyState.Return)
-        {
+        {// 帰還
             if (anim != null)
             {
                 anim.SetBool("walk", false);
@@ -363,6 +382,7 @@ public class enemy : MonoBehaviour
         }
 
         StartCoroutine(DelayDamageCoroutine());
+        StartCoroutine(WaitAttackAnimation());
     }
 
     private IEnumerator DelayDamageCoroutine()
@@ -384,6 +404,14 @@ public class enemy : MonoBehaviour
                 Debug.Log("ぬ");
             }
         }
+    }
+
+    private IEnumerator WaitAttackAnimation()
+    {
+        isAttack = true;
+
+        yield return anim.WaitForCurrentAnimationEnd();
+        isAttack = false;
     }
 
     public void TakeDamage(float damageAmount)
