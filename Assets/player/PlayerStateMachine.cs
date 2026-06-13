@@ -14,8 +14,8 @@ public class PlayerStateMachine : MonoBehaviour
 	// 状態が変わったとき他スクリプトに通知するイベント
 	public event System.Action<MagnetState> OnStateChanged;
 
-	// PlayerInputから自動で呼ばれる
-	public void OnMagnetONOFF(InputValue value)
+	// PlayerInputから自動で呼ばれる（Invertアクション = ZL / Q で極を切り替え）
+	public void OnInvert(InputValue value)
 	{
 		if (value.isPressed)
 		{
