@@ -25,6 +25,7 @@ public class PlayerAim : MonoBehaviour
 	private Camera mainCamera;
 	private PlayerInput playerInput;
 	private InputAction aimAction;
+	private PlayerCatch catchState;
 
 	// 通常時の値(復帰用)
 	private float normalFOV;
@@ -39,6 +40,8 @@ public class PlayerAim : MonoBehaviour
 		aimAction = playerInput.actions["Aim"];
 		// 押し込み一回でAim ON/OFFをトグル（押しっぱなし不要）
 		aimAction.started += OnAimToggle;
+
+		catchState = GetComponent<PlayerCatch>();
 	}
 
 	void Start()
@@ -65,6 +68,9 @@ public class PlayerAim : MonoBehaviour
 
 	void Update()
 	{
+		// Aimは「Catch中だけ」有効。Catchでなければ強制的に通常カメラへ戻す
+		if (catchState != null && !catchState.IsCatching) IsAiming = false;
+
 		float t = lerpSpeed * Time.deltaTime;
 
 		// FOV(ズーム)

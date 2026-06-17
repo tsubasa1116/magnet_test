@@ -29,6 +29,7 @@ public class PlayerMovement : MonoBehaviour
 	private PlayerHealth health;
 	private InputAction dashAction;
 	private PlayerAim aim;
+	private PlayerCatch catchState;
 	private Vector3 targetForward; // 見た目の向きの目標。入力が止んでも保持してそこへ向き続ける
 	private float currentMoveSpeed; // 実際に適用中の移動速度(加速のため保持)
 
@@ -58,6 +59,7 @@ public class PlayerMovement : MonoBehaviour
 		dashAction = playerInput.actions["Dash"];
 
 		aim = GetComponent<PlayerAim>();
+		catchState = GetComponent<PlayerCatch>();
 		health = GetComponent<PlayerHealth>();
 
 		Vector3 f = transform.forward;
@@ -66,8 +68,10 @@ public class PlayerMovement : MonoBehaviour
 		currentMoveSpeed = moveSpeed;
 	}
 
-	// エイム中か（移動の向き制御とアニメ側が参照する）
+	// エイム中か（カメラズーム用。アニメ側も参照可）
 	public bool IsAiming => aim != null && aim.IsAiming;
+	// Catch中か（ZRホールド中。体の向きと catchストレイフアニメに使う）
+	public bool IsCatching => catchState != null && catchState.IsCatching;
 
 	void FixedUpdate()
 	{
@@ -133,9 +137,9 @@ public class PlayerMovement : MonoBehaviour
 		if (moveDir.sqrMagnitude > 1f) moveDir.Normalize();
 
 		// --- 向きの制御 ---
-		if (IsAiming)
+		if (IsCatching)
 		{
-			// エイム中は常にカメラの向き(水平)に体を向ける＝ストレイフ
+			// Catch中は常にカメラの向き(水平)に体を向ける＝ストレイフ
 			if (forward.sqrMagnitude > 0.001f)
 			{
 				targetForward = forward;

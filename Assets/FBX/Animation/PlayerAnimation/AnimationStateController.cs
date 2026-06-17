@@ -52,16 +52,17 @@ public class AnimationStateController : MonoBehaviour
 
 	void Update()
 	{
-		bool aiming = movement.IsAiming;
-		animator.SetBool(IsAimingHash, aiming);
+		// Catch中(ZRホールド)に、体がカメラを向くストレイフ＋上半身catch姿勢にする
+		bool catching = movement.IsCatching;
+		animator.SetBool(IsAimingHash, catching);
 
-		// 上半身エイムレイヤーのウェイトをなめらかに出し入れ
+		// 上半身catchレイヤーのウェイトをなめらかに出し入れ
 		// (レイヤー未作成でもエラーにならないようガード)
-		aimWeight = Mathf.MoveTowards(aimWeight, aiming ? 1f : 0f, aimWeightSpeed * Time.deltaTime);
+		aimWeight = Mathf.MoveTowards(aimWeight, catching ? 1f : 0f, aimWeightSpeed * Time.deltaTime);
 		if (aimLayerIndex > 0 && aimLayerIndex < animator.layerCount)
 			animator.SetLayerWeight(aimLayerIndex, aimWeight);
 
-		if (aiming)
+		if (catching)
 		{
 			// 体はカメラを向いている＝入力がそのままローカルのストレイフ方向
 			// 壁で止められている時は入力ゼロ扱い→中央(IdolCatch)になる

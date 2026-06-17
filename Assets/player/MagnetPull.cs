@@ -1,18 +1,15 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
-// ZR(Magnet ON OFF アクション)を押している間、画面中央のRayで「逆極」の物体を
-// だんだん加速しながら引き寄せ、手元(handPoint)にくっつける。
-//   プレイヤー S極 → "N_Pole" を引き寄せ / N極 → "S_Pole" を引き寄せ
-// ・ZRを離すと引き寄せ解除(落とす)
-// ・保持中(ZR押下中)に自分の極を切り替える(ZL/Q)と、同極になって反発し、
-//   自分の向いている方向へ物体がぶっ飛ぶ。
+// Catch中(ZRホールド)に、画面中央のRayで「逆極」の物体を手元(handPoint)へ引き寄せる。
+//   プレイヤー S極 → "N_Pole" / N極 → "S_Pole" を引き寄せ
+// ・ZRを離す(Catch終了)と落とす
+// ・保持中に自分の極を切り替える(ZL/Q)と同極で反発し、向いている方向へ飛ばす
+[RequireComponent(typeof(PlayerCatch))]
 [RequireComponent(typeof(PlayerStateMachine))]
-[RequireComponent(typeof(PlayerInput))]
 public class MagnetPull : MonoBehaviour
 {
 	[Header("参照")]
-	[Tooltip("引き寄せた物体がくっつく位置(手のボーンなど)")]
+	[Tooltip("引き寄せた物体がくっつく位置(手のボーンなど)。未指定なら体の前方")]
 	[SerializeField] private Transform handPoint;
 	[Tooltip("中央Ray用カメラ。未指定なら Camera.main")]
 	[SerializeField] private Camera aimCamera;
@@ -21,40 +18,44 @@ public class MagnetPull : MonoBehaviour
 	[SerializeField] private float rayRange = 30f;
 	[SerializeField] private LayerMask rayMask = ~0;
 
-	[Header("引き寄せ")]
-	[SerializeField] private float pullAcceleration = 25f;
+	[Header("引き寄せ(磁石っぽい浮遊感)")]
+	[Tooltip("小さいほど機敏に吸い寄せ、大きいほどゆっくり漂って近づく")]
+	[SerializeField] private float pullSmoothTime = 0.25f;
 	[SerializeField] private float maxPullSpeed = 40f;
 	[SerializeField] private float attachDistance = 0.3f;
+	[Tooltip("引き寄せ中の上下のゆらぎ(浮遊感)。近づくほど弱まる")]
+	[SerializeField] private float floatAmplitude = 0.15f;
+	[SerializeField] private float floatFrequency = 6f;
 
 	[Header("反発(極切替でぶっ飛ばす)")]
 	[SerializeField] private float repelForce = 30f;
 
+	private PlayerCatch catchState;
 	private PlayerStateMachine stateMachine;
-	private InputAction pullAction;
 
-	private Rigidbody held;            // 引き寄せ中/保持中の物体
-	private float pullSpeed;           // 現在の引き寄せ速度(加速で増える)
-	private bool attached;             // 手元に固定済みか
-	private MagnetState grabbedPole;   // 掴んだ時の自分の極(切替検出用)
-
-	// 離す/反発時に元へ戻すための退避
+	private Rigidbody held;
+	private Vector3 pullVel;           // SmoothDamp用の速度
+	private Collider[] heldColliders;  // 保持中に無効化するコライダー
+	private bool attached;
+	private MagnetState grabbedPole;
 	private bool savedUseGravity;
 	private bool savedIsKinematic;
 
+	// エフェクト等が参照する：引き寄せ中/保持中の対象(無ければnull)
+	public Transform HeldObject => held != null ? held.transform : null;
+
 	void Awake()
 	{
+		catchState = GetComponent<PlayerCatch>();
 		stateMachine = GetComponent<PlayerStateMachine>();
 		if (aimCamera == null) aimCamera = Camera.main;
-		pullAction = GetComponent<PlayerInput>().actions["Magnet ON OFF"]; // ZR
 	}
 
 	void Update()
 	{
-		bool pulling = pullAction != null && pullAction.IsPressed();
-
-		if (!pulling)
+		if (!catchState.IsCatching)
 		{
-			if (held != null) Release(); // ZRを離した
+			if (held != null) Release(); // ZRを離した（Catch終了）
 			return;
 		}
 
@@ -64,8 +65,7 @@ public class MagnetPull : MonoBehaviour
 		}
 		else if (stateMachine.CurrentState != grabbedPole)
 		{
-			// 保持中に極を切り替えた＝同極になり反発 → 向いている方向へ飛ばす
-			Repel();
+			Repel(); // 保持中に極切替＝同極で反発
 		}
 	}
 
@@ -74,7 +74,11 @@ public class MagnetPull : MonoBehaviour
 		if (held != null && !attached) PullHeld();
 	}
 
-	// 引き寄せ対象のタグ(逆極)
+	private Transform HandParent => handPoint != null ? handPoint : transform;
+	private Vector3 HandPos => handPoint != null
+		? handPoint.position
+		: transform.position + transform.forward * 0.8f + Vector3.up * 1f;
+
 	private string WantedTag()
 		=> stateMachine.CurrentState == MagnetState.S ? "N_Pole" : "S_Pole";
 
@@ -85,55 +89,75 @@ public class MagnetPull : MonoBehaviour
 		Ray ray = aimCamera.ScreenPointToRay(
 			new Vector3(Screen.width / 2f, Screen.height / 2f, 0f));
 
-		if (!Physics.Raycast(ray, out RaycastHit hit, rayRange, rayMask)) return;
-		if (!hit.collider.CompareTag(WantedTag())) return;
+		// 三人称なので中央Rayは自分に当たりやすい。全ヒットを距離順に見て自分を除外し、
+		// 最初に当たった「自分以外」が対象タグなら掴む（手前に壁等があれば掴まない）。
+		RaycastHit[] hits = Physics.RaycastAll(ray, rayRange, rayMask, QueryTriggerInteraction.Ignore);
+		System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
-		Rigidbody rb = hit.collider.attachedRigidbody;
-		if (rb == null) return;
+		foreach (var hit in hits)
+		{
+			if (hit.collider.transform.IsChildOf(transform)) continue; // 自分は無視
 
+			if (hit.collider.CompareTag(WantedTag()))
+			{
+				Rigidbody rb = hit.collider.attachedRigidbody;
+				if (rb != null) Grab(rb);
+			}
+			return; // 最初の「自分以外」のヒットで判定終了（壁越しには掴まない）
+		}
+	}
+
+	private void Grab(Rigidbody rb)
+	{
 		held = rb;
 		attached = false;
-		pullSpeed = 0f;
+		pullVel = Vector3.zero;
 		grabbedPole = stateMachine.CurrentState;
 
-		// 引き寄せ中は物理を一旦止めて暴れさせない
+		// 引き寄せ中はキネマティックにして確実に・滑らかに動かす
 		savedUseGravity = rb.useGravity;
 		savedIsKinematic = rb.isKinematic;
+		rb.isKinematic = true;
 		rb.useGravity = false;
 		rb.linearVelocity = Vector3.zero;
 		rb.angularVelocity = Vector3.zero;
+
+		// 保持中はコライダーを無効化（プレイヤーや地面を押さない）
+		heldColliders = rb.GetComponentsInChildren<Collider>();
+		foreach (var c in heldColliders) c.enabled = false;
 	}
 
 	private void PullHeld()
 	{
-		if (handPoint == null) return;
-
-		Vector3 to = handPoint.position - held.position;
+		Vector3 to = HandPos - held.position;
 		if (to.magnitude <= attachDistance)
 		{
 			Attach();
 			return;
 		}
 
-		// だんだん加速
-		pullSpeed = Mathf.Min(pullSpeed + pullAcceleration * Time.fixedDeltaTime, maxPullSpeed);
-		Vector3 step = to.normalized * pullSpeed * Time.fixedDeltaTime;
-		if (step.sqrMagnitude > to.sqrMagnitude) step = to; // 行き過ぎ防止
-		held.MovePosition(held.position + step);
+		// 上下のゆらぎ（浮遊感）。近づくほど弱める
+		float distFactor = Mathf.Clamp01(to.magnitude / 3f);
+		Vector3 bob = Vector3.up * Mathf.Sin(Time.time * floatFrequency) * floatAmplitude * distFactor;
+		Vector3 target = HandPos + bob;
+
+		// 磁石に吸い寄せられるように滑らかに移動（SmoothDamp=ふわっと加速→減速）
+		Vector3 next = Vector3.SmoothDamp(held.position, target, ref pullVel, pullSmoothTime, maxPullSpeed, Time.fixedDeltaTime);
+		held.MovePosition(next);
 	}
 
 	private void Attach()
 	{
 		attached = true;
-		held.isKinematic = true;
-		held.transform.SetParent(handPoint); // 手に追従
-		held.transform.position = handPoint.position;
+		held.transform.SetParent(HandParent); // 手に追従
+		held.transform.position = HandPos;
 	}
 
 	// ZRを離した：物理を元に戻して落とす
 	private void Release()
 	{
 		if (attached) held.transform.SetParent(null);
+		RestoreColliders();
 		held.isKinematic = savedIsKinematic;
 		held.useGravity = savedUseGravity;
 		ClearHeld();
@@ -144,16 +168,25 @@ public class MagnetPull : MonoBehaviour
 	{
 		Vector3 dir = transform.forward;
 		if (attached) held.transform.SetParent(null);
+		RestoreColliders();
 		held.isKinematic = false;
 		held.useGravity = true;
 		held.AddForce(dir * repelForce, ForceMode.Impulse);
 		ClearHeld();
 	}
 
+	private void RestoreColliders()
+	{
+		if (heldColliders == null) return;
+		foreach (var c in heldColliders)
+			if (c != null) c.enabled = true;
+	}
+
 	private void ClearHeld()
 	{
 		held = null;
+		heldColliders = null;
 		attached = false;
-		pullSpeed = 0f;
+		pullVel = Vector3.zero;
 	}
 }
