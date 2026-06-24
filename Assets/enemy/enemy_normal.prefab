@@ -274,7 +274,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: b0e6b66b53b867148b36a7cc4de73d3a, type: 3}
       propertyPath: m_Name
-      value: modelEnemy01_v3
+      value: enemy_normal
       objectReference: {fileID: 0}
     - target: {fileID: 5866666021909216657, guid: b0e6b66b53b867148b36a7cc4de73d3a, type: 3}
       propertyPath: m_Controller
@@ -396,6 +396,7 @@ MonoBehaviour:
   searchTime: 2
   searchRadius: 1.5
   noticeTime: 1
+  lookBackSpeed: 8
   magnetRadius: 8
   magnetForce: 50
   targetPlayer: {fileID: 0}
@@ -403,7 +404,10 @@ MonoBehaviour:
   markQuestion: {fileID: 3760595592133395977}
   anim: {fileID: 7554073767100345204}
   attackInterval: 2
+  attackDamage: 10
   attackTimer: 0
+  enemyHitEffect: {fileID: 1395294932367503536, guid: 0018faa59c074154f98dfa1ad3b5f312, type: 3}
+  damageDelay: 0.3
 --- !u!4 &4482588810070274318 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: b0e6b66b53b867148b36a7cc4de73d3a, type: 3}

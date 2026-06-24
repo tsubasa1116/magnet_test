@@ -44,6 +44,10 @@ public class enemy_Sky : MonoBehaviour
     [SerializeField] private GameObject markQuestion;    // ？マーク
     [SerializeField] private GameObject beam;    // ビーム
 
+    [Header("エフェクト")]
+    [SerializeField] private GameObject enemyHitEffect;
+    [SerializeField] private GameObject enemyFloatingEffect;
+
     private float currentHp;
     private NavMeshAgent agent;
     private Rigidbody rb; // 物理演算用
@@ -81,6 +85,15 @@ public class enemy_Sky : MonoBehaviour
 
         if (markExclamation != null) markExclamation.SetActive(false);
         if (markQuestion != null) markQuestion.SetActive(false);
+
+        // 浮遊エフェクトを生成
+        if (enemyFloatingEffect != null)
+        {
+            GameObject effect = Instantiate(enemyFloatingEffect, transform.position, Quaternion.identity, transform);
+
+            // 少し下に表示したい場合
+            effect.transform.localPosition = new Vector3(0, -0.5f, 0);
+        }
     }
 
     void FixedUpdate()
@@ -415,6 +428,10 @@ public class enemy_Sky : MonoBehaviour
     public void TakeDamage(float damageAmount)
     {
         currentHp -= damageAmount;
+
+        // ダメージを受けたときのエフェクトを再生
+        if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
+
         if (currentHp <= 0) Die();
     }
 

@@ -33,12 +33,11 @@ public class Controller : MonoBehaviour
     private float cameraPitch = 0f;
 
     [Header("Effects")]
-    [SerializeField] private ParticleSystem dashEffect; // これはParticleSystemのまま（もしダッシュもVFXならVisualEffectに変更してください）
-    
-    // ★変更: VisualEffect から GameObject に変更し、Prefabをアタッチできるようにする
-    [SerializeField] private GameObject explosionPrefab;
-    [SerializeField] private GameObject hitEffectPrefab;
-    private bool wasDashing = false;
+    [SerializeField] private GameObject runEffect;
+    private bool wasDashing = false; 
+    [SerializeField] private GameObject hitEffect;
+    [SerializeField] private GameObject nPoleChangeEffect;
+    [SerializeField] private GameObject sPoleChangeEffect;
 
     [Header("Dash Settings")]
     public float normalSpeed = 7f;
@@ -76,22 +75,15 @@ public class Controller : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        if (dashEffect != null)
-        {
-            var mainModule = dashEffect.main;
-            mainModule.loop = true;
-            mainModule.simulationSpace = ParticleSystemSimulationSpace.World;
-
-            var emissionModule = dashEffect.emission;
-            if (emissionModule.rateOverTime.constant <= 0f)
-            {
-                emissionModule.rateOverTime = 20f;
-            }
-        }
+        if (runEffect != null)  runEffect.SetActive(true);
     }
     
     void Update()
     {
+        if (runEffect != null)
+        {
+            runEffect.SetActive(true);
+        }
         if (isMagnetMoving)
         {
             HandleMagnetMovement();
@@ -102,20 +94,25 @@ public class Controller : MonoBehaviour
         cameraInput = controls.Player.Camera.ReadValue<Vector2>();
         bool isDash = controls.Player.Dash.IsPressed();
 
-        bool isEffectActive = isDash && moveInput.magnitude > 0.1f;
-        if (dashEffect != null)
-        {
-            if (isEffectActive && !wasDashing)
-            {
-                dashEffect.Play();
-            }
-            else if (!isEffectActive && wasDashing)
-            {
-                dashEffect.Stop();
-            }
-        }
-        wasDashing = isEffectActive;
+        //bool isEffectActive = isDash && moveInput.magnitude > 0.05f;
 
+        //if (runEffect != null)
+        //{
+        //    if (isEffectActive && !wasDashing)
+        //    {
+        //        runEffect.SetActive(true);
+        //    }
+        //    else if (!isEffectActive && wasDashing)
+        //    {
+        //        runEffect.SetActive(false);
+        //    }
+        //}
+
+        if (isDash)
+        {
+            Debug.Log("Dash中");
+        }
+        //wasDashing = isEffectActive;
         HandleMovement(isDash);
     }
 
@@ -163,7 +160,29 @@ public class Controller : MonoBehaviour
         {
             int newMode = magnetScript.magnetMode == 1 ? 2 : 1;
             magnetScript.ChangeMode(newMode);
-            Debug.Log("極を反転しました: " + (newMode == 1 ? "N極" : "S極"));
+
+            // N極になった時
+            if (newMode == 1)
+            {
+                Debug.Log("極を反転しました: N極");
+
+                if (nPoleChangeEffect != null)
+                {
+                    GameObject effect = Instantiate(nPoleChangeEffect, transform.position, Quaternion.identity, transform);
+                    Destroy(effect, 1.5f); // 一定時間後に削除
+                }
+            }
+            // S極になった時
+            else
+            {
+                Debug.Log("極を反転しました: S極");
+
+                if (sPoleChangeEffect != null)
+                {
+                    GameObject effect = Instantiate(sPoleChangeEffect, transform.position, Quaternion.identity, transform);
+                    Destroy(effect, 1.5f); // 一定時間後に削除
+                }
+            }
         }
     }
 
@@ -234,10 +253,9 @@ public class Controller : MonoBehaviour
         hp -= damage;
         Debug.Log("プレイヤーがダメージを受けた！ 残りHP: " + hp);
 
-        // ★修正: SendEventではなく標準のPlay()メソッドを呼ぶ
-        if (hitEffectPrefab != null)
+        if (hitEffect != null)
         {
-            Instantiate(hitEffectPrefab, transform.position, Quaternion.identity);
+            Instantiate(hitEffect, transform.position, Quaternion.identity);
         }
 
         if (hp <= 0) 
@@ -250,13 +268,7 @@ public class Controller : MonoBehaviour
     {
         Debug.Log("プレイヤーがやられた！");
 
-        // ★修正: 爆発エフェクトのプレハブは「死亡時」のみ生成する
-        if (explosionPrefab != null)
-        {
-            Instantiate(explosionPrefab, transform.position, Quaternion.identity);
-        }
-
-        // ★任意: プレイヤー自身を非表示にする
-        // gameObject.SetActive(false);
+        // プレイヤー自身を非表示にする
+        gameObject.SetActive(false);
     }
 }
