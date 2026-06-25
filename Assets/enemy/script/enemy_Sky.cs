@@ -387,14 +387,19 @@ public class enemy_Sky : MonoBehaviour
 
         if (anim != null)
         {
-            anim.SetTrigger("beam");
+            anim.SetTrigger("attack");
         }
+    }
 
-        // プレイヤーの方向を計算
+    //アニメーションイベントで特定のフレームから呼び出すようの関数
+    public void SpawnBeam()
+    {
+        if (beam == null || targetPlayer == null) return;
+        // プレイヤーの方向を計算[]
         Vector3 direction = (targetPlayer.position - transform.position).normalized;
 
         // キャラクターの少し前方にビームを生成
-        Vector3 spawnPos = transform.position + direction * 1.5f;
+        Vector3 spawnPos = transform.position + direction * 0.8f;
 
         // ビームの生成
         GameObject firedBeam = Instantiate(beam, spawnPos, Quaternion.LookRotation(direction));
@@ -405,10 +410,6 @@ public class enemy_Sky : MonoBehaviour
         {
             beamRb.linearVelocity = direction * beamSpeed;
         }
-
-        // メモ: ダメージを与える処理について
-        // ビームのプレハブ側（beam）に `OnColliderEnter` や `OnTriggerEnter` を実装したスクリプトをアタッチして、
-        // プレイヤーに当たった時にプレイヤー側の `TakeDamage` のようなメソッドを呼び出すようにしてください。
     }
 
     public void TakeDamage(float damageAmount)
