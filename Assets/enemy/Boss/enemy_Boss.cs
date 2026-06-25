@@ -16,6 +16,7 @@ public class enemy_Boss : MonoBehaviour
     public float armSpeed = 15.0f;
     public float moveSpeed = 10.0f;
     public float targetDistance = 10.0f;
+    public float stopDistance = 3.0f;
 
     private enum ArmState
     {
@@ -24,8 +25,21 @@ public class enemy_Boss : MonoBehaviour
         Returning
     }
 
-    private ArmState currentState = ArmState.Idle;
+    private enum BossState
+    {
+        Idle,
+        Move,
+        SmashNormal,
+        SmashBig,
+        Rush,
+        Punch,
+        Down
+    }
+
+    private BossState bossState = BossState.Idle;
+    private ArmState armState = ArmState.Idle;
     private Vector3 targetPosition;
+    private float attackTimer = 0.0f;
 
     public Transform rBos;
     public Transform target;
@@ -36,11 +50,76 @@ public class enemy_Boss : MonoBehaviour
     void Start()
     {
         anim = GetComponent<Animator>();
-        anim.SetBool("idle", true);
+        anim.SetBool("Idol", true);
 
         // 最初は飛ばす用の腕を非表示にしておく
         if (armMesh != null) armMesh.gameObject.SetActive(false);
     }
+
+    [Header("ロボット腕の追尾設定")]
+    public Transform armBone;
+
+    public bool isTracking = false; // 追尾中かどうか
+
+    public float transitionSpeed = 8f;
+
+    private Vector3 currentOffset = Vector3.zero;
+    private Vector3 lockedOffset = Vector3.zero;
+
+    void LateUpdate()
+    {
+        if (armBone == null) return;
+
+        // 毎フレームの「アニメーション本来の位置」を取得
+        Vector3 rawAnimPos = armBone.position;
+
+        if (bossState == BossState.SmashNormal)
+        {
+            if (isTracking)
+            {
+                // 【15〜35フレーム（追従中）】
+
+                // ★ポイント：追従が始まったばかりの時は、前回（振り下ろし時）のロックオフセットから
+                // 急激に切り替わらないように、滑らかに（Lerpで）ターゲットとの差分へ移行させます。
+                Vector3 targetPos = targetPlayer.position;
+                Vector3 targetOffset = new Vector3(targetPos.x - rawAnimPos.x, 0, targetPos.z - rawAnimPos.z);
+
+                // なめらかにプレイヤーの真上のズレへ近づける（最初からワープせずスーッと移動します）
+                currentOffset = Vector3.Lerp(currentOffset, targetOffset, transitionSpeed * Time.deltaTime);
+
+                // 追従が終わる瞬間のために「最後にロックオンしたズレ」を記憶
+                lockedOffset = currentOffset;
+            }
+            else
+            {
+                // 【14フレーム以前 ＆ 36フレーム以降】
+
+                // ★ポイント：追従していない時間帯（振りかぶる前と、振り下ろしている最中）は、
+                // 前回の名残（currentOffset）をなめらかにゼロに戻しておくことで、
+                // 追従開始時（15フレーム目）に明後あらぬ方向へ飛んでしまうのを防ぎます。
+                currentOffset = Vector3.Lerp(currentOffset, Vector3.zero, transitionSpeed * Time.deltaTime);
+
+                // ただし、35フレーム目に追従がオフになった直後は「ロックしたズレ」を維持したいので、
+                // 振り下ろし中（lockedOffsetがゼロじゃない状態）はロックを優先させます。
+                // （※攻撃が終わってIdleに戻ったら勝手にゼロに戻ります）
+                if (lockedOffset != Vector3.zero)
+                {
+                    currentOffset = lockedOffset;
+                }
+            }
+        }
+        else
+        {
+            // 【スマッシュ攻撃以外の時（Idleなど）】
+            // 次の攻撃に備えて、記憶していたロックも完全にリセットし、ズレをゼロに戻す
+            lockedOffset = Vector3.zero;
+            currentOffset = Vector3.Lerp(currentOffset, Vector3.zero, transitionSpeed * Time.deltaTime);
+        }
+
+        // 最終的な位置 ＝ アニメーションの生の位置 ＋ 計算したズレ
+        armBone.position = rawAnimPos + currentOffset;
+    }
+
 
     void Update()
     {
@@ -53,19 +132,17 @@ public class enemy_Boss : MonoBehaviour
 
             if (Input.GetKeyDown(KeyCode.L))
             {
-                if (currentState == ArmState.Idle) anim.SetTrigger("Punch");
-                else if (currentState == ArmState.Flying) currentState = ArmState.Returning;
+                if (armState == ArmState.Idle) anim.SetTrigger("Punch");
+                else if (armState == ArmState.Flying) armState = ArmState.Returning;
             }
 
             if (Input.GetKeyDown(KeyCode.K))
             {
-                float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
-                Vector3 targetCenterPos = targetPlayer.position + Vector3.up * 0.8f;
-                transform.position = Vector3.MoveTowards(transform.position, targetCenterPos, moveSpeed * Time.deltaTime);
+                bossState = BossState.Move;
             }
         }
 
-        switch (currentState)
+        switch (armState)
         {
             case ArmState.Flying:
                 targetPosition = targetPlayer.position + Vector3.up * 0.8f;
@@ -73,11 +150,61 @@ public class enemy_Boss : MonoBehaviour
                 Quaternion armTargetRotation = Quaternion.LookRotation(armDir);
                 armMesh.rotation = Quaternion.Slerp(armMesh.rotation, armTargetRotation, aimSpeed * Time.deltaTime);
 
-                MoveArmTo(targetPosition, () => { currentState = ArmState.Returning; });
+                MoveArmTo(targetPosition, () => { armState = ArmState.Returning; });
                 break;
 
             case ArmState.Returning:
                 MoveArmTo(armAnchor.position, () => { ResetArm(); });
+                break;
+        }
+
+        switch (bossState)
+        { 
+            case BossState.Idle:
+                anim.SetBool("Move", false);
+                anim.SetBool("Idol", true);
+                break;
+            case BossState.Move:
+                float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
+
+                if (distanceToPlayer > stopDistance)
+                {
+                    Vector3 moveTarget = targetPlayer.position;
+                    moveTarget.y = transform.position.y; // Y軸固定
+
+                    transform.position = Vector3.MoveTowards(transform.position, moveTarget, moveSpeed * Time.deltaTime);
+
+                    anim.SetBool("Move", true);
+                    anim.SetBool("Idol", false);
+                }
+                else
+                {
+                    bossState = BossState.SmashNormal;
+                }
+                break;
+           case BossState.SmashNormal:
+                if (attackTimer == 0.0f)
+                {
+                    anim.SetBool("Move", false);
+                    anim.SetBool("Idol", false);
+                    anim.SetTrigger("Smash_N");
+                }
+
+                if (attackTimer >= 0.3f) isTracking = true;  // 追尾ON
+                if (attackTimer >= 1.1f) isTracking = false; // 追尾OFF
+
+                attackTimer += Time.deltaTime;
+
+                if (attackTimer >= 3.5f)
+                {
+                    bossState = BossState.Idle;
+                    attackTimer = 0.0f;
+                }
+                break;
+            case BossState.Down:
+                anim.SetBool("Move", false);
+                anim.SetBool("Idol", false);
+               // amim.SetBool("Down", true);
                 break;
         }
     }
@@ -107,43 +234,10 @@ public class enemy_Boss : MonoBehaviour
         armMesh.parent = null; // Animatorの支配から完全に独立させる
 
         targetPosition = targetPlayer.position + Vector3.up * 0.8f;
-        currentState = ArmState.Flying;
+        armState = ArmState.Flying;
 
         Debug.Log("切り離し");
     }
-
-    //// 腕を切り離して飛ばす
-    //public void LaunchArm()
-    //{
-    //    armMesh.gameObject.SetActive(true);
-
-    //    if (realArmBone != null)
-    //    {
-    //        // 位置は本物の腕からコピーする（ここはそのまま）
-    //        armMesh.position = realArmBone.position;
-
-    //        // ❌ 回転のコピーは削除！ボーンのナナメの軸を引き継がないようにします
-    //        // armMesh.rotation = realArmBone.rotation; 
-    //    }
-
-    //    // 本体の腕ボーンを消す
-    //    if (realArmBone != null) realArmBone.localScale = Vector3.zero;
-
-    //    armMesh.parent = null; // 独立させる
-
-    //    targetPosition = targetPlayer.position + Vector3.up * 0.8f;
-
-    //    // ★【追加】切り替わった瞬間に、いきなりターゲット（プレイヤー）の方を向かせる！
-    //    Vector3 initialDirection = targetPosition - armMesh.position;
-    //    if (initialDirection != Vector3.zero)
-    //    {
-    //        armMesh.rotation = Quaternion.LookRotation(initialDirection);
-    //    }
-
-    //    currentState = ArmState.Flying;
-
-    //    Debug.Log("切り離し");
-    //}
 
     void MoveArmTo(Vector3 target, System.Action onArrival)
     {
@@ -166,8 +260,8 @@ public class enemy_Boss : MonoBehaviour
 
         // 本体の腕ボーンのスケールを1に戻して再表示する
         if (realArmBone != null) realArmBone.localScale = Vector3.one;
-
-        currentState = ArmState.Idle;
+        anim.SetBool("Idol", true);
+        armState = ArmState.Idle;
         Debug.Log("合体");
     }
 }
