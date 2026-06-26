@@ -14,6 +14,7 @@ public class enemy_Boss : MonoBehaviour
 
     [Header("調整パラメータ")]
     public float armSpeed = 15.0f;
+    public float retrunSpeed = 30.0f;
     public float moveSpeed = 10.0f;
     public float targetDistance = 10.0f;
     public float stopDistance = 3.0f;
@@ -43,7 +44,7 @@ public class enemy_Boss : MonoBehaviour
 
     public Transform rBos;
     public Transform target;
-    public float aimSpeed = 5.0f;
+    public float aimSpeed = 10.0f;
 
     [SerializeField] private Animator anim;
 
@@ -57,7 +58,8 @@ public class enemy_Boss : MonoBehaviour
     }
 
     [Header("ロボット腕の追尾設定")]
-    public Transform armBone;
+    public Transform armBone_R;
+    public Transform armBone_L;
 
     public bool isTracking = false; // 追尾中かどうか
 
@@ -66,60 +68,113 @@ public class enemy_Boss : MonoBehaviour
     private Vector3 currentOffset = Vector3.zero;
     private Vector3 lockedOffset = Vector3.zero;
 
+    private Vector3 punchPos;
+    private Quaternion punchRot;
+
+    [Header("ロケットパンチ回転補正")]
+    public Vector3 punchRotationOffset = new Vector3(0, 0, 0);
+
+
     void LateUpdate()
     {
-        if (armBone == null) return;
+        if (armBone_R == null || armBone_L == null) return;
 
-        // 毎フレームの「アニメーション本来の位置」を取得
-        Vector3 rawAnimPos = armBone.position;
+        // 毎フレームのアニメーション自体の位置と回転を取得（左右）
+        Vector3 rawAnimPos_R = armBone_R.position;
+        Quaternion rawAnimRot_R = armBone_R.rotation;
+
+        Vector3 rawAnimPos_L = armBone_L.position;
+        Quaternion rawAnimRot_L = armBone_L.rotation;
 
         if (bossState == BossState.SmashNormal)
         {
+            // 叩きつけ(右腕)
             if (isTracking)
             {
-                // 【15〜35フレーム（追従中）】
-
-                // ★ポイント：追従が始まったばかりの時は、前回（振り下ろし時）のロックオフセットから
-                // 急激に切り替わらないように、滑らかに（Lerpで）ターゲットとの差分へ移行させます。
                 Vector3 targetPos = targetPlayer.position;
-                Vector3 targetOffset = new Vector3(targetPos.x - rawAnimPos.x, 0, targetPos.z - rawAnimPos.z);
-
-                // なめらかにプレイヤーの真上のズレへ近づける（最初からワープせずスーッと移動します）
+                Vector3 targetOffset = new Vector3(targetPos.x - rawAnimPos_R.x, 0, targetPos.z - rawAnimPos_R.z);
                 currentOffset = Vector3.Lerp(currentOffset, targetOffset, transitionSpeed * Time.deltaTime);
-
-                // 追従が終わる瞬間のために「最後にロックオンしたズレ」を記憶
                 lockedOffset = currentOffset;
             }
             else
             {
-                // 【14フレーム以前 ＆ 36フレーム以降】
-
-                // ★ポイント：追従していない時間帯（振りかぶる前と、振り下ろしている最中）は、
-                // 前回の名残（currentOffset）をなめらかにゼロに戻しておくことで、
-                // 追従開始時（15フレーム目）に明後あらぬ方向へ飛んでしまうのを防ぎます。
                 currentOffset = Vector3.Lerp(currentOffset, Vector3.zero, transitionSpeed * Time.deltaTime);
-
-                // ただし、35フレーム目に追従がオフになった直後は「ロックしたズレ」を維持したいので、
-                // 振り下ろし中（lockedOffsetがゼロじゃない状態）はロックを優先させます。
-                // （※攻撃が終わってIdleに戻ったら勝手にゼロに戻ります）
-                if (lockedOffset != Vector3.zero)
-                {
-                    currentOffset = lockedOffset;
-                }
+                if (lockedOffset != Vector3.zero) currentOffset = lockedOffset;
             }
+
+            // 右腕には計算したズレを適用
+            armBone_R.position = rawAnimPos_R + currentOffset;
+
+            // 叩きつけ中、左腕は通常通りアニメーションの動きをさせる
+            armBone_L.position = rawAnimPos_L;
+            armBone_L.rotation = rawAnimRot_L;
+        }
+        else if (bossState == BossState.Punch)
+        {
+            // ロケットパンチ(左腕)
+            if (armState == ArmState.Flying)
+            {
+                Vector3 targetPos = targetPlayer.position + Vector3.up * 0.8f;
+                punchPos = Vector3.MoveTowards(punchPos, targetPos, armSpeed * Time.deltaTime);
+
+                Vector3 dir = targetPos - punchPos;
+                if (dir != Vector3.zero)
+                {
+                    // 1. ターゲットの方向を向くベースの回転（Z軸が前を向く）
+                    Quaternion baseRotation = Quaternion.LookRotation(dir);
+
+                    // 2. インスペクターで設定したボーンのズレを直すための補正回転
+                    Quaternion offsetRotation = Quaternion.Euler(punchRotationOffset);
+
+                    // 3. 2つを掛け合わせる（※Quaternionの掛け算は順序が重要です）
+                    Quaternion targetRotation = baseRotation * offsetRotation;
+
+                    // 4. スムーズに回転させる
+                    punchRot = Quaternion.Slerp(punchRot, targetRotation, aimSpeed * Time.deltaTime);
+                }
+
+                if (Vector3.Distance(punchPos, targetPos) < 0.05f)
+                {
+                    armState = ArmState.Returning;
+                }
+
+                armBone_L.position = punchPos;
+                armBone_L.rotation = punchRot;
+            }
+            else if (armState == ArmState.Returning)
+            {
+                punchPos = Vector3.MoveTowards(punchPos, rawAnimPos_L, retrunSpeed * Time.deltaTime);
+                punchRot = Quaternion.Slerp(punchRot, rawAnimRot_L, aimSpeed * Time.deltaTime);
+
+                if (Vector3.Distance(punchPos, rawAnimPos_L) < 0.05f)
+                {
+                    armState = ArmState.Idle;
+                    bossState = BossState.Idle;
+                    anim.SetBool("Idol", true);
+                }
+
+                armBone_L.position = punchPos;
+                armBone_L.rotation = punchRot;
+            }
+
+            // ロケットパンチ中、右腕は通常通りアニメーションの動きをさせる
+            armBone_R.position = rawAnimPos_R;
+            armBone_R.rotation = rawAnimRot_R;
         }
         else
         {
-            // 【スマッシュ攻撃以外の時（Idleなど）】
-            // 次の攻撃に備えて、記憶していたロックも完全にリセットし、ズレをゼロに戻す
+            // 攻撃時以外
             lockedOffset = Vector3.zero;
             currentOffset = Vector3.Lerp(currentOffset, Vector3.zero, transitionSpeed * Time.deltaTime);
+
+            // 右腕は叩きつけのズレをゼロに戻す処理を適用
+            armBone_R.position = rawAnimPos_R + currentOffset;
+
+            // 左腕は左腕本来の位置をそのまま適用
+            armBone_L.position = rawAnimPos_L;
+            armBone_L.rotation = rawAnimRot_L;
         }
-
-        // 最終的な位置 ＝ アニメーションの生の位置 ＋ 計算したズレ
-        armBone.position = rawAnimPos + currentOffset;
     }
-
 
     void Update()
     {
@@ -140,22 +195,6 @@ public class enemy_Boss : MonoBehaviour
             {
                 bossState = BossState.Move;
             }
-        }
-
-        switch (armState)
-        {
-            case ArmState.Flying:
-                targetPosition = targetPlayer.position + Vector3.up * 0.8f;
-                Vector3 armDir = targetPosition - armMesh.position;
-                Quaternion armTargetRotation = Quaternion.LookRotation(armDir);
-                armMesh.rotation = Quaternion.Slerp(armMesh.rotation, armTargetRotation, aimSpeed * Time.deltaTime);
-
-                MoveArmTo(targetPosition, () => { armState = ArmState.Returning; });
-                break;
-
-            case ArmState.Returning:
-                MoveArmTo(armAnchor.position, () => { ResetArm(); });
-                break;
         }
 
         switch (bossState)
@@ -195,7 +234,7 @@ public class enemy_Boss : MonoBehaviour
 
                 attackTimer += Time.deltaTime;
 
-                if (attackTimer >= 3.5f)
+                if (attackTimer >= 3.3f)
                 {
                     bossState = BossState.Idle;
                     attackTimer = 0.0f;
@@ -209,59 +248,16 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
-    // 腕を切り離して飛ばす
-    void LaunchArm()
+    // アニメーションイベントからこのメソッドを呼んでください
+    public void FirePunch()
     {
-        // 飛ばす用の別オブジェクトの腕を表示する
-        armMesh.gameObject.SetActive(true);
-
-        if (realArmBone != null)
-        {
-            // アニメーションによって伸び切った瞬間の実際のボーンの位置と回転を代入
-            armMesh.position = punchSocket.position;
-            armMesh.rotation = punchSocket.rotation;
-
-            // 位置と回転を渡した後に、本体の腕ボーンのスケールを0にして見た目上消す
-            realArmBone.localScale = Vector3.zero;
-        }
-        else
-        {
-            // realArmBoneが未設定の場合のフォールバック
-            armMesh.position = punchSocket.position;
-            armMesh.rotation = punchSocket.rotation;
-        }
-
-        armMesh.parent = null; // Animatorの支配から完全に独立させる
-
-        targetPosition = targetPlayer.position + Vector3.up * 0.8f;
+        bossState = BossState.Punch;
         armState = ArmState.Flying;
 
-        Debug.Log("切り離し");
-    }
+        // 飛んでいく直前の、腕の初期位置と回転を記憶
+        punchPos = armBone_L.position;
+        punchRot = armBone_L.rotation;
 
-    void MoveArmTo(Vector3 target, System.Action onArrival)
-    {
-        armMesh.position = Vector3.MoveTowards(armMesh.position, target, armSpeed * Time.deltaTime);
-        if (Vector3.Distance(armMesh.position, target) < 0.05f)
-        {
-            onArrival.Invoke();
-        }
-    }
-
-    // 戻ってきた腕をボスに戻す
-    void ResetArm()
-    {
-        armMesh.parent = armAnchor;
-        armMesh.localPosition = Vector3.zero;
-        armMesh.localRotation = Quaternion.identity;
-
-        // 飛ばす用の腕を非表示にする
-        armMesh.gameObject.SetActive(false);
-
-        // 本体の腕ボーンのスケールを1に戻して再表示する
-        if (realArmBone != null) realArmBone.localScale = Vector3.one;
-        anim.SetBool("Idol", true);
-        armState = ArmState.Idle;
-        Debug.Log("合体");
+        Debug.Log("パンチ発射");
     }
 }

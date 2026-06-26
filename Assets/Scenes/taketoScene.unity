@@ -4926,6 +4926,7 @@ MonoBehaviour:
   realArmBone: {fileID: 791168591}
   punchSocket: {fileID: 706796217}
   armSpeed: 15
+  retrunSpeed: 1
   moveSpeed: 10
   targetDistance: 10
   stopDistance: 5
@@ -4933,9 +4934,11 @@ MonoBehaviour:
   target: {fileID: 355729280}
   aimSpeed: 5
   anim: {fileID: 0}
-  armBone: {fileID: 604354668}
+  armBone_R: {fileID: 604354668}
+  armBone_L: {fileID: 791168591}
   isTracking: 0
-  transitionSpeed: 8
+  transitionSpeed: 7
+  punchRotationOffset: {x: -30, y: 120, z: 0}
 --- !u!114 &1663273059
 MonoBehaviour:
   m_ObjectHideFlags: 0
