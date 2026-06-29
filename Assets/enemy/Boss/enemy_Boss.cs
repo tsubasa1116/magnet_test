@@ -6,11 +6,7 @@ public class enemy_Boss : MonoBehaviour
 {
     [Header("参照設定")]
     public Transform bossMesh;     // ボス全体のメッシュ
-    public Transform armMesh;      // ★【重要】飛ばす専用の別オブジェクト（腕のメッシュなど）
-    public Transform armAnchor;    // 腕の定位置（Arm_Anchor）
     public Transform targetPlayer;
-    public Transform realArmBone;  // ★【追加】本体の消したい腕のボーン（R_Hand_JNTin など）
-    public Transform punchSocket;
 
     [Header("調整パラメータ")]
     public float armSpeed = 15.0f;
@@ -23,6 +19,7 @@ public class enemy_Boss : MonoBehaviour
     {
         Idle,
         Flying,
+        Fall,
         Returning
     }
 
@@ -34,6 +31,7 @@ public class enemy_Boss : MonoBehaviour
         SmashBig,
         Rush,
         Punch,
+        Summon,
         Down
     }
 
@@ -52,9 +50,6 @@ public class enemy_Boss : MonoBehaviour
     {
         anim = GetComponent<Animator>();
         anim.SetBool("Idol", true);
-
-        // 最初は飛ばす用の腕を非表示にしておく
-        if (armMesh != null) armMesh.gameObject.SetActive(false);
     }
 
     [Header("ロボット腕の追尾設定")]
@@ -71,9 +66,17 @@ public class enemy_Boss : MonoBehaviour
     private Vector3 punchPos;
     private Quaternion punchRot;
 
-    [Header("ロケットパンチ回転補正")]
+    [Header("ロケットパンチ")]
     public Vector3 punchRotationOffset = new Vector3(0, 0, 0);
+    public Vector3 fallRotationOffset = new Vector3(0, 0, 0);
+    public float lockOffFrame = 2.0f;
+    public float fallFrame = 2.1f;
+    public float retrunFrame = 2.3f;
+    [SerializeField] private LayerMask groundLayerMask;
 
+    public float minFlyingHeight = 1.0f;      // 飛行中に地面から最低限保つ高さ
+    public float impactGroundOffset = 0.5f;   // 着弾時に地面からどれくらい浮かすか
+    private bool startAttack = false;
 
     void LateUpdate()
     {
@@ -114,32 +117,67 @@ public class enemy_Boss : MonoBehaviour
             // ロケットパンチ(左腕)
             if (armState == ArmState.Flying)
             {
-                Vector3 targetPos = targetPlayer.position + Vector3.up * 0.8f;
-                punchPos = Vector3.MoveTowards(punchPos, targetPos, armSpeed * Time.deltaTime);
-
-                Vector3 dir = targetPos - punchPos;
-                if (dir != Vector3.zero)
+                if (isTracking)
                 {
-                    // 1. ターゲットの方向を向くベースの回転（Z軸が前を向く）
-                    Quaternion baseRotation = Quaternion.LookRotation(dir);
+                    // プレイヤーの少し上を狙う
+                    Vector3 aimPoint = targetPlayer.position + Vector3.up * 0.8f;
 
-                    // 2. インスペクターで設定したボーンのズレを直すための補正回転
-                    Quaternion offsetRotation = Quaternion.Euler(punchRotationOffset);
-
-                    // 3. 2つを掛け合わせる（※Quaternionの掛け算は順序が重要です）
-                    Quaternion targetRotation = baseRotation * offsetRotation;
-
-                    // 4. スムーズに回転させる
-                    punchRot = Quaternion.Slerp(punchRot, targetRotation, aimSpeed * Time.deltaTime);
+                    // 空中で止まらないように、ターゲット位置をプレイヤーの奥に延長
+                    Vector3 directionToPlayer = (aimPoint - punchPos).normalized;
+                    targetPosition = aimPoint + directionToPlayer * 20.0f;
                 }
 
-                if (Vector3.Distance(punchPos, targetPos) < 0.05f)
+                punchPos = Vector3.MoveTowards(punchPos, targetPosition, armSpeed * Time.deltaTime);
+
+                Vector3 rayOrigin = punchPos + Vector3.up * 5.0f;
+                if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit flyHit, 10.0f, groundLayerMask))
                 {
-                    armState = ArmState.Returning;
+                    // 地面の高さ ＋ 最低限確保したい高さ
+                    float minHeight = flyHit.point.y + minFlyingHeight;
+                    if (punchPos.y < minHeight)
+                    {
+                        // それより下に行こうとしていたら、高さを最低高度に補正する
+                        punchPos.y = minHeight;
+                    }
+                }
+
+                Vector3 dir = targetPosition - punchPos;
+                if (dir != Vector3.zero)
+                {
+                    // ターゲットの方向を向くベースの回転（Z軸が前を向く）
+                    Quaternion baseRotation = Quaternion.LookRotation(dir);
+
+                    // インスペクターで設定したボーンのズレを直すための補正回転
+                    Quaternion offsetRotation = Quaternion.Euler(punchRotationOffset);
+
+                    // 2つを掛け合わせる
+                    Quaternion targetRotation = baseRotation * offsetRotation;
+
+                    // スムーズに回転させる
+                    punchRot = Quaternion.Slerp(punchRot, targetRotation, aimSpeed * Time.deltaTime);
                 }
 
                 armBone_L.position = punchPos;
                 armBone_L.rotation = punchRot;
+            }
+            else if (armState == ArmState.Fall)
+            {
+                // 位置：着弾点へ
+                punchPos = Vector3.MoveTowards(punchPos, fallPoint, armSpeed * Time.deltaTime);
+                // 回転：着弾点方向（＝だいたい真下）
+                Vector3 dir = fallPoint - punchPos;
+                if (dir.sqrMagnitude > 0.001f)
+                {
+                    Quaternion baseRot = Quaternion.LookRotation(dir.normalized);
+                    // 飛行用 (-30,120,0) とは別に、刺し用オフセットを用意すると調整しやすい
+                    Quaternion fallOffset = Quaternion.Euler(-30f, 120f, 0f); // まず同じ値で試す
+                    punchRot = Quaternion.Slerp(punchRot, baseRot * fallOffset, aimSpeed * Time.deltaTime);
+                }
+                armBone_L.position = punchPos;
+                armBone_L.rotation = punchRot;
+                // 着弾完了 → Returning
+                //if (Vector3.Distance(punchPos, fallPoint) < 0.05f)
+                //    armState = ArmState.Returning;
             }
             else if (armState == ArmState.Returning)
             {
@@ -218,15 +256,17 @@ public class enemy_Boss : MonoBehaviour
                 }
                 else
                 {
-                    bossState = BossState.SmashNormal;
+                    //bossState = BossState.SmashNormal;
+                    bossState = BossState.Rush;
                 }
                 break;
            case BossState.SmashNormal:
-                if (attackTimer == 0.0f)
+                if (!startAttack)
                 {
                     anim.SetBool("Move", false);
                     anim.SetBool("Idol", false);
                     anim.SetTrigger("Smash_N");
+                    startAttack = true;
                 }
 
                 if (attackTimer >= 0.3f) isTracking = true;  // 追尾ON
@@ -238,6 +278,58 @@ public class enemy_Boss : MonoBehaviour
                 {
                     bossState = BossState.Idle;
                     attackTimer = 0.0f;
+                    startAttack = false;
+                }
+                break;
+            case BossState.SmashBig:
+                if (!startAttack)
+                {
+                    anim.SetBool("Move", false);
+                    anim.SetBool("Idol", false);
+                    anim.SetTrigger("Smash_B");
+                }
+                break;
+            case BossState.Punch:
+                attackTimer += Time.deltaTime;
+
+                if (attackTimer > lockOffFrame)
+                {
+                    isTracking = false;
+                }
+
+                if (attackTimer > fallFrame && armState == ArmState.Flying)
+                {
+                    armState = ArmState.Fall;
+                    CalcImpactPoint();
+                }
+                if (attackTimer > retrunFrame && armState == ArmState.Fall)
+                {
+                    armState = ArmState.Returning;
+                    attackTimer = 0.0f;
+                }
+                break;
+            case BossState.Summon:
+                if (!startAttack)
+                {
+                    anim.SetBool("Move", false);
+                    anim.SetBool("Idol", false);
+                    anim.SetTrigger("Summon");
+                }
+                break;
+            case BossState.Rush:
+                if (!startAttack)
+                {
+                    anim.SetBool("Move", false);
+                    anim.SetBool("Idol", false);
+                    anim.SetTrigger("Rush");
+                    startAttack = true;
+                }
+                attackTimer += Time.deltaTime;
+                if (attackTimer >= 3.3f)
+                {
+                    bossState = BossState.Idle;
+                    attackTimer = 0.0f;
+                    startAttack = false;
                 }
                 break;
             case BossState.Down:
@@ -248,7 +340,6 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
-    // アニメーションイベントからこのメソッドを呼んでください
     public void FirePunch()
     {
         bossState = BossState.Punch;
@@ -258,6 +349,32 @@ public class enemy_Boss : MonoBehaviour
         punchPos = armBone_L.position;
         punchRot = armBone_L.rotation;
 
+        attackTimer = 0.0f;
+        isTracking = true;
+
         Debug.Log("パンチ発射");
+    }
+
+    private Vector3 fallPoint;
+    private bool hasFallPoint;
+    void CalcImpactPoint()
+    {
+        Vector3 rayStart = punchPos + Vector3.up * 2.0f;
+        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 10.0f, groundLayerMask))
+        {
+            fallPoint = hit.point + Vector3.up * impactGroundOffset;
+
+            float minHeight = hit.point.y + minFlyingHeight;
+            if (punchPos.y <= minHeight + 0.05f || punchPos.y >= minHeight + 0.05f)
+            {
+                fallPoint = hit.point + Vector3.up * (impactGroundOffset - 0.3f);
+            }
+        }
+        else
+        {
+            fallPoint = new Vector3(punchPos.x, 1f, punchPos.z);
+        }
+
+        hasFallPoint = true;
     }
 }
