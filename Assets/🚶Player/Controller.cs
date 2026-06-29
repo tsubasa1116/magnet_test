@@ -14,12 +14,11 @@ public class Controller : MonoBehaviour
 
     [SerializeField] SphereCollider jumpCollider;
 
-    // 磁石・立体機動用の変数
-    [SerializeField] float magnetRange = 30f;
+    // 磁石変数
     [SerializeField] float magnetSpeed = 10f;
-    private bool isMagnetMoving = false;
-    private Vector3 magnetTargetPoint;
-    private SpringJoint swingJoint;
+
+    [Header("立体機動")]
+    [SerializeField] float grappleRange = 30f;
     private magnet magnetScript;
 
     // コントローラー入力用の変数
@@ -32,32 +31,35 @@ public class Controller : MonoBehaviour
     public float cameraSensitivity = 10f;
     private float cameraPitch = 0f;
 
-    [Header("Effects")]
+    [Header("エフェクト")]
     [SerializeField] private GameObject runEffect;
-    private bool wasDashing = false; 
     [SerializeField] private GameObject hitEffect;
     [SerializeField] private GameObject nPoleChangeEffect;
     [SerializeField] private GameObject sPoleChangeEffect;
+    [SerializeField] private GameObject downEffect;
 
-    [Header("Dash Settings")]
+    [Header("ダッシュ")]
     public float normalSpeed = 7f;
     public float dashSpeed = 12f;
+    private GameObject currentRunEffect;
+    private Coroutine stopRunEffectCoroutine;
 
-    [Header("Jump Settings")]
+    [Header("ジャンプ")]
     public float airSpeedMultiplier = 0.8f;
 
-    [Header("Gravity Settings")]
+    [Header("重力")]
     public float gravityMultiplier = 1.5f;
 
     void Awake()
     {
         controls = new PlayerControls();
         controls.Player.Jump.performed += ctx => PerformJump();
-        controls.Player.ManeuverGear.performed += ctx => StartManeuverGear();
+        controls.Player.MagnetONOFF.performed += ctx => StartManeuverGear();
         controls.Player.Invert.performed += ctx => PerformInvert();
     }
 
     void OnEnable() { controls.Enable(); }
+
     void OnDisable() { controls.Disable(); }
 
     void Start()
@@ -67,52 +69,20 @@ public class Controller : MonoBehaviour
         isJumping = false;
         targetRotation = transform.rotation;
 
-        if (cameraTransform == null && Camera.main != null)
-        {
-            cameraTransform = Camera.main.transform;
-        }
+        if (cameraTransform == null && Camera.main != null) cameraTransform = Camera.main.transform;
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-
-        if (runEffect != null)  runEffect.SetActive(true);
     }
-    
+
     void Update()
     {
-        if (runEffect != null)
-        {
-            runEffect.SetActive(true);
-        }
-        if (isMagnetMoving)
-        {
-            HandleMagnetMovement();
-            return; 
-        }
-
         moveInput = controls.Player.Move.ReadValue<Vector2>();
         cameraInput = controls.Player.Camera.ReadValue<Vector2>();
         bool isDash = controls.Player.Dash.IsPressed();
 
-        //bool isEffectActive = isDash && moveInput.magnitude > 0.05f;
+        HandleRunEffect(isDash);
 
-        //if (runEffect != null)
-        //{
-        //    if (isEffectActive && !wasDashing)
-        //    {
-        //        runEffect.SetActive(true);
-        //    }
-        //    else if (!isEffectActive && wasDashing)
-        //    {
-        //        runEffect.SetActive(false);
-        //    }
-        //}
-
-        if (isDash)
-        {
-            Debug.Log("Dash中");
-        }
-        //wasDashing = isEffectActive;
         HandleMovement(isDash);
     }
 
@@ -144,10 +114,55 @@ public class Controller : MonoBehaviour
         rb.MovePosition(nextPosition);
     }
 
+    private void HandleRunEffect(bool isDash)
+    {
+        if (isDash)
+        {
+            if (stopRunEffectCoroutine != null)
+            {
+                StopCoroutine(stopRunEffectCoroutine);
+                stopRunEffectCoroutine = null;
+            }
+
+            if (currentRunEffect == null && runEffect != null)
+            {
+                currentRunEffect = Instantiate(runEffect, transform.position, Quaternion.identity, transform);
+
+                currentRunEffect.transform.localPosition = Vector3.zero;
+            }
+        }
+        // ダッシュ終了
+        else
+        {
+            if (currentRunEffect != null && stopRunEffectCoroutine == null)
+            {
+                stopRunEffectCoroutine = StartCoroutine(StopRunEffect());
+            }
+        }
+    }
+
+    private IEnumerator StopRunEffect()
+    {
+        yield return new WaitForSeconds(0.5f);
+
+        if (currentRunEffect != null)
+        {
+            currentRunEffect.transform.SetParent(null);
+
+            ParticleSystem ps = currentRunEffect.GetComponent<ParticleSystem>();
+
+            if (ps != null) ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+
+            Destroy(currentRunEffect, 2.0f);
+            currentRunEffect = null;
+        }
+
+        stopRunEffectCoroutine = null;
+    }
+
     private void PerformJump()
     {
-        if (isMagnetMoving) StopSwing();
-        else if (!isJumping)
+        if (!isJumping)
         {
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
             isJumping = true;
@@ -186,61 +201,37 @@ public class Controller : MonoBehaviour
         }
     }
 
+    // 立体機動処理
     private void StartManeuverGear()
     {
-        if (isMagnetMoving) return;
         Transform camT = cameraTransform != null ? cameraTransform : Camera.main.transform;
+
         Ray ray = new Ray(camT.position, camT.forward);
-        
-        if (Physics.Raycast(ray, out RaycastHit hit, magnetRange))
+
+        if (Physics.Raycast(ray, out RaycastHit hit, grappleRange))
         {
-            bool isSPole = hit.collider.CompareTag("S_Pole");
-            bool isNPole = hit.collider.CompareTag("N_Pole");
-            bool canGrapple = false;
+            Grapple grapple = hit.collider.GetComponent<Grapple>();
 
-            if (magnetScript != null)
+            if (grapple != null)
             {
-                if (magnetScript.magnetMode == 1 && isSPole) canGrapple = true;
-                if (magnetScript.magnetMode == 2 && isNPole) canGrapple = true;
-            }
+                bool isSPole = hit.collider.CompareTag("S_Pole");
+                bool isNPole = hit.collider.CompareTag("N_Pole");
 
-            if (canGrapple)
-            {
-                isMagnetMoving = true;
-                magnetTargetPoint = hit.point;
-                
-                swingJoint = gameObject.AddComponent<SpringJoint>();
-                swingJoint.autoConfigureConnectedAnchor = false;
-                swingJoint.connectedAnchor = magnetTargetPoint;
+                bool canGrapple = false;
 
-                float distanceFromPoint = Vector3.Distance(transform.position, magnetTargetPoint);
-                swingJoint.maxDistance = distanceFromPoint * 0.8f; 
-                swingJoint.minDistance = 0f;
-                swingJoint.spring = 10f;
-                swingJoint.damper = 5f;
-                swingJoint.massScale = 4.5f;
+                if (magnetScript != null)
+                {
+                    if (magnetScript.magnetMode == 1 && isSPole) canGrapple = true;
+                    if (magnetScript.magnetMode == 2 && isNPole) canGrapple = true;
+                }
 
-                rb.AddForce(camT.forward * 10f, ForceMode.Impulse);
+                if (canGrapple)
+                {
+                    grapple.StartGrapple(gameObject);
+                    grapple.StartGrappleEffect();
+                }
             }
         }
-    }
-
-    private void HandleMagnetMovement()
-    {
-        Vector3 directionToTarget = (magnetTargetPoint - transform.position).normalized;
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(directionToTarget), 600 * Time.deltaTime);
-
-        if (swingJoint != null)
-            swingJoint.maxDistance = Mathf.MoveTowards(swingJoint.maxDistance, 0f, magnetSpeed * Time.deltaTime);
-
-        if (Vector3.Distance(transform.position, magnetTargetPoint) < 5.0f)
-            StopSwing();
-    }
-
-    private void StopSwing()
-    {
-        isMagnetMoving = false;
-        if (swingJoint != null) Destroy(swingJoint);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -253,20 +244,16 @@ public class Controller : MonoBehaviour
         hp -= damage;
         Debug.Log("プレイヤーがダメージを受けた！ 残りHP: " + hp);
 
-        if (hitEffect != null)
-        {
-            Instantiate(hitEffect, transform.position, Quaternion.identity);
-        }
+        if (hitEffect != null) Instantiate(hitEffect, transform.position, Quaternion.identity);
 
-        if (hp <= 0) 
-        {
-            Die();
-        }
+        if (hp <= 0) Die();
     }
 
     private void Die()
     {
         Debug.Log("プレイヤーがやられた！");
+
+        if (downEffect != null) Instantiate(downEffect, transform.position, Quaternion.identity);
 
         // プレイヤー自身を非表示にする
         gameObject.SetActive(false);

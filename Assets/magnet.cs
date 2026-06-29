@@ -29,7 +29,7 @@ public class magnet : MonoBehaviour
 	private Rigidbody targetRb;
 	private bool isAttached = false;    // くっついているか
 
-    [Header("Effects")]
+    [Header("エフェクト")]
     [SerializeField] private GameObject nPoleReleaseEffect;
     [SerializeField] private GameObject sPoleReleaseEffect;
     [SerializeField] private GameObject nPoleAttractEffect; // プレイヤーN極 引き付け
@@ -37,7 +37,7 @@ public class magnet : MonoBehaviour
 
     private GameObject currentAttractEffect;
 
-    [Header("Laser Effects")]
+    [Header("レーザーエフェクト")]
     [SerializeField] private GameObject nPoleLaserEffect;	// プレイヤーN極 レーザー
     [SerializeField] private GameObject sPoleLaserEffect;   // プレイヤーS極 レーザー
 

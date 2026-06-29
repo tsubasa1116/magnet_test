@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &5420831364924484905
+--- !u!1 &5432420029223546880
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,40 +8,40 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7954583085385534496}
-  - component: {fileID: 6544772878959951319}
+  - component: {fileID: 3727399993378361150}
+  - component: {fileID: 5225199850762837172}
   m_Layer: 0
-  m_Name: Laser_PlayerN_EnemyS_Effect
+  m_Name: Laser_S_to_N_Effect
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &7954583085385534496
+--- !u!4 &3727399993378361150
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5420831364924484905}
+  m_GameObject: {fileID: 5432420029223546880}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 1
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!120 &6544772878959951319
+--- !u!120 &5225199850762837172
 LineRenderer:
   serializedVersion: 3
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5420831364924484905}
+  m_GameObject: {fileID: 5432420029223546880}
   m_Enabled: 1
-  m_CastShadows: 1
+  m_CastShadows: 0
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
@@ -82,11 +82,11 @@ LineRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Positions:
-  - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 0, z: 3}
+  - {x: 2, y: 0, z: 0}
+  - {x: 2, y: 0, z: 3}
   m_Parameters:
     serializedVersion: 3
-    widthMultiplier: 0.1
+    widthMultiplier: 0.3
     widthCurve:
       serializedVersion: 2
       m_Curve:
@@ -104,9 +104,9 @@ LineRenderer:
       m_RotationOrder: 4
     colorGradient:
       serializedVersion: 2
-      key0: {r: 1, g: 0.25, b: 0.3379888, a: 1}
-      key1: {r: 0, g: 0.020408273, b: 1, a: 1}
-      key2: {r: 0, g: 0.020408273, b: 1, a: 0.80441177}
+      key0: {r: 0.5, g: 0.15, b: 0.19174312, a: 0}
+      key1: {r: 0, g: 0.019607902, b: 1, a: 1}
+      key2: {r: 0, g: 0.020408273, b: 1, a: 1}
       key3: {r: 0, g: 0, b: 0, a: 0.80441177}
       key4: {r: 0, g: 0, b: 0, a: 0}
       key5: {r: 0, g: 0, b: 0, a: 0}

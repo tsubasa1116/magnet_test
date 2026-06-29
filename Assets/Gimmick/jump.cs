@@ -11,6 +11,9 @@ public class jump : MonoBehaviour
     [SerializeField] private float jumpForceY = 25.0f;
     [SerializeField] private float jumpForceZ = 0f;
 
+    [Header("エフェクト")]
+    [SerializeField] private GameObject jumpEffect;
+
     /// <summary>
     /// Colliderがこのトリガーに入った時に呼び出される
     /// </summary>
@@ -56,7 +59,15 @@ public class jump : MonoBehaviour
 
                         // プレイヤーに上方向の力を加える
                         playerRb.AddForce(new Vector3(jumpForceX, jumpForceY, jumpForceZ), ForceMode.Impulse);
-                    }
+
+                        if (jumpEffect != null)
+                        {
+                            Vector3 effectPos = other.transform.position;
+                            effectPos.y = 2.0f;
+
+                            Instantiate(jumpEffect, effectPos, Quaternion.identity);
+                        }
+                    }    
 
                     // プレイヤーのControllerに「ジャンプ中」であることを伝える
                     Controller playerCtrl = other.GetComponent<Controller>();
