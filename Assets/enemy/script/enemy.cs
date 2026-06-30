@@ -25,7 +25,6 @@ public class enemy : MonoBehaviour
     [SerializeField] private float noticeTime = 1.0f;
     [SerializeField] private float lookBackSpeed = 8.0f; // プレイヤー注視の振り返る速度
 
-
     [Header("磁力パラメータ")] // 磁力の影響力の設定
     [SerializeField] private float magnetRadius = 8.0f;  // 磁力を感知する距離
     [SerializeField] private float magnetForce = 50.0f;  // 磁力の強さ
@@ -40,6 +39,9 @@ public class enemy : MonoBehaviour
     [SerializeField] private float attackInterval = 2.0f;
     [SerializeField] private int attackDamage = 10;
     [SerializeField] private float attackTimer;
+
+    [Header("エフェクト")]
+    [SerializeField] private GameObject enemyHitEffect;
 
     private float currentHp;
     private NavMeshAgent agent;
@@ -417,6 +419,10 @@ public class enemy : MonoBehaviour
     public void TakeDamage(float damageAmount)
     {
         currentHp -= damageAmount;
+
+        // ダメージを受けたときのエフェクトを再生
+        if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
+
         if (currentHp <= 0) Die();
     }
 
