@@ -375,28 +375,8 @@ MonoBehaviour:
   markExclamation: {fileID: 3772198468859440493}
   markQuestion: {fileID: 838381793010970328}
   beam: {fileID: 0}
---- !u!64 &1013176127018341926
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8203393301518939849}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 0}
+  enemyHitEffect: {fileID: 1395294932367503536, guid: 0018faa59c074154f98dfa1ad3b5f312, type: 3}
+  enemyFloatingEffect: {fileID: 8410759849957338979, guid: a4fa57966bc9c8740b8534e5b55a87cb, type: 3}
 --- !u!4 &8832577094676032627 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 5c8e4e62ce790f2468e4405d9bd10801, type: 3}

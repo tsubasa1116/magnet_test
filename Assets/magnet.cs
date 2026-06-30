@@ -15,7 +15,7 @@ public class magnet : MonoBehaviour
 	public bool isActive = false;
 
     public float uiRotateSec = 0.3f; // UIが回転するのにかかる時間
-    private bool isChangeMode = false; // モードが切り替わっている途中かどうか「
+    private bool isChangeMode = false; // モードが切り替わっている途中かどうか
 
 	public float buttonAnimSec = 0.2f; // ボタンが押されてから元に戻るまでの時間
 	public float buttonZoomScale = 1.2f; // ボタンが押されたときにどれくらい大きくなるか
@@ -29,8 +29,23 @@ public class magnet : MonoBehaviour
 	private Rigidbody targetRb;
 	private bool isAttached = false;    // くっついているか
 
-	// ★追加: Input Systemのコントローラー
-	private PlayerControls controls;
+    [Header("エフェクト")]
+    [SerializeField] private GameObject nPoleReleaseEffect;
+    [SerializeField] private GameObject sPoleReleaseEffect;
+    [SerializeField] private GameObject nPoleAttractEffect; // プレイヤーN極 引き付け
+    [SerializeField] private GameObject sPoleAttractEffect; // プレイヤーS極 引き付け
+
+    private GameObject currentAttractEffect;
+
+    [Header("レーザーエフェクト")]
+    [SerializeField] private GameObject nPoleLaserEffect;	// プレイヤーN極 レーザー
+    [SerializeField] private GameObject sPoleLaserEffect;   // プレイヤーS極 レーザー
+
+    private GameObject currentLaser;
+    private LineRenderer currentLine;
+
+    // ★追加: Input Systemのコントローラー
+    private PlayerControls controls;
 
     // Start is called before the first frame update
     void Start()
@@ -72,22 +87,24 @@ public class magnet : MonoBehaviour
 		}
 	}
 
-	// ★追加: 磁石OFFの処理
-	private void StopMagnet()
-	{
-		if (isActive)
-		{
-			isActive = false;
-			UpdateUI();
-			
-			// オフにした時は持っている物を離す
-			ReleaseTarget();
-		}
-	}
+    // ★追加: 磁石OFFの処理
+    private void StopMagnet()
+    {
+        if (isActive)
+        {
+            isActive = false;
+            UpdateUI();
 
+            // レーザーを消す
+            DestroyEffect();
 
-	// Update is called once per frame
-	void Update()
+            // オフにした時は持っている物を離す
+            ReleaseTarget();
+        }
+    }
+
+    // Update is called once per frame
+    void Update()
 	{
 		// キー操作でモード切替（直接数字を変えるのではなく、専用関数を呼ぶ！）
 		if (Input.GetKeyDown(KeyCode.Mouse1))
@@ -96,24 +113,28 @@ public class magnet : MonoBehaviour
 			else ChangeMode(1);
 		}
 
-		// ↑古いInput.GetKeyDownやInput.GetKeyUpの処理は削除して、
-		// Input Systemのイベント（StartMagnet, StopMagnet）に任せます。
-
 		// 磁石のモードに合わせて引き寄せる
 		AttractObjects();
-	}
+
+        if (currentLine != null && targetRb != null)
+        {
+            currentLine.SetPosition(0, transform.position);
+            currentLine.SetPosition(1, targetRb.position);
+        }
+    }
 
 	// ★追加：モードを切り替えるときの専用関数
 	public void ChangeMode(int newMode)
 	{
 		if(isChangeMode) return; // すでに切り替え中なら何もしない
 
-		if(ModeButton != null)
-		{
-			StartCoroutine(AnimateButtonPress());
-        }
+		// レーザーを消す
+        DestroyEffect();
+
+        if (ModeButton != null)	StartCoroutine(AnimateButtonPress());
         StartCoroutine(RotateUI(newMode)); // UI回転開始
     }
+
 	private IEnumerator AnimateButtonPress()
 	{
 		Vector3 initScale = ModeButton.transform.localScale;
@@ -166,6 +187,7 @@ public class magnet : MonoBehaviour
 		CheckAndLaunchTarget();
 		isChangeMode = false;
     }
+
     void CheckAndLaunchTarget()
 	{
 		// もし何か持っている状態で、モードが「反発」に変わったら吹き飛ばす！
@@ -175,10 +197,7 @@ public class magnet : MonoBehaviour
 			bool isN = targetRb.CompareTag("N_Pole");
 
 			// NモードでNを、SモードでSを持っていたら反発！
-			if ((magnetMode == 1 && isN && isActive) || (magnetMode == 2 && isS && isActive))
-			{
-				LaunchTarget();
-			}
+			if ((magnetMode == 1 && isN && isActive) || (magnetMode == 2 && isS && isActive))	LaunchTarget();
 		}
 	}
 
@@ -190,60 +209,94 @@ public class magnet : MonoBehaviour
 		if (offMugUI != null) offMugUI.SetActive(!isActive);
 	}
 
-	// ★追加：勢いよく吹き飛ばす（発射）処理
-	void LaunchTarget()
-	{
-		if (targetRb != null)
-		{
-			targetRb.transform.SetParent(null);
-			targetRb.isKinematic = false;
+    void LaunchTarget()
+    {
+        if (targetRb != null)
+        {
+            // 発射エフェクト
+            if (magnetMode == 1 && nPoleReleaseEffect != null)
+            {
+                GameObject effect = Instantiate(nPoleReleaseEffect, transform.position, Quaternion.identity, transform);
+                Destroy(effect, 1.5f);
+            }
+            else if (magnetMode == 2 && sPoleReleaseEffect != null)
+            {
+				GameObject effect = Instantiate(sPoleReleaseEffect, transform.position, Quaternion.identity, transform);
+                Destroy(effect, 1.5f);
+            }
 
-			Vector3 shootDirection = Camera.main.transform.forward;
-			targetRb.AddForce(shootDirection * throwForce, ForceMode.Impulse);
+            targetRb.transform.SetParent(null);
+            targetRb.isKinematic = false;
 
-			// 追加：離した扱い
-			AuraRing aura = targetRb.GetComponentInChildren<AuraRing>();
-			if (aura != null)
-			{
-				aura.SetHeld(false);
-			}
+            Vector3 shootDirection = Camera.main.transform.forward;
+            targetRb.AddForce(shootDirection * throwForce, ForceMode.Impulse);
 
-			Bomb bomb = targetRb.GetComponent<Bomb>();
-			if (bomb != null)
-			{
-				bomb.isThrown = true;
-			}
-		}
+            AuraRing aura = targetRb.GetComponentInChildren<AuraRing>();
+            if (aura != null)
+                aura.SetHeld(false);
 
-		targetRb = null;
-		isAttached = false;
-	}
+            Bomb bomb = targetRb.GetComponent<Bomb>();
+            if (bomb != null)
+                bomb.isThrown = true;
+        }
 
-	// ロックオンを解除する処理（モードを変えた時などに呼ぶ）
-	void ReleaseTarget()
-	{
-		if (targetRb != null)
-		{
-			targetRb.transform.SetParent(null);
-			targetRb.isKinematic = false;
+        DestroyEffect();
 
-			// 追加：オーラに「離した」と伝える
-			AuraRing aura = targetRb.GetComponentInChildren<AuraRing>();
-			if (aura != null)
-			{
-				aura.SetHeld(false);
-			}
-		}
-		targetRb = null;
-		isAttached = false;
-	}
+        targetRb = null;
+        isAttached = false;
+    }
 
-	void AttractObjects()
+    // ロックオンを解除する処理（磁力OFF時など）
+    void ReleaseTarget()
+    {
+        if (targetRb != null && isAttached)
+        {
+            targetRb.transform.SetParent(null);
+            targetRb.isKinematic = false;
+
+            AuraRing aura = targetRb.GetComponentInChildren<AuraRing>();
+            if (aura != null)
+            {
+                aura.SetHeld(false);
+            }
+        }
+
+        targetRb = null;
+        isAttached = false;
+
+        // レーザーを消す
+        DestroyEffect();
+    }
+
+    // オブジェクトを引き寄せる処理
+    void AttractObjects()
 	{
 		if (!isActive || magnetMode == 0) return;
 
-		// 誰も持っていないときだけ探す
-		if (targetRb == null)
+        // 現在捕まえているオブジェクトが、今の極と合わないなら解除
+        if (targetRb != null && !isAttached)
+        {
+            bool targetIsS = targetRb.CompareTag("S_Pole");
+            bool targetIsN = targetRb.CompareTag("N_Pole");
+
+            bool isCorrectTarget = (magnetMode == 1 && targetIsS) || (magnetMode == 2 && targetIsN);
+
+            if (!isCorrectTarget)
+            {
+                targetRb = null;
+
+                DestroyEffect();
+
+                if (currentAttractEffect != null)
+                {
+                    Destroy(currentAttractEffect);
+                    currentAttractEffect = null;
+                }
+            }
+        }
+
+        // 何も持っていないときだけ探す
+        if (targetRb == null)
 		{
 			Ray ray = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
 			RaycastHit hit;
@@ -252,12 +305,43 @@ public class magnet : MonoBehaviour
 				bool isS = hit.collider.CompareTag("S_Pole");
 				bool isN = hit.collider.CompareTag("N_Pole");
 
-				// 違う極のときだけ引き寄せ開始
-				if ((magnetMode == 1 && isS) || (magnetMode == 2 && isN))
-				{
-					targetRb = hit.collider.GetComponentInParent<Rigidbody>();
-				}
-			}
+                if ((magnetMode == 1 && isS) || (magnetMode == 2 && isN))
+                {
+                    targetRb = hit.collider.GetGetComponentInParent<Rigidbody>();
+
+                    // レーザー生成
+                    if (currentLaser == null)
+                    {
+                        GameObject laserPrefab = null;
+
+                        if (magnetMode == 1)		laserPrefab = nPoleLaserEffect;
+                        else if (magnetMode == 2)	laserPrefab = sPoleLaserEffect;
+
+                        if (laserPrefab != null)
+                        {
+                            currentLaser = Instantiate(laserPrefab);
+                            currentLine = currentLaser.GetComponentInChildren<LineRenderer>();
+                        }
+                    }
+
+                    // プレイヤー側の吸引エフェクト生成
+                    if (currentAttractEffect == null)
+                    {
+                        GameObject attractPrefab = null;
+
+                        if (magnetMode == 1)		attractPrefab = nPoleAttractEffect;
+                        else if (magnetMode == 2)	attractPrefab = sPoleAttractEffect;
+
+                        if (attractPrefab != null)
+                        {
+                            currentAttractEffect = Instantiate(attractPrefab, transform.position, Quaternion.identity, transform);
+
+                            // プレイヤーの前方に表示したい場合
+                            currentAttractEffect.transform.localPosition = new Vector3(0, 0, 1.0f);
+                        }
+                    }
+                }
+            }
 		}
 
 		if (targetRb != null && !isAttached)
@@ -266,20 +350,14 @@ public class magnet : MonoBehaviour
 			Vector3 direction = transform.position - targetRb.position;
 			targetRb.AddForce(direction.normalized * magnetStrength);
 
-			if (distance < 2f)
-			{
-				AttachTarget();
-			}
+			if (distance < 2f)	AttachTarget();
 		}
 
 		// ★修正： targetRb が null でない場合のみ GetComponent を実行する
 		if (targetRb != null)
 		{
 			Bomb bomb = targetRb.GetComponent<Bomb>();
-			if (bomb != null)
-			{
-				bomb.isThrown = false;
-			}
+			if (bomb != null)	bomb.isThrown = false;
 		}
 	}
 
@@ -293,9 +371,22 @@ public class magnet : MonoBehaviour
 
 		// 追加：オーラに「持った」と伝える
 		AuraRing aura = targetRb.GetComponentInChildren<AuraRing>();
-		if (aura != null)
-		{
-			aura.SetHeld(true);
-		}
+		if (aura != null)	aura.SetHeld(true);
 	}
+
+    void DestroyEffect()
+    {
+        if (currentLaser != null)
+        {
+            Destroy(currentLaser);
+            currentLaser = null;
+            currentLine = null;
+        }
+
+        if (currentAttractEffect != null)
+        {
+            Destroy(currentAttractEffect);
+            currentAttractEffect = null;
+        }
+    }
 }
