@@ -50,6 +50,9 @@ public class Controller : MonoBehaviour
     [Header("重力")]
     public float gravityMultiplier = 1.5f;
 
+    // ロープウェイ吸着中
+    [HideInInspector] public bool isOnRopeway = false;
+
     void Awake()
     {
         controls = new PlayerControls();
@@ -97,6 +100,12 @@ public class Controller : MonoBehaviour
     // 移動処理
     private void HandleMovement(bool isDash)
     {
+        if (isOnRopeway)
+        {
+            rb.linearVelocity = Vector3.zero;
+            return;
+        }
+
         float currentSpeed = isDash ? dashSpeed : normalSpeed;
         if (isJumping) currentSpeed *= airSpeedMultiplier;
 
@@ -162,6 +171,9 @@ public class Controller : MonoBehaviour
 
     private void PerformJump()
     {
+        if (isOnRopeway)
+            return;
+
         if (!isJumping)
         {
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
