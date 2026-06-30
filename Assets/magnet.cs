@@ -307,7 +307,7 @@ public class magnet : MonoBehaviour
 
                 if ((magnetMode == 1 && isS) || (magnetMode == 2 && isN))
                 {
-                    targetRb = hit.collider.GetGetComponentInParent<Rigidbody>();
+                    targetRb = hit.collider.GetComponentInParent<Rigidbody>();
 
                     // レーザー生成
                     if (currentLaser == null)
