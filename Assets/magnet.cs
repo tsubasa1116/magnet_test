@@ -255,7 +255,7 @@ public class magnet : MonoBehaviour
 				// 違う極のときだけ引き寄せ開始
 				if ((magnetMode == 1 && isS) || (magnetMode == 2 && isN))
 				{
-					targetRb = hit.collider.GetComponent<Rigidbody>();
+					targetRb = hit.collider.GetComponentInParent<Rigidbody>();
 				}
 			}
 		}

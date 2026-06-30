@@ -9,11 +9,11 @@ public class enemy_Boss : MonoBehaviour
     public Transform targetPlayer;
 
     [Header("調整パラメータ")]
-    public float armSpeed = 15.0f;
+    public float armSpeed = 10.0f;
     public float retrunSpeed = 30.0f;
     public float moveSpeed = 10.0f;
     public float targetDistance = 10.0f;
-    public float stopDistance = 3.0f;
+    public float stopDistance = 5.0f;
 
     private enum ArmState
     {
@@ -58,7 +58,7 @@ public class enemy_Boss : MonoBehaviour
 
     public bool isTracking = false; // 追尾中かどうか
 
-    public float transitionSpeed = 8f;
+    public float transitionSpeed = 7f;
 
     private Vector3 currentOffset = Vector3.zero;
     private Vector3 lockedOffset = Vector3.zero;
@@ -67,16 +67,44 @@ public class enemy_Boss : MonoBehaviour
     private Quaternion punchRot;
 
     [Header("ロケットパンチ")]
-    public Vector3 punchRotationOffset = new Vector3(0, 0, 0);
-    public Vector3 fallRotationOffset = new Vector3(0, 0, 0);
-    public float lockOffFrame = 2.0f;
-    public float fallFrame = 2.1f;
-    public float retrunFrame = 2.3f;
+    public Vector3 punchRotationOffset = new Vector3(-30, 120, 0);
+    public Vector3 fallRotationOffset = new Vector3(0, 0, 30);
+    public float lockOffFrame = 1.5f;
+    public float fallFrame = 2.0f;
+    public float retrunFrame = 3.0f;
     [SerializeField] private LayerMask groundLayerMask;
+    [SerializeField] private int attackDamage = 5;
+    public float punchHitRadius = 1.4f;
 
-    public float minFlyingHeight = 1.0f;      // 飛行中に地面から最低限保つ高さ
-    public float impactGroundOffset = 0.5f;   // 着弾時に地面からどれくらい浮かすか
+    public float minFlyingHeight = 1.0f;    // 飛行中の最低高度
+    public float fallGroundOffset = 0.6f;   // 着弾時に地面からどれくらい浮かすか
     private bool startAttack = false;
+
+    [SerializeField] private PunchArm sepaArm;
+    public bool isLeftArmDetached = false;
+
+    private bool hasSmashHit = false;
+
+    [Header("行動パターン")]
+    public float actionInterval = 6.0f;
+    private float actionTimer = 0.0f;
+
+    [SerializeField] private BossState[] addActions;
+
+    [Header("アニメーションスキップ")]
+    [Tooltip("パンチのステート名")]
+    [SerializeField] private string punchStateName = "Punch_v3";
+    [Tooltip("パンチアニメーションスキップ")]
+    [SerializeField] private float punchAnimReturnTime = 4.0f;
+
+    public void SeparateArm()
+    {
+        if (sepaArm != null)
+        {
+            sepaArm.DetachArm();
+            isLeftArmDetached = true;
+        }
+    }
 
     void LateUpdate()
     {
@@ -107,6 +135,8 @@ public class enemy_Boss : MonoBehaviour
 
             // 右腕には計算したズレを適用
             armBone_R.position = rawAnimPos_R + currentOffset;
+
+            CheckSmashHit();
 
             // 叩きつけ中、左腕は通常通りアニメーションの動きをさせる
             armBone_L.position = rawAnimPos_L;
@@ -157,8 +187,12 @@ public class enemy_Boss : MonoBehaviour
                     punchRot = Quaternion.Slerp(punchRot, targetRotation, aimSpeed * Time.deltaTime);
                 }
 
-                armBone_L.position = punchPos;
-                armBone_L.rotation = punchRot;
+                if (!isLeftArmDetached)
+                {
+                    armBone_L.position = punchPos;
+                    armBone_L.rotation = punchRot;
+                }
+                CheckPunchHit();
             }
             else if (armState == ArmState.Fall)
             {
@@ -173,8 +207,11 @@ public class enemy_Boss : MonoBehaviour
                     Quaternion fallOffset = Quaternion.Euler(-30f, 120f, 0f); // まず同じ値で試す
                     punchRot = Quaternion.Slerp(punchRot, baseRot * fallOffset, aimSpeed * Time.deltaTime);
                 }
-                armBone_L.position = punchPos;
-                armBone_L.rotation = punchRot;
+                if (!isLeftArmDetached)
+                {
+                    armBone_L.position = punchPos;
+                    armBone_L.rotation = punchRot;
+                }
                 // 着弾完了 → Returning
                 //if (Vector3.Distance(punchPos, fallPoint) < 0.05f)
                 //    armState = ArmState.Returning;
@@ -188,11 +225,16 @@ public class enemy_Boss : MonoBehaviour
                 {
                     armState = ArmState.Idle;
                     bossState = BossState.Idle;
+                    startAttack = false;
+                    attackTimer = 0.0f;
                     anim.SetBool("Idol", true);
                 }
-
-                armBone_L.position = punchPos;
-                armBone_L.rotation = punchRot;
+                if (!isLeftArmDetached)
+                {
+                    armBone_L.position = punchPos;
+                    armBone_L.rotation = punchRot;
+                }
+                CheckPunchHit();
             }
 
             // ロケットパンチ中、右腕は通常通りアニメーションの動きをさせる
@@ -207,10 +249,12 @@ public class enemy_Boss : MonoBehaviour
 
             // 右腕は叩きつけのズレをゼロに戻す処理を適用
             armBone_R.position = rawAnimPos_R + currentOffset;
-
-            // 左腕は左腕本来の位置をそのまま適用
-            armBone_L.position = rawAnimPos_L;
-            armBone_L.rotation = rawAnimRot_L;
+            if (!isLeftArmDetached)
+            {
+                // 左腕は左腕本来の位置をそのまま適用
+                armBone_L.position = rawAnimPos_L;
+                armBone_L.rotation = rawAnimRot_L;
+            }
         }
     }
 
@@ -225,18 +269,37 @@ public class enemy_Boss : MonoBehaviour
 
             if (Input.GetKeyDown(KeyCode.L))
             {
-                if (armState == ArmState.Idle) anim.SetTrigger("Punch");
-                else if (armState == ArmState.Flying) armState = ArmState.Returning;
+                bossState = BossState.Punch;
+            }
+
+            if (Input.GetKeyDown(KeyCode.O))
+            {
+                anim.SetBool("HitL", true);
             }
 
             if (Input.GetKeyDown(KeyCode.K))
             {
                 bossState = BossState.Move;
             }
+            if (Input.GetKeyDown(KeyCode.M))
+            {
+                SeparateArm();
+            }
+        }
+
+        if (bossState == BossState.Idle)
+        {
+            actionTimer += Time.deltaTime;
+
+            if (actionTimer >= actionInterval)
+            {
+                NextAction();
+                actionTimer = 0.0f;
+            }
         }
 
         switch (bossState)
-        { 
+        {
             case BossState.Idle:
                 anim.SetBool("Move", false);
                 anim.SetBool("Idol", true);
@@ -256,17 +319,19 @@ public class enemy_Boss : MonoBehaviour
                 }
                 else
                 {
-                    //bossState = BossState.SmashNormal;
-                    bossState = BossState.Rush;
+                    bossState = BossState.SmashNormal;
+                    //bossState = BossState.Rush;
                 }
                 break;
-           case BossState.SmashNormal:
+            case BossState.SmashNormal:
                 if (!startAttack)
                 {
                     anim.SetBool("Move", false);
                     anim.SetBool("Idol", false);
                     anim.SetTrigger("Smash_N");
                     startAttack = true;
+
+                    hasSmashHit = false;
                 }
 
                 if (attackTimer >= 0.3f) isTracking = true;  // 追尾ON
@@ -287,9 +352,17 @@ public class enemy_Boss : MonoBehaviour
                     anim.SetBool("Move", false);
                     anim.SetBool("Idol", false);
                     anim.SetTrigger("Smash_B");
+                    startAttack = true;
                 }
                 break;
             case BossState.Punch:
+                if (!startAttack)
+                {
+                    anim.SetBool("Move", false);
+                    anim.SetBool("Idol", false);
+                    anim.SetTrigger("Punch");
+                    startAttack = true;
+                }
                 attackTimer += Time.deltaTime;
 
                 if (attackTimer > lockOffFrame)
@@ -305,7 +378,6 @@ public class enemy_Boss : MonoBehaviour
                 if (attackTimer > retrunFrame && armState == ArmState.Fall)
                 {
                     armState = ArmState.Returning;
-                    attackTimer = 0.0f;
                 }
                 break;
             case BossState.Summon:
@@ -314,6 +386,7 @@ public class enemy_Boss : MonoBehaviour
                     anim.SetBool("Move", false);
                     anim.SetBool("Idol", false);
                     anim.SetTrigger("Summon");
+                    startAttack = true;
                 }
                 break;
             case BossState.Rush:
@@ -335,7 +408,7 @@ public class enemy_Boss : MonoBehaviour
             case BossState.Down:
                 anim.SetBool("Move", false);
                 anim.SetBool("Idol", false);
-               // amim.SetBool("Down", true);
+                // amim.SetBool("Down", true);
                 break;
         }
     }
@@ -362,12 +435,12 @@ public class enemy_Boss : MonoBehaviour
         Vector3 rayStart = punchPos + Vector3.up * 2.0f;
         if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 10.0f, groundLayerMask))
         {
-            fallPoint = hit.point + Vector3.up * impactGroundOffset;
+            fallPoint = hit.point + Vector3.up * fallGroundOffset;
 
             float minHeight = hit.point.y + minFlyingHeight;
             if (punchPos.y <= minHeight + 0.05f || punchPos.y >= minHeight + 0.05f)
             {
-                fallPoint = hit.point + Vector3.up * (impactGroundOffset - 0.3f);
+                fallPoint = hit.point + Vector3.up * (fallGroundOffset - 0.3f);
             }
         }
         else
@@ -376,5 +449,73 @@ public class enemy_Boss : MonoBehaviour
         }
 
         hasFallPoint = true;
+    }
+
+    private void CheckPunchHit()
+    {
+        // 分離した後の腕（物理オブジェクト）になっている場合は判定しない
+        if (isLeftArmDetached) return;
+
+        // 腕の現在位置（punchPos）を中心に、指定した半径の球体内にあるコライダーをすべて取得
+        Collider[] hitColliders = Physics.OverlapSphere(punchPos, punchHitRadius);
+        foreach (var hit in hitColliders)
+        {
+            // 自分自身（ボス本体）のコライダーは無視する
+            if (hit.transform.root == transform.root) continue;
+
+            // 衝突した相手に Controller（プレイヤー）が付いているか確認
+            var player = hit.GetComponent<Controller>();
+            if (player != null)
+            {
+                // ダメージを与える
+                player.TakeDamage(attackDamage);
+
+                armState = ArmState.Returning;
+                attackTimer = retrunFrame;
+
+                // アニメーションを「引き戻し開始フレーム」へ強制ジャンプ
+                anim.PlayInFixedTime(punchStateName, 0, punchAnimReturnTime);
+
+                break;
+            }
+        }
+    }
+
+    private void CheckSmashHit()
+    {
+        // 多段ヒット防止
+        if (hasSmashHit) return;
+
+        Collider[] hitColliders = Physics.OverlapSphere(armBone_R.position, punchHitRadius);
+        foreach (var hit in hitColliders)
+        {
+            if (hit.transform.root == transform.root) continue;
+
+            var player = hit.GetComponent<Controller>();
+            if (player != null)
+            {
+                player.TakeDamage(attackDamage);
+
+                hasSmashHit = true;
+
+                break;
+            }
+        }
+
+        if (attackTimer >= 1.7f) hasSmashHit = true;
+    }
+
+    private void NextAction()
+    {
+        if (addActions == null || addActions.Length == 0) return;
+
+        // リストの中からランダムで1つ選ぶ
+        int randomIndex = Random.Range(0, addActions.Length);
+        BossState nextState = addActions[randomIndex];
+
+        // 選んだステートに切り替える
+        bossState = nextState;
+
+        Debug.Log("10秒経過");
     }
 }
