@@ -256,10 +256,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -3982642599784497886, guid: 5c8e4e62ce790f2468e4405d9bd10801, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 0ca250395ad5e3740aae3e13bcea1bef, type: 2}
     - target: {fileID: 919132149155446097, guid: 5c8e4e62ce790f2468e4405d9bd10801, type: 3}
       propertyPath: m_Name
       value: enemy_skyv2
       objectReference: {fileID: 0}
+    - target: {fileID: 5866666021909216657, guid: 5c8e4e62ce790f2468e4405d9bd10801, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: f2de8bd90c2f9c2459bece0a60892df7, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
@@ -279,6 +287,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5c8e4e62ce790f2468e4405d9bd10801, type: 3}
       insertIndex: -1
       addedObject: {fileID: 771280643596302320}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5c8e4e62ce790f2468e4405d9bd10801, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1013176127018341926}
   m_SourcePrefab: {fileID: 100100000, guid: 5c8e4e62ce790f2468e4405d9bd10801, type: 3}
 --- !u!1 &8203393301518939849 stripped
 GameObject:
