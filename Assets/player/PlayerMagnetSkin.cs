@@ -27,7 +27,9 @@ public class PlayerMagnetSkin : MonoBehaviour
 	private PlayerStateMachine stateMachine;
 	private Material[] mats;
 
+	// アルベドはビルトイン(_MainTex)とURP/Lit(_BaseMap)で名前が違うので両方に設定する
 	private static readonly int MainTexID = Shader.PropertyToID("_MainTex");
+	private static readonly int BaseMapID = Shader.PropertyToID("_BaseMap");
 	private static readonly int EmissionMapID = Shader.PropertyToID("_EmissionMap");
 
 	void Awake()
@@ -53,15 +55,22 @@ public class PlayerMagnetSkin : MonoBehaviour
 		bool n = state == MagnetState.N;
 
 		if (IsValid(bodyIndex))
-			SetTex(mats[bodyIndex], MainTexID, n ? bodyN : bodyS);
+			SetAlbedo(mats[bodyIndex], n ? bodyN : bodyS);
 
 		if (IsValid(faceIndex))
 		{
 			Material fm = mats[faceIndex];
-			SetTex(fm, MainTexID, n ? faceN : faceS);
+			SetAlbedo(fm, n ? faceN : faceS);
 			SetTex(fm, EmissionMapID, n ? faceEmissionN : faceEmissionS);
 			fm.EnableKeyword("_EMISSION");
 		}
+	}
+
+	// アルベドをビルトイン/URP両対応で設定
+	private static void SetAlbedo(Material m, Texture t)
+	{
+		SetTex(m, MainTexID, t);
+		SetTex(m, BaseMapID, t);
 	}
 
 	// 未割当(null)のときは既存テクスチャを残す(うっかり真っ白を防ぐ)
