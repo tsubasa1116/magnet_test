@@ -50,6 +50,10 @@ public class Controller : MonoBehaviour
     [Header("Gravity Settings")]
     public float gravityMultiplier = 1.5f;
 
+    // ロープウェイ移動用
+    [HideInInspector] public bool isOnRopeway = false;
+    [HideInInspector] public Vector3 ropewayDelta = Vector3.zero;
+
     void Awake()
     {
         controls = new PlayerControls();
@@ -130,6 +134,12 @@ public class Controller : MonoBehaviour
     // 移動処理
     private void HandleMovement(bool isDash)
     {
+        if (isOnRopeway)
+        {
+            rb.linearVelocity = Vector3.zero;
+            return;
+        }
+
         float currentSpeed = isDash ? dashSpeed : normalSpeed;
         if (isJumping) currentSpeed *= airSpeedMultiplier;
 
@@ -144,19 +154,31 @@ public class Controller : MonoBehaviour
         
         transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, 600 * Time.deltaTime);
         Vector3 nextPosition = rb.position + velocity * currentSpeed * Time.deltaTime;
+
+        if (isOnRopeway)
+        {
+            nextPosition += ropewayDelta;
+        }
+
         rb.MovePosition(nextPosition);
     }
 
     private void PerformJump()
     {
-        if (isMagnetMoving) StopSwing();
+        // ★追加
+        if (isOnRopeway)
+            return;
+
+        if (isMagnetMoving)
+        {
+            StopSwing();
+        }
         else if (!isJumping)
         {
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
             isJumping = true;
         }
     }
-
     private void PerformInvert()
     {
         if (magnetScript != null)
