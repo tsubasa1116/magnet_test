@@ -42,6 +42,10 @@ public class enemy_bomb : MonoBehaviour
     [SerializeField] private GameObject markExclamation; // ！マーク
     [SerializeField] private GameObject markQuestion;    // ？マーク
 
+    [Header("エフェクト")]
+    [SerializeField] private GameObject explosionEffect;
+    [SerializeField] private GameObject enemyHitEffect;
+
     private float currentHp;
     private NavMeshAgent agent;
     private Rigidbody rb; // 物理演算用
@@ -377,6 +381,10 @@ public class enemy_bomb : MonoBehaviour
     public void TakeDamage(float damageAmount)
     {
         currentHp -= damageAmount;
+
+        // ダメージを受けたときのエフェクトを再生
+        if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
+
         if (currentHp <= 0) Die();
     }
 
@@ -395,6 +403,7 @@ public class enemy_bomb : MonoBehaviour
         if (playerController != null)
         {
             Attack();
+            if (explosionEffect != null)    Instantiate(explosionEffect, transform.position, Quaternion.identity);
         }
     }
 }

@@ -13,6 +13,9 @@ public class enemy_Boss : MonoBehaviour
     public float moveSpeed = 10.0f;
     public float targetDistance = 10.0f; // どこまで飛ばすか
 
+    [Header("エフェクト")]
+    [SerializeField] private GameObject enemyHitEffect;
+
     // 腕の状態を管理するフラグ
     private enum ArmState{
         Idle, 
