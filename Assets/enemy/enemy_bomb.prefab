@@ -107,7 +107,7 @@ GameObject:
   - component: {fileID: 7077256299754512433}
   m_Layer: 0
   m_Name: enemy_bomb
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -288,6 +288,8 @@ MonoBehaviour:
   targetPlayer: {fileID: 0}
   markExclamation: {fileID: 4682419189888894977}
   markQuestion: {fileID: 4390579172012812260}
+  explosionEffect: {fileID: 5246989491415050078, guid: d715f68e2b7872f4794c03e35f1a522b, type: 3}
+  enemyHitEffect: {fileID: 1395294932367503536, guid: 0018faa59c074154f98dfa1ad3b5f312, type: 3}
 --- !u!1 &4390579172012812260
 GameObject:
   m_ObjectHideFlags: 0
@@ -548,6 +550,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: modelBombenemy_v1
       objectReference: {fileID: 0}
+    - target: {fileID: 5030372374883904346, guid: b1646057dcd66174d8e9199bea61c008, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 202f51a6553718a4b9391f4e64cdcec7, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
