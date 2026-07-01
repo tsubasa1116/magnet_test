@@ -1,92 +1,52 @@
 using UnityEngine;
 
+// ロープウェイの磁石部分。プレイヤーが引き寄せ(逆極)で作用させると吸着し、
+// ロープウェイ(親が動く)に運ばれる。起動はプレイヤー側(MagnetPull)から呼ぶ。
 public class RopewayMagnet : MonoBehaviour
 {
-    [SerializeField] private float attachDistance = 0.8f;
+	[SerializeField] private float attachDistance = 0.8f;
 
-    private Transform player;
-    private Rigidbody playerRb;
-    private Controller playerController;
-    private magnet playerMagnet;
+	private Transform player;
+	private Rigidbody playerRb;
+	private PlayerMovement playerMovement;
 
-    void Update()
-    {
-        if (player == null)
-            return;
+	public bool HasPlayer => player != null;
 
-        // 磁石OFFまたは極変更で解除
-        if (playerMagnet == null || !playerMagnet.isActive || playerMagnet.magnetMode != 2)
-        {
-            ReleasePlayer();
-            return;
-        }
+	// プレイヤーから呼ぶ：吸着開始
+	public void AttachPlayer(GameObject playerObj)
+	{
+		player = playerObj.transform;
+		playerRb = playerObj.GetComponent<Rigidbody>();
+		playerMovement = playerObj.GetComponent<PlayerMovement>();
 
-        // 箱の側面に固定
-        player.position = transform.position - transform.forward * attachDistance;
-        player.rotation = Quaternion.LookRotation(-transform.forward, Vector3.up);
-    }
+		if (playerRb != null)
+		{
+			playerRb.linearVelocity = Vector3.zero;
+			playerRb.useGravity = false;
+		}
+		if (playerMovement != null) playerMovement.IsOnRopeway = true;
+	}
 
-    private void OnTriggerStay(Collider other)
-    {
-        if (!other.CompareTag("Player"))
-            return;
+	// プレイヤーから呼ぶ：吸着解除
+	public void DetachPlayer()
+	{
+		if (playerRb != null)
+		{
+			playerRb.useGravity = true;
+			playerRb.linearVelocity = Vector3.zero;
+		}
+		if (playerMovement != null) playerMovement.IsOnRopeway = false;
 
-        magnet m = other.GetComponentInChildren<magnet>();
+		player = null;
+		playerRb = null;
+		playerMovement = null;
+	}
 
-        if (m == null)
-            return;
-
-        if (!m.isActive)
-            return;
-
-        // ロープウェイはN極
-        if (m.magnetMode != 2)
-            return;
-
-        if (player == null)
-        {
-            player = other.transform;
-            playerRb = other.GetComponent<Rigidbody>();
-            playerController = other.GetComponent<Controller>();
-            playerMagnet = m;
-
-            if (playerRb != null)
-            {
-                playerRb.linearVelocity = Vector3.zero;
-                playerRb.useGravity = false;
-            }
-
-            if (playerController != null)
-            {
-                playerController.isOnRopeway = true;
-            }
-        }
-    }
-
-    private void OnTriggerExit(Collider other)
-    {
-        if (player == other.transform)
-        {
-            ReleasePlayer();
-        }
-    }
-
-    private void ReleasePlayer()
-    {
-        if (playerRb != null)
-        {
-            playerRb.useGravity = true;
-            playerRb.linearVelocity = Vector3.zero;
-        }
-
-        if (playerController != null)
-        {
-            playerController.isOnRopeway = false;
-        }
-
-        player = null;
-        playerRb = null;
-        playerController = null;
-        playerMagnet = null;
-    }
+	void LateUpdate()
+	{
+		if (player == null) return;
+		// 磁石の側面にプレイヤーを固定（親=ロープウェイが動くと一緒に運ばれる）
+		player.position = transform.position - transform.forward * attachDistance;
+		player.rotation = Quaternion.LookRotation(-transform.forward, Vector3.up);
+	}
 }

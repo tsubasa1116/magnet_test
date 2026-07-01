@@ -1,9 +1,12 @@
 using UnityEngine;
 
-// Catch中(ZRホールド)に、画面中央のRayで「逆極」の物体を手元(handPoint)へ引き寄せる。
-//   プレイヤー S極 → "N_Pole" / N極 → "S_Pole" を引き寄せ
-// ・ZRを離す(Catch終了)と落とす
-// ・保持中に自分の極を切り替える(ZL/Q)と同極で反発し、向いている方向へ飛ばす
+// Catch中(ZRホールド)に、画面中央のRayで「逆極」の対象に作用する。対象の種類で分岐:
+//   ・Grapple 点      → 立体機動(ワイヤーで飛びつく)
+//   ・jump(ジャンプ台)→ 大きくジャンプ(一発)
+//   ・RopewayMagnet    → ロープウェイに吸着して運ばれる
+//   ・それ以外(物体)  → 手元(handPoint)へ引き寄せる
+// 逆極の対応: プレイヤー S極 → "N_Pole" / N極 → "S_Pole"
+// ・ZRを離す(Catch終了)で全て解除。物体は保持中に極を切り替えると反発でぶっ飛ばす。
 [RequireComponent(typeof(PlayerCatch))]
 [RequireComponent(typeof(PlayerStateMachine))]
 public class MagnetPull : MonoBehaviour
@@ -40,6 +43,16 @@ public class MagnetPull : MonoBehaviour
 	private MagnetState grabbedPole;
 	private bool savedUseGravity;
 	private bool savedIsKinematic;
+	private AuraRing heldAura;   // 掴んだ物のオーラ(持った通知用)
+	private Bomb heldBomb;       // 掴んだ物が爆弾なら投擲フラグ用
+
+	// --- ギミック相互作用（引き寄せ対象がギミックなら、物体を引くのではなくこちらが作用する） ---
+	private Rigidbody playerRb;            // 自分のRigidbody(ジャンプ台で使う)
+	private Grapple currentGrapple;        // 立体機動中の対象
+	private RopewayMagnet currentRopeway;  // ロープウェイ吸着中の対象
+	private float jumpCooldown;            // ジャンプ台の連射防止
+
+	private bool Interacting => held != null || currentGrapple != null || currentRopeway != null;
 
 	// エフェクト等が参照する：引き寄せ中/保持中の対象(無ければnull)
 	public Transform HeldObject => held != null ? held.transform : null;
@@ -48,30 +61,52 @@ public class MagnetPull : MonoBehaviour
 	{
 		catchState = GetComponent<PlayerCatch>();
 		stateMachine = GetComponent<PlayerStateMachine>();
+		playerRb = GetComponent<Rigidbody>();
 		if (aimCamera == null) aimCamera = Camera.main;
 	}
 
 	void Update()
 	{
+		if (jumpCooldown > 0f) jumpCooldown -= Time.deltaTime;
+
 		if (!catchState.IsCatching)
 		{
-			if (held != null) Release(); // ZRを離した（Catch終了）
+			EndInteraction(); // ZRを離した（Catch終了）
 			return;
 		}
 
-		if (held == null)
+		if (!Interacting)
 		{
-			TryGrab();
+			if (jumpCooldown <= 0f) TryInteract();
 		}
 		else if (stateMachine.CurrentState != grabbedPole)
 		{
-			Repel(); // 保持中に極切替＝同極で反発
+			// 保持中に極を切り替えた
+			if (held != null) Repel();   // 物体は反発でぶっ飛ばす
+			else EndInteraction();        // 立体機動/ロープウェイは終了
 		}
 	}
 
 	void FixedUpdate()
 	{
+		// 物体の引き寄せだけ毎物理ステップで動かす（ギミックは各自で動く）
 		if (held != null && !attached) PullHeld();
+	}
+
+	// 相互作用の終了（ZR離し・極切替）
+	private void EndInteraction()
+	{
+		if (held != null) Release();
+		if (currentGrapple != null)
+		{
+			currentGrapple.StopGrapple();
+			currentGrapple = null;
+		}
+		if (currentRopeway != null)
+		{
+			currentRopeway.DetachPlayer();
+			currentRopeway = null;
+		}
 	}
 
 	private Transform HandParent => handPoint != null ? handPoint : transform;
@@ -82,28 +117,63 @@ public class MagnetPull : MonoBehaviour
 	private string WantedTag()
 		=> stateMachine.CurrentState == MagnetState.S ? "N_Pole" : "S_Pole";
 
-	private void TryGrab()
+	// 引き寄せ対象を判定して、種類ごとの作用を起動する
+	private void TryInteract()
 	{
 		if (aimCamera == null) return;
 
 		Ray ray = aimCamera.ScreenPointToRay(
 			new Vector3(Screen.width / 2f, Screen.height / 2f, 0f));
 
-		// 三人称なので中央Rayは自分に当たりやすい。全ヒットを距離順に見て自分を除外し、
-		// 最初に当たった「自分以外」が対象タグなら掴む（手前に壁等があれば掴まない）。
-		RaycastHit[] hits = Physics.RaycastAll(ray, rayRange, rayMask, QueryTriggerInteraction.Ignore);
+		// ギミック(ジャンプ台/ロープウェイ)はトリガーコライダーなので Collide で拾う。
+		// 距離順に見て、自分は無視・非対象のトリガーは透過・非対象のソリッド(壁)で遮断。
+		RaycastHit[] hits = Physics.RaycastAll(ray, rayRange, rayMask, QueryTriggerInteraction.Collide);
 		System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
 		foreach (var hit in hits)
 		{
-			if (hit.collider.transform.IsChildOf(transform)) continue; // 自分は無視
+			Collider col = hit.collider;
+			if (col.transform.IsChildOf(transform)) continue; // 自分は無視
 
-			if (hit.collider.CompareTag(WantedTag()))
+			if (!col.CompareTag(WantedTag()))
 			{
-				Rigidbody rb = hit.collider.attachedRigidbody;
-				if (rb != null) Grab(rb);
+				if (col.isTrigger) continue; // 非対象のトリガーは視線を遮らない
+				return;                       // 非対象のソリッド(壁等)で遮られる
 			}
-			return; // 最初の「自分以外」のヒットで判定終了（壁越しには掴まない）
+
+			// ① 立体機動：Grapple 点
+			Grapple grapple = col.GetComponentInParent<Grapple>();
+			if (grapple != null)
+			{
+				grabbedPole = stateMachine.CurrentState;
+				grapple.StartGrapple(gameObject); // 内部で StartGrappleEffect も呼ばれる
+				currentGrapple = grapple;
+				return;
+			}
+
+			// ② ジャンプ台（一発で飛ぶ。連射防止にクールダウン）
+			jump jumpStand = col.GetComponentInParent<jump>();
+			if (jumpStand != null)
+			{
+				jumpStand.Launch(playerRb);
+				jumpCooldown = 0.6f;
+				return;
+			}
+
+			// ③ ロープウェイ吸着
+			RopewayMagnet ropeway = col.GetComponentInParent<RopewayMagnet>();
+			if (ropeway != null)
+			{
+				grabbedPole = stateMachine.CurrentState;
+				ropeway.AttachPlayer(gameObject);
+				currentRopeway = ropeway;
+				return;
+			}
+
+			// ④ それ以外：通常の物体引き寄せ
+			Rigidbody rb = col.attachedRigidbody;
+			if (rb != null) Grab(rb);
+			return;
 		}
 	}
 
@@ -125,6 +195,11 @@ public class MagnetPull : MonoBehaviour
 		// 保持中はコライダーを無効化（プレイヤーや地面を押さない）
 		heldColliders = rb.GetComponentsInChildren<Collider>();
 		foreach (var c in heldColliders) c.enabled = false;
+
+		// オーラ/爆弾との連携
+		heldAura = rb.GetComponentInChildren<AuraRing>();
+		heldBomb = rb.GetComponent<Bomb>();
+		if (heldBomb != null) heldBomb.isThrown = false;
 	}
 
 	private void PullHeld()
@@ -151,6 +226,7 @@ public class MagnetPull : MonoBehaviour
 		attached = true;
 		held.transform.SetParent(HandParent); // 手に追従
 		held.transform.position = HandPos;
+		if (heldAura != null) heldAura.SetHeld(true);
 	}
 
 	// ZRを離した：物理を元に戻して落とす
@@ -158,6 +234,7 @@ public class MagnetPull : MonoBehaviour
 	{
 		if (attached) held.transform.SetParent(null);
 		RestoreColliders();
+		if (heldAura != null) heldAura.SetHeld(false);
 		held.isKinematic = savedIsKinematic;
 		held.useGravity = savedUseGravity;
 		ClearHeld();
@@ -169,6 +246,8 @@ public class MagnetPull : MonoBehaviour
 		Vector3 dir = transform.forward;
 		if (attached) held.transform.SetParent(null);
 		RestoreColliders();
+		if (heldAura != null) heldAura.SetHeld(false);
+		if (heldBomb != null) heldBomb.isThrown = true;
 		held.isKinematic = false;
 		held.useGravity = true;
 		held.AddForce(dir * repelForce, ForceMode.Impulse);
@@ -186,6 +265,8 @@ public class MagnetPull : MonoBehaviour
 	{
 		held = null;
 		heldColliders = null;
+		heldAura = null;
+		heldBomb = null;
 		attached = false;
 		pullVel = Vector3.zero;
 	}

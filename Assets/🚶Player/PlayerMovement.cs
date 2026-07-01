@@ -41,6 +41,8 @@ public class PlayerMovement : MonoBehaviour
 	public bool IsGrounded => isGrounded;
 	// 入力はあるが壁などで実際に進めていない状態（アニメをIdleにするのに使う）
 	public bool IsBlocked => isBlocked;
+	// ロープウェイ等に吸着中（外部ギミックが制御するので移動を止める）
+	public bool IsOnRopeway { get; set; }
 
 	// ジャンプした瞬間に通知する（アニメのトリガー用）
 	public event System.Action Jumped;
@@ -78,6 +80,15 @@ public class PlayerMovement : MonoBehaviour
 		// 死亡中は移動・回転を一切しない（ラグドール物理に任せる）
 		if (health != null && health.IsDead)
 		{
+			isDashing = false;
+			isBlocked = false;
+			return;
+		}
+
+		// ロープウェイ等に吸着中はギミック側が位置を制御するので、こちらは動かさない
+		if (IsOnRopeway)
+		{
+			rb.linearVelocity = Vector3.zero;
 			isDashing = false;
 			isBlocked = false;
 			return;

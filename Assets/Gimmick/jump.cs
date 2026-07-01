@@ -1,88 +1,38 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
+// ジャンプ台。プレイヤーが引き寄せ(逆極)で作用させると大きくジャンプする。
+// 起動はプレイヤー側(MagnetPull)から Launch() を呼ぶ。
 public class jump : MonoBehaviour
 {
-    public AudioClip jumpSound;
+	public AudioClip jumpSound;
 
-    // ジャンプ力の定義
-    [SerializeField] private float jumpForceX = 0f;
-    [SerializeField] private float jumpForceY = 25.0f;
-    [SerializeField] private float jumpForceZ = 0f;
+	[SerializeField] private float jumpForceX = 0f;
+	[SerializeField] private float jumpForceY = 25.0f;
+	[SerializeField] private float jumpForceZ = 0f;
 
-    [Header("エフェクト")]
-    [SerializeField] private GameObject jumpEffect;
+	[Header("エフェクト")]
+	[SerializeField] private GameObject jumpEffect;
 
-    /// <summary>
-    /// Colliderがこのトリガーに入った時に呼び出される
-    /// </summary>
-    /// <param name="other">侵入してきたオブジェクト</param>
-    private void OnTriggerEnter(Collider other)
-    {
-        // 侵入してきたオブジェクトのタグが"Player"だった場合
-        if (other.gameObject.CompareTag("Player"))
-        {
-            // プレイヤーが持っている磁石スクリプトを取得
-            magnet playerMagnet = other.GetComponentInChildren<magnet>();
+	// プレイヤーから呼ぶ：上方向へ大きく飛ばす
+	public void Launch(Rigidbody playerRb)
+	{
+		if (playerRb == null) return;
 
-            if (playerMagnet != null)
-            {
-				if (!playerMagnet.isActive)
-				{
-					return;
-				}
+		if (jumpSound != null)
+			AudioSource.PlayClipAtPoint(jumpSound, transform.position);
 
-				// 自身の極性をタグで判定
-				bool isThisN = gameObject.CompareTag("N_Pole");
-                bool isThisS = gameObject.CompareTag("S_Pole");
+		// 落下速度をリセットしてから飛ばす（安定した高さに）
+		Vector3 vel = playerRb.linearVelocity;
+		vel.y = 0f;
+		playerRb.linearVelocity = vel;
 
-                // プレイヤーの現在のモード
-                int mode = playerMagnet.magnetMode;
+		playerRb.AddForce(new Vector3(jumpForceX, jumpForceY, jumpForceZ), ForceMode.Impulse);
 
-                // 反発により同じ極同士の場合、上にジャンプさせる
-                if ((mode == 1 && isThisN) || (mode == 2 && isThisS))
-                {
-                    // 音が設定されていれば鳴らす
-                    if (jumpSound != null)
-                    {
-                        AudioSource.PlayClipAtPoint(jumpSound, transform.position);
-                    }
-
-                    Rigidbody playerRb = other.GetComponent<Rigidbody>();
-                    if (playerRb != null)
-                    {
-                        // 現在の落下速度などを一度リセットしないと、安定した高さで飛びません
-                        Vector3 vel = playerRb.linearVelocity;
-                        vel.y = 0;
-                        playerRb.linearVelocity = vel;
-
-                        // プレイヤーに上方向の力を加える
-                        playerRb.AddForce(new Vector3(jumpForceX, jumpForceY, jumpForceZ), ForceMode.Impulse);
-
-                        if (jumpEffect != null)
-                        {
-                            Vector3 effectPos = other.transform.position;
-                            effectPos.y = 2.0f;
-
-                            Instantiate(jumpEffect, effectPos, Quaternion.identity);
-                        }
-                    }    
-
-                    // プレイヤーのControllerに「ジャンプ中」であることを伝える
-                    Controller playerCtrl = other.GetComponent<Controller>();
-                    if (playerCtrl != null)
-                    {
-                        playerCtrl.isJumping = true;
-                    }
-                }
-            }
-        }
-    }
-
-    // 上に乗ったままでモードが切り替わった時にも飛ぶように Stay も追加
-    private void OnTriggerStay(Collider other)
-    {
-        OnTriggerEnter(other);
-    }
+		if (jumpEffect != null)
+		{
+			Vector3 pos = playerRb.transform.position;
+			pos.y = 2.0f;
+			Instantiate(jumpEffect, pos, Quaternion.identity);
+		}
+	}
 }

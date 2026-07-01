@@ -10,6 +10,10 @@ public class PlayerHealth : MonoBehaviour
 	public int Hp { get; private set; }
 	public bool IsDead { get; private set; }
 
+	// エフェクト等が購読する（被弾・死亡の通知）
+	public event System.Action OnDamaged;
+	public event System.Action OnDied;
+
 	private PlayerRagdoll ragdoll;
 
 	void Awake()
@@ -30,12 +34,14 @@ public class PlayerHealth : MonoBehaviour
 		if (IsDead) return;
 
 		Hp = Mathf.Max(0, Hp - amount);
+		OnDamaged?.Invoke();
 		if (Hp == 0) Die();
 	}
 
 	private void Die()
 	{
 		IsDead = true;
+		OnDied?.Invoke();
 		ragdoll.EnableRagdoll();
 	}
 

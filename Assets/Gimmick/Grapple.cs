@@ -28,11 +28,6 @@ public class Grapple : MonoBehaviour
     {
         if (isGrappling) return;
 
-        magnet magnetScript = targetPlayer.GetComponentInChildren<magnet>();
-
-        // 磁力OFFなら立体機動できない
-        if (magnetScript == null || !magnetScript.isActive) return;
-
         player = targetPlayer;
         playerRb = player.GetComponent<Rigidbody>();
 
@@ -64,13 +59,6 @@ public class Grapple : MonoBehaviour
     {
         if (!isGrappling || player == null) return;
 
-        magnet magnetScript = player.GetComponentInChildren<magnet>();
-
-        if (magnetScript == null || !magnetScript.isActive)
-        {
-            StopGrapple();
-            return;
-        }
         // プレイヤーを対象方向へ向かせる
         Vector3 direction = (transform.position - player.transform.position).normalized;
 
@@ -119,15 +107,8 @@ public class Grapple : MonoBehaviour
         // レーザー生成
         if (currentLaser == null)
         {
-            GameObject laserPrefab = null;
-
-            magnet magnetScript = player.GetComponentInChildren<magnet>();
-
-            if (magnetScript != null)
-            {
-                if (magnetScript.magnetMode == 1)   laserPrefab = nPoleLaserEffect;
-                else                                laserPrefab = sPoleLaserEffect;
-            }
+            // この点はプレイヤーの逆極なので、プレイヤー側の極でレーザー色を選ぶ
+            GameObject laserPrefab = CompareTag("S_Pole") ? nPoleLaserEffect : sPoleLaserEffect;
 
             if (laserPrefab != null)
             {
