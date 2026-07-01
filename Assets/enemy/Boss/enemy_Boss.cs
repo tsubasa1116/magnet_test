@@ -20,6 +20,7 @@ public class enemy_Boss : MonoBehaviour
         Idle,
         Flying,
         Fall,
+        Hit,
         Returning
     }
 
@@ -44,13 +45,8 @@ public class enemy_Boss : MonoBehaviour
     public Transform target;
     public float aimSpeed = 10.0f;
 
+    private bool startAttack = false;
     [SerializeField] private Animator anim;
-
-    void Start()
-    {
-        anim = GetComponent<Animator>();
-        anim.SetBool("Idol", true);
-    }
 
     [Header("ロボット腕の追尾設定")]
     public Transform armBone_R;
@@ -65,37 +61,43 @@ public class enemy_Boss : MonoBehaviour
 
     private Vector3 punchPos;
     private Quaternion punchRot;
+    private Vector3 nowPunchPos;
 
     [Header("ロケットパンチ")]
     public Vector3 punchRotationOffset = new Vector3(-30, 120, 0);
-    public Vector3 fallRotationOffset = new Vector3(0, 0, 30);
-    public float lockOffFrame = 1.5f;
-    public float fallFrame = 2.0f;
-    public float retrunFrame = 3.0f;
-    [SerializeField] private LayerMask groundLayerMask;
-    [SerializeField] private int attackDamage = 5;
-    public float punchHitRadius = 1.4f;
+    public Vector3 fallRotationOffset = new Vector3(-30, 120, 30);
+    public float lockOffFrame = 1.5f;      // 追尾解除フレーム
+    public float fallFrame = 2.0f;         // 着弾開始フレーム
+    public float retrunFrame = 3.0f;       // 引き戻し開始フレーム
+    public int attackDamage = 5;           // ダメージ量
+    public float punchHitRadius = 1.4f;    // 当たり判定の半径
+    public float minFlyingHeight = 1.0f;   // 飛行中の最低高度
+    public float fallGroundOffset = 0.6f;  // 着弾時に地面からどれくらい浮かすか
+    public bool isLeftArmDetached = false; // 左腕が分離しているかどうか
 
-    public float minFlyingHeight = 1.0f;    // 飛行中の最低高度
-    public float fallGroundOffset = 0.6f;   // 着弾時に地面からどれくらい浮かすか
-    private bool startAttack = false;
+    [SerializeField] private LayerMask groundLayer; // 地面のレイヤー
+    [SerializeField] private PunchArm sepaArm;      // 左腕分離用スクリプト
 
-    [SerializeField] private PunchArm sepaArm;
-    public bool isLeftArmDetached = false;
-
-    private bool hasSmashHit = false;
+    private bool hasSmashHit = false; // 叩きつけの多段ヒット防止フラグ
 
     [Header("行動パターン")]
-    public float actionInterval = 6.0f;
-    private float actionTimer = 0.0f;
+    public bool isStartAction = false;  // ボスの行動開始
+    public float actionInterval = 6.0f; // 行動間隔（秒）
+    private float actionTimer = 0.0f;   // 行動タイマー
 
-    [SerializeField] private BossState[] addActions;
+    [SerializeField] private BossState[] addActions; // 行動パターンのリスト
 
     [Header("アニメーションスキップ")]
     [Tooltip("パンチのステート名")]
     [SerializeField] private string punchStateName = "Punch_v3";
     [Tooltip("パンチアニメーションスキップ")]
     [SerializeField] private float punchAnimReturnTime = 4.0f;
+
+    void Start()
+    {
+        anim = GetComponent<Animator>();
+        anim.SetBool("Idol", true);
+    }
 
     public void SeparateArm()
     {
@@ -105,6 +107,9 @@ public class enemy_Boss : MonoBehaviour
             isLeftArmDetached = true;
         }
     }
+    private Vector3 baseAnimPos_L;
+    private Quaternion baseAnimRot_L;
+    private bool isFirstFrameHit = false;
 
     void LateUpdate()
     {
@@ -116,6 +121,13 @@ public class enemy_Boss : MonoBehaviour
 
         Vector3 rawAnimPos_L = armBone_L.position;
         Quaternion rawAnimRot_L = armBone_L.rotation;
+
+        if (isFirstFrameHit)
+        {
+            baseAnimPos_L = rawAnimPos_L;
+            baseAnimRot_L = rawAnimRot_L;
+            isFirstFrameHit = false;
+        }
 
         if (bossState == BossState.SmashNormal)
         {
@@ -160,7 +172,7 @@ public class enemy_Boss : MonoBehaviour
                 punchPos = Vector3.MoveTowards(punchPos, targetPosition, armSpeed * Time.deltaTime);
 
                 Vector3 rayOrigin = punchPos + Vector3.up * 5.0f;
-                if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit flyHit, 10.0f, groundLayerMask))
+                if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit flyHit, 10.0f, groundLayer))
                 {
                     // 地面の高さ ＋ 最低限確保したい高さ
                     float minHeight = flyHit.point.y + minFlyingHeight;
@@ -204,7 +216,7 @@ public class enemy_Boss : MonoBehaviour
                 {
                     Quaternion baseRot = Quaternion.LookRotation(dir.normalized);
                     // 飛行用 (-30,120,0) とは別に、刺し用オフセットを用意すると調整しやすい
-                    Quaternion fallOffset = Quaternion.Euler(-30f, 120f, 0f); // まず同じ値で試す
+                    Quaternion fallOffset = Quaternion.Euler(fallRotationOffset); // まず同じ値で試す
                     punchRot = Quaternion.Slerp(punchRot, baseRot * fallOffset, aimSpeed * Time.deltaTime);
                 }
                 if (!isLeftArmDetached)
@@ -236,9 +248,20 @@ public class enemy_Boss : MonoBehaviour
                 }
                 CheckPunchHit();
             }
+            else if (armState == ArmState.Hit)
+            {
+                Vector3 animPosDelta = rawAnimPos_L - baseAnimPos_L;
+                Quaternion animRotDelta = rawAnimRot_L * Quaternion.Inverse(baseAnimRot_L);
 
-            // ロケットパンチ中、右腕は通常通りアニメーションの動きをさせる
-            armBone_R.position = rawAnimPos_R;
+                if (!isLeftArmDetached)
+                {
+                    armBone_L.position = nowPunchPos + animPosDelta;
+                    armBone_L.rotation = animRotDelta * punchRot;
+                }
+            }
+
+                // ロケットパンチ中、右腕は通常通りアニメーションの動きをさせる
+                armBone_R.position = rawAnimPos_R;
             armBone_R.rotation = rawAnimRot_R;
         }
         else
@@ -274,7 +297,7 @@ public class enemy_Boss : MonoBehaviour
 
             if (Input.GetKeyDown(KeyCode.O))
             {
-                anim.SetBool("HitL", true);
+                HitToArm();
             }
 
             if (Input.GetKeyDown(KeyCode.K))
@@ -433,14 +456,14 @@ public class enemy_Boss : MonoBehaviour
     void CalcImpactPoint()
     {
         Vector3 rayStart = punchPos + Vector3.up * 2.0f;
-        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 10.0f, groundLayerMask))
+        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 10.0f, groundLayer))
         {
             fallPoint = hit.point + Vector3.up * fallGroundOffset;
 
             float minHeight = hit.point.y + minFlyingHeight;
             if (punchPos.y <= minHeight + 0.05f || punchPos.y >= minHeight + 0.05f)
             {
-                fallPoint = hit.point + Vector3.up * (fallGroundOffset - 0.3f);
+                fallPoint = hit.point + Vector3.up * (fallGroundOffset - 0.5f);
             }
         }
         else
@@ -509,13 +532,29 @@ public class enemy_Boss : MonoBehaviour
     {
         if (addActions == null || addActions.Length == 0) return;
 
-        // リストの中からランダムで1つ選ぶ
-        int randomIndex = Random.Range(0, addActions.Length);
-        BossState nextState = addActions[randomIndex];
+        if (isStartAction)
+        {
+            // リストの中からランダムで1つ選ぶ
+            int randomIndex = Random.Range(0, addActions.Length);
+            BossState nextState = addActions[randomIndex];
 
-        // 選んだステートに切り替える
-        bossState = nextState;
+            // 選んだステートに切り替える
+            bossState = nextState;
 
-        Debug.Log("10秒経過");
+            Debug.Log("10秒経過");
+        }
+    }
+
+    public void HitToArm()
+    {
+        if (!isLeftArmDetached && bossState == BossState.Punch)
+        {
+            armState = ArmState.Hit;
+            nowPunchPos = punchPos; 
+            anim.SetTrigger("Hit_L");
+
+            isFirstFrameHit = true; // 初回フレームでアニメーション基準値を取得するためのフラグ
+            attackTimer = 0.0f;
+        }
     }
 }

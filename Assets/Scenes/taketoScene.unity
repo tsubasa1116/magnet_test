@@ -416,6 +416,12 @@ MonoBehaviour:
   ModeButton: {fileID: 609132661}
   onMugUI: {fileID: 131943326}
   offMugUI: {fileID: 831328199}
+  nPoleReleaseEffect: {fileID: 0}
+  sPoleReleaseEffect: {fileID: 0}
+  nPoleAttractEffect: {fileID: 0}
+  sPoleAttractEffect: {fileID: 0}
+  nPoleLaserEffect: {fileID: 0}
+  sPoleLaserEffect: {fileID: 0}
 --- !u!4 &48567999 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5712331219143574637, guid: 55c683dd4364ac94f9fcefac6e4de4fc, type: 3}
@@ -1390,17 +1396,20 @@ MonoBehaviour:
   isJumping: 0
   hp: 100
   jumpCollider: {fileID: 0}
-  magnetRange: 30
   magnetSpeed: 10
+  grappleRange: 30
   cameraTransform: {fileID: 0}
   cameraSensitivity: 200
-  dashEffect: {fileID: 5514167907956277523, guid: 75cebad6ed96fdc41a76636ee3014d54, type: 3}
-  explosionPrefab: {fileID: 5246989491415050078, guid: d715f68e2b7872f4794c03e35f1a522b, type: 3}
-  hitEffectPrefab: {fileID: 6336265440743236980, guid: 71428148254d9d34a895501052fce42f, type: 3}
+  runEffect: {fileID: 0}
+  hitEffect: {fileID: 0}
+  nPoleChangeEffect: {fileID: 0}
+  sPoleChangeEffect: {fileID: 0}
+  downEffect: {fileID: 0}
   normalSpeed: 7
   dashSpeed: 12
   airSpeedMultiplier: 0.8
   gravityMultiplier: 1.5
+  isOnRopeway: 0
 --- !u!1001 &374911449
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5122,6 +5131,30 @@ PrefabInstance:
       propertyPath: targetPlayer
       value: 
       objectReference: {fileID: 355729280}
+    - target: {fileID: 364246862457991203, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: isStartAction
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 364246862457991203, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: fallGroundOffset
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 364246862457991203, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: groundLayer.m_Bits
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 364246862457991203, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: fallRotationOffset.x
+      value: -30
+      objectReference: {fileID: 0}
+    - target: {fileID: 364246862457991203, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: fallRotationOffset.y
+      value: 120
+      objectReference: {fileID: 0}
+    - target: {fileID: 364246862457991203, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: fallRotationOffset.z
+      value: 30
+      objectReference: {fileID: 0}
     - target: {fileID: 6130334705992224310, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
       propertyPath: m_Name
       value: modelBoss_v3
