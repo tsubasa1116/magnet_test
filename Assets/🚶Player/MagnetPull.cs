@@ -1,12 +1,12 @@
 using UnityEngine;
 
 // Catch中(ZRホールド)に、画面中央のRayで「逆極」の対象に作用する。対象の種類で分岐:
-//   ・Grapple 点      → 立体機動(ワイヤーで飛びつく)
-//   ・jump(ジャンプ台)→ 大きくジャンプ(一発)
-//   ・RopewayMagnet    → ロープウェイに吸着して運ばれる
-//   ・それ以外(物体)  → 手元(handPoint)へ引き寄せる
+//   ・Grapple 点     → 立体機動(スプリングで吸い込まれる／離すとスイングバイ)
+//   ・RopewayMagnet   → ロープウェイに吸着(同じスプリング挙動。磁石が動くので運ばれる)
+//   ・それ以外(物体) → 手元(handPoint)へ引き寄せる
 // 逆極の対応: プレイヤー S極 → "N_Pole" / N極 → "S_Pole"
 // ・ZRを離す(Catch終了)で全て解除。物体は保持中に極を切り替えると反発でぶっ飛ばす。
+// ※ジャンプ台(jump)は「同じ極で触れた時」に反発する接触判定で、この引き寄せとは別系統。
 [RequireComponent(typeof(PlayerCatch))]
 [RequireComponent(typeof(PlayerStateMachine))]
 public class MagnetPull : MonoBehaviour
@@ -46,11 +46,10 @@ public class MagnetPull : MonoBehaviour
 	private AuraRing heldAura;   // 掴んだ物のオーラ(持った通知用)
 	private Bomb heldBomb;       // 掴んだ物が爆弾なら投擲フラグ用
 
-	// --- ギミック相互作用（引き寄せ対象がギミックなら、物体を引くのではなくこちらが作用する） ---
-	private Rigidbody playerRb;            // 自分のRigidbody(ジャンプ台で使う)
+	// --- ギミック相互作用（引き寄せ対象が Grapple/Ropeway なら、物体を引かずスプリングで自分が飛ぶ） ---
+	private PlayerMovement movement;       // 外部物理制御フラグの切替用
 	private Grapple currentGrapple;        // 立体機動中の対象
 	private RopewayMagnet currentRopeway;  // ロープウェイ吸着中の対象
-	private float jumpCooldown;            // ジャンプ台の連射防止
 
 	private bool Interacting => held != null || currentGrapple != null || currentRopeway != null;
 
@@ -61,14 +60,12 @@ public class MagnetPull : MonoBehaviour
 	{
 		catchState = GetComponent<PlayerCatch>();
 		stateMachine = GetComponent<PlayerStateMachine>();
-		playerRb = GetComponent<Rigidbody>();
+		movement = GetComponent<PlayerMovement>();
 		if (aimCamera == null) aimCamera = Camera.main;
 	}
 
 	void Update()
 	{
-		if (jumpCooldown > 0f) jumpCooldown -= Time.deltaTime;
-
 		if (!catchState.IsCatching)
 		{
 			EndInteraction(); // ZRを離した（Catch終了）
@@ -77,7 +74,7 @@ public class MagnetPull : MonoBehaviour
 
 		if (!Interacting)
 		{
-			if (jumpCooldown <= 0f) TryInteract();
+			TryInteract();
 		}
 		else if (stateMachine.CurrentState != grabbedPole)
 		{
@@ -107,6 +104,7 @@ public class MagnetPull : MonoBehaviour
 			currentRopeway.DetachPlayer();
 			currentRopeway = null;
 		}
+		if (movement != null) movement.IsExternalControl = false;
 	}
 
 	private Transform HandParent => handPoint != null ? handPoint : transform;
@@ -141,36 +139,29 @@ public class MagnetPull : MonoBehaviour
 				return;                       // 非対象のソリッド(壁等)で遮られる
 			}
 
-			// ① 立体機動：Grapple 点
+			// ① 立体機動：Grapple 点（スプリングで吸い込まれる／離すとスイングバイ）
 			Grapple grapple = col.GetComponentInParent<Grapple>();
 			if (grapple != null)
 			{
 				grabbedPole = stateMachine.CurrentState;
 				grapple.StartGrapple(gameObject); // 内部で StartGrappleEffect も呼ばれる
 				currentGrapple = grapple;
+				if (movement != null) movement.IsExternalControl = true;
 				return;
 			}
 
-			// ② ジャンプ台（一発で飛ぶ。連射防止にクールダウン）
-			jump jumpStand = col.GetComponentInParent<jump>();
-			if (jumpStand != null)
-			{
-				jumpStand.Launch(playerRb);
-				jumpCooldown = 0.6f;
-				return;
-			}
-
-			// ③ ロープウェイ吸着
+			// ② ロープウェイ吸着（立体機動と同じスプリング挙動。磁石が動くので運ばれる）
 			RopewayMagnet ropeway = col.GetComponentInParent<RopewayMagnet>();
 			if (ropeway != null)
 			{
 				grabbedPole = stateMachine.CurrentState;
 				ropeway.AttachPlayer(gameObject);
 				currentRopeway = ropeway;
+				if (movement != null) movement.IsExternalControl = true;
 				return;
 			}
 
-			// ④ それ以外：通常の物体引き寄せ
+			// ③ それ以外：通常の物体引き寄せ
 			Rigidbody rb = col.attachedRigidbody;
 			if (rb != null) Grab(rb);
 			return;

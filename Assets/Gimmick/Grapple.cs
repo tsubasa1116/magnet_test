@@ -3,8 +3,8 @@ using UnityEngine;
 public class Grapple : MonoBehaviour
 {
     [Header("立体機動")]
-    [SerializeField] private float grappleSpeed = 10f;
-    [SerializeField] private float stopDistance = 5f;
+    [Tooltip("吸い込み速度(ワイヤーを縮める速さ)。速すぎないように")]
+    [SerializeField] private float grappleSpeed = 6f;
     private bool isGrappling = false;
 
     [Header("エフェクト")]
@@ -50,7 +50,7 @@ public class Grapple : MonoBehaviour
         // 開始時に少し勢いをつける
         Vector3 dir = (transform.position - player.transform.position).normalized;
 
-        playerRb.AddForce(dir * 10f, ForceMode.Impulse);
+        playerRb.AddForce(dir * 8f, ForceMode.Impulse);
 
         StartGrappleEffect();
     }
@@ -89,11 +89,7 @@ public class Grapple : MonoBehaviour
             currentLine.SetPosition(1, player.transform.position); // プレイヤー
         }
 
-        // 十分近づいたら終了
-        if (Vector3.Distance(player.transform.position, transform.position) <= stopDistance)
-        {
-            StopGrapple();
-        }
+        // 到着後もZRを離すまで維持（離すとスイングバイ）。自動停止はしない。
     }
 
     // プレイヤーがこのオブジェクトに立体機動した時に呼ぶ
