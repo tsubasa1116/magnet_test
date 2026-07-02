@@ -50,9 +50,10 @@ public class MagnetPull : MonoBehaviour
 	private Rigidbody playerRb;            // 自分のRigidbody(ジャンプ台で使う)
 	private Grapple currentGrapple;        // 立体機動中の対象
 	private RopewayMagnet currentRopeway;  // ロープウェイ吸着中の対象
-	private float jumpCooldown;            // ジャンプ台の連射防止
+    private jump currentJumpStand;
+    [SerializeField] private float jumpCooldown;
 
-	private bool Interacting => held != null || currentGrapple != null || currentRopeway != null;
+    private bool Interacting => held != null || currentGrapple != null || currentRopeway != null;
 
 	// エフェクト等が参照する：引き寄せ中/保持中の対象(無ければnull)
 	public Transform HeldObject => held != null ? held.transform : null;
@@ -65,29 +66,41 @@ public class MagnetPull : MonoBehaviour
 		if (aimCamera == null) aimCamera = Camera.main;
 	}
 
-	void Update()
-	{
-		if (jumpCooldown > 0f) jumpCooldown -= Time.deltaTime;
+    void Update()
+    {
+        if (jumpCooldown > 0f)
+            jumpCooldown -= Time.deltaTime;
 
-		if (!catchState.IsCatching)
-		{
-			EndInteraction(); // ZRを離した（Catch終了）
-			return;
-		}
+        if (!catchState.IsCatching)
+        {
+            EndInteraction();
+            return;
+        }
 
-		if (!Interacting)
-		{
-			if (jumpCooldown <= 0f) TryInteract();
-		}
-		else if (stateMachine.CurrentState != grabbedPole)
-		{
-			// 保持中に極を切り替えた
-			if (held != null) Repel();   // 物体は反発でぶっ飛ばす
-			else EndInteraction();        // 立体機動/ロープウェイは終了
-		}
-	}
+        if (currentJumpStand != null &&
+            jumpCooldown <= 0f &&
+            currentJumpStand.CanLaunch(stateMachine))
+        {
+            currentJumpStand.Launch(playerRb);
+            jumpCooldown = 0.6f;
+            return;
+        }
 
-	void FixedUpdate()
+        if (!Interacting)
+        {
+            TryInteract();
+        }
+        else if (stateMachine.CurrentState != grabbedPole)
+        {
+            // 保持中に極を切り替えた
+            if (held != null)
+                Repel();
+            else
+                EndInteraction();
+        }
+    }
+
+    void FixedUpdate()
 	{
 		// 物体の引き寄せだけ毎物理ステップで動かす（ギミックは各自で動く）
 		if (held != null && !attached) PullHeld();
@@ -148,15 +161,6 @@ public class MagnetPull : MonoBehaviour
 				grabbedPole = stateMachine.CurrentState;
 				grapple.StartGrapple(gameObject); // 内部で StartGrappleEffect も呼ばれる
 				currentGrapple = grapple;
-				return;
-			}
-
-			// ② ジャンプ台（一発で飛ぶ。連射防止にクールダウン）
-			jump jumpStand = col.GetComponentInParent<jump>();
-			if (jumpStand != null)
-			{
-				jumpStand.Launch(playerRb);
-				jumpCooldown = 0.6f;
 				return;
 			}
 
@@ -270,4 +274,9 @@ public class MagnetPull : MonoBehaviour
 		attached = false;
 		pullVel = Vector3.zero;
 	}
+
+    public void SetCurrentJumpStand(jump stand)
+    {
+        currentJumpStand = stand;
+    }
 }

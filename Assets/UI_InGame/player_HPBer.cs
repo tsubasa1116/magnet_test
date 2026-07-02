@@ -18,7 +18,7 @@ public class player_HPBer : MonoBehaviour
     [SerializeField] private bool zeroPadding = false;
 
     [Header("Player Tracking")]
-    [SerializeField] private Controller player;
+    [SerializeField] private PlayerHealth player;
 
     [Header("HP_パラメータ")]
     public float maxHP = 100.0f;
@@ -59,7 +59,7 @@ public class player_HPBer : MonoBehaviour
     {
         if (player != null)
         {
-            maxHP = player.hp;
+            maxHP = player.Hp;
         }
         currentHP = maxHP;
         displayHP = maxHP;
@@ -112,12 +112,12 @@ public class player_HPBer : MonoBehaviour
         if (player != null)
         {
             // HPが減った場合にシェイクを開始する
-            if (currentHP > player.hp)
+            if (currentHP > player.Hp)
             {
                 shakeTimer = shakeDuration;
                 waitTimer = backWait;
             }
-            currentHP = player.hp;
+            currentHP = player.Hp;
         }
 
         //currentHP = testHP;

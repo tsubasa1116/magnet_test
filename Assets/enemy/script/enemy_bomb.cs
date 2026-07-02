@@ -25,7 +25,7 @@ public class enemy_bomb : MonoBehaviour
     [SerializeField] private float noticeTime   = 1.0f;
     [SerializeField] private float spinSpeed    = 360.0f; // 回転速度（度/秒）
     [SerializeField] private float attackSpeed  = 3.0f;
-    [SerializeField] private int attackDamage = 1;
+    [SerializeField] private int attackDamage = 10;
 
     [Header("浮遊")]
     [SerializeField] private float hoverHeight = 2.0f;     // 地面からの基本の高さ
@@ -370,11 +370,11 @@ public class enemy_bomb : MonoBehaviour
 
     private void Attack() 
     {
-        var playerController = targetPlayer.GetComponent<Controller>();
-        if (playerController != null)
-        {
-            playerController.TakeDamage(attackDamage);
-        }
+        PlayerHealth playerHealth = targetPlayer.GetComponent<PlayerHealth>();
+        Debug.Log(playerHealth);
+
+        if (playerHealth != null) playerHealth.TakeDamage(attackDamage);
+
         Die();
     }
 
@@ -398,12 +398,11 @@ public class enemy_bomb : MonoBehaviour
         // 突撃でダメージ判定
         if (currentState != EnemyState.Attack) return;
 
-        // ぶつかった相手がプレイヤーなら攻撃して自爆
-        var playerController = collision.gameObject.GetComponent<Controller>();
-        if (playerController != null)
+        if (collision.gameObject.CompareTag("Player"))
         {
             Attack();
-            if (explosionEffect != null)    Instantiate(explosionEffect, transform.position, Quaternion.identity);
+
+            if (explosionEffect != null) Instantiate(explosionEffect, transform.position, Quaternion.identity);
         }
     }
 }
