@@ -6,7 +6,10 @@ using UnityEngine;
 //   被弾 / 死亡: hit / down エフェクト
 public class PlayerEffects : MonoBehaviour
 {
-	[Header("ダッシュ")]
+    // エフェクトの生成位置。未指定ならプレイヤーの足元
+    [SerializeField] private Transform poleEffectPoint;
+
+    [Header("ダッシュ")]
 	[SerializeField] private GameObject runEffect;
 	[SerializeField] private float runStopDelay = 0.5f;
 
@@ -20,7 +23,7 @@ public class PlayerEffects : MonoBehaviour
 	[SerializeField] private GameObject downEffect;
 	[SerializeField] private float hitEffectLife = 2f;
 
-	private PlayerMovement movement;
+    private PlayerMovement movement;
 	private PlayerStateMachine stateMachine;
 	private PlayerHealth health;
 
@@ -93,13 +96,29 @@ public class PlayerEffects : MonoBehaviour
 		Spawn(s == MagnetState.N ? nPoleChangeEffect : sPoleChangeEffect, poleEffectLife);
 	}
 
-	private void OnDamaged() => Spawn(hitEffect, hitEffectLife);
+
+    private void OnDamaged() => Spawn(hitEffect, hitEffectLife);
 	private void OnDied() => Spawn(downEffect, hitEffectLife);
 
-	private void Spawn(GameObject prefab, float life)
-	{
-		if (prefab == null) return;
-		GameObject fx = Instantiate(prefab, transform.position, Quaternion.identity);
-		if (life > 0f) Destroy(fx, life);
-	}
+    private void Spawn(GameObject prefab, float life)
+    {
+        if (prefab == null) return;
+
+        Transform point = poleEffectPoint != null ? poleEffectPoint : transform;
+
+        Debug.Log($"EffectPoint : {point.name}  Position : {point.position}");
+		Debug.Log($"Transform : {transform.position}");
+
+		// ワールド座標で生成
+		GameObject fx = Instantiate(prefab, point.position, point.rotation);
+
+        // ワールド座標を維持したまま親子付け
+        fx.transform.SetParent(point, true);
+
+        Debug.Log(fx.transform.position);
+        Debug.Log(point.position);
+
+        if (life > 0f)
+            Destroy(fx, life);
+    }
 }
