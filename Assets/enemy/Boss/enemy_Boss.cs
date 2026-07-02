@@ -93,20 +93,17 @@ public class enemy_Boss : MonoBehaviour
     [Tooltip("パンチアニメーションスキップ")]
     [SerializeField] private float punchAnimReturnTime = 4.0f;
 
+    [Header("腕分離・復活設定")]
+    public float detachDelay = 2.5f;
+    private bool isWaitForDetach = false;
+    private float detachTimer = 0.0f;
+
     void Start()
     {
         anim = GetComponent<Animator>();
         anim.SetBool("Idol", true);
     }
 
-    public void SeparateArm()
-    {
-        if (sepaArm != null)
-        {
-            sepaArm.DetachArm();
-            isLeftArmDetached = true;
-        }
-    }
     private Vector3 baseAnimPos_L;
     private Quaternion baseAnimRot_L;
     private bool isFirstFrameHit = false;
@@ -260,8 +257,8 @@ public class enemy_Boss : MonoBehaviour
                 }
             }
 
-                // ロケットパンチ中、右腕は通常通りアニメーションの動きをさせる
-                armBone_R.position = rawAnimPos_R;
+            // ロケットパンチ中、右腕は通常通りアニメーションの動きをさせる
+            armBone_R.position = rawAnimPos_R;
             armBone_R.rotation = rawAnimRot_R;
         }
         else
@@ -306,7 +303,11 @@ public class enemy_Boss : MonoBehaviour
             }
             if (Input.GetKeyDown(KeyCode.M))
             {
-                SeparateArm();
+                ExecuteDetachArm();
+            }
+            if (Input.GetKeyDown(KeyCode.N))
+            {
+                ReviveArm();
             }
         }
 
@@ -434,6 +435,16 @@ public class enemy_Boss : MonoBehaviour
                 // amim.SetBool("Down", true);
                 break;
         }
+
+        if (isWaitForDetach)
+        {
+            detachTimer += Time.deltaTime;
+            if (detachTimer >= detachDelay)
+            {
+                ExecuteDetachArm();
+                isWaitForDetach = false;
+            }
+        }
     }
 
     public void FirePunch()
@@ -550,11 +561,58 @@ public class enemy_Boss : MonoBehaviour
         if (!isLeftArmDetached && bossState == BossState.Punch)
         {
             armState = ArmState.Hit;
-            nowPunchPos = punchPos; 
+            nowPunchPos = punchPos;
             anim.SetTrigger("Hit_L");
 
             isFirstFrameHit = true; // 初回フレームでアニメーション基準値を取得するためのフラグ
             attackTimer = 0.0f;
+
+            isWaitForDetach = true;
+            detachTimer = 0.0f;
         }
+    }
+
+    // 腕を実際に分離させる処理
+    private void ExecuteDetachArm()
+    {
+        isLeftArmDetached = true;
+
+        // 1. 本体の左腕ボーンのスケールを0にして「見えなくする」
+        armBone_L.localScale = Vector3.zero;
+
+        // 2. 分離用のダミー腕オブジェクトを出現・物理挙動させる
+        if (sepaArm != null)
+        {
+            sepaArm.gameObject.SetActive(true);
+
+            // 位置と回転を、アニメーション直後の現在の腕に合わせる
+            sepaArm.transform.position = armBone_L.position;
+            sepaArm.transform.rotation = armBone_L.rotation;
+
+            // PunchArm側の分離処理（Rigidbodyをオンにするなど）を実行
+            sepaArm.DetachArm();
+        }
+    }
+
+    // 腕復活任意のタイミングで呼び出してください）
+    public void ReviveArm()
+    {
+        if (!isLeftArmDetached) return;
+
+        isLeftArmDetached = false;
+
+        // 1. 本体の左腕ボーンのスケールを戻して「見えるようにする」
+        armBone_L.localScale = Vector3.one;
+
+        // 2. 分離用のダミー腕を非表示にする
+        if (sepaArm != null)
+        {
+            sepaArm.gameObject.SetActive(false);
+            // 必要であれば sepaArm.Reset() のような、初期状態に戻すメソッドを呼ぶと安全です
+        }
+
+        // ステートを元に戻す
+        armState = ArmState.Idle;
+        anim.SetTrigger("Revive"); // 復活モーションがあれば再生
     }
 }
