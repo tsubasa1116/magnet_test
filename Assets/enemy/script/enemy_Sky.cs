@@ -91,8 +91,8 @@ public class enemy_Sky : MonoBehaviour
         {
             GameObject effect = Instantiate(enemyFloatingEffect, transform.position, Quaternion.identity, transform);
 
-            // 少し下に表示したい場合
-            effect.transform.localPosition = new Vector3(0, -0.5f, 0);
+            // 少し下に表示する
+            effect.transform.localPosition = new Vector3(0, -0.3f, 0);
         }
     }
 
