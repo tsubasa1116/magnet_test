@@ -94,7 +94,7 @@ public class enemy_Boss : MonoBehaviour
     [SerializeField] private float punchAnimReturnTime = 4.0f;
 
     [Header("腕分離・復活設定")]
-    public float detachDelay = 2.5f;
+    public float detachDelay = 1.5f;
     private bool isWaitForDetach = false;
     private float detachTimer = 0.0f;
 
@@ -443,6 +443,7 @@ public class enemy_Boss : MonoBehaviour
             {
                 ExecuteDetachArm();
                 isWaitForDetach = false;
+                anim.SetBool("Idol", true);
             }
         }
     }
@@ -587,7 +588,7 @@ public class enemy_Boss : MonoBehaviour
 
             // 位置と回転を、アニメーション直後の現在の腕に合わせる
             sepaArm.transform.position = armBone_L.position;
-            sepaArm.transform.rotation = armBone_L.rotation;
+            //sepaArm.transform.rotation = armBone_L.rotation;
 
             // PunchArm側の分離処理（Rigidbodyをオンにするなど）を実行
             sepaArm.DetachArm();
