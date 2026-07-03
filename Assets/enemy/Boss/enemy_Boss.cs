@@ -14,6 +14,8 @@ public class enemy_Boss : MonoBehaviour
     public float moveSpeed = 10.0f;
     public float targetDistance = 10.0f;
     public float stopDistance = 5.0f;
+    public float maxHP = 100.0f;
+    public float takenDamage = 5.0f;
 
     private enum ArmState
     {
@@ -616,4 +618,6 @@ public class enemy_Boss : MonoBehaviour
         armState = ArmState.Idle;
         anim.SetTrigger("Revive"); // 復活モーションがあれば再生
     }
+
+    
 }

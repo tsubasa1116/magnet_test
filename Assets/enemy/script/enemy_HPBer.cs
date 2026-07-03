@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-public class EnemyHPBar : MonoBehaviour
+public class enemy_HPBer : MonoBehaviour
 {
     [Header("HPテクスチャ")]
     [SerializeField] private Image blueBar;
@@ -28,10 +28,15 @@ public class EnemyHPBar : MonoBehaviour
 
     [Header("デバッグ")]
     [SerializeField] private float testDamageValue = 20.0f;
+    [SerializeField] private float testDamageMultiplier = 1.0f;
     [SerializeField] private float testHealValue = 100.0f;
+
+    [Header("ボス参照")]
+    [SerializeField] private enemy_Boss bossScript;
 
     private void Start()
     {
+        maxHP = bossScript.maxHP;
         currentHP = maxHP;
 
         if (blueBar) blueBar.fillAmount = 1.0f;
@@ -92,7 +97,7 @@ public class EnemyHPBar : MonoBehaviour
     [ContextMenu("Debug/Apply Test Damage")]
     public void ApplyTestDamage()
     {
-        TakeDamage(testDamageValue);
+        TakeDamage(testDamageValue, testDamageMultiplier);
     }
 
     [ContextMenu("Debug/Apply Test Heal")]
@@ -103,9 +108,10 @@ public class EnemyHPBar : MonoBehaviour
 
     // =========================================================
 
-    public void TakeDamage(float damage)
+    public void TakeDamage(float damage, float damageMultiplier)
     {
-        currentHP -= damage;
+        int finalDamage = Mathf.RoundToInt(damage * damageMultiplier);
+        currentHP -= finalDamage;
         currentHP = Mathf.Clamp(currentHP, 0.0f, maxHP);
         targetFillAmount = currentHP / maxHP;
 
