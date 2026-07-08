@@ -1869,6 +1869,8 @@ MonoBehaviour:
   moveSpeed: 10
   targetDistance: 10
   stopDistance: 5
+  maxHP: 100
+  takenDamage: 5
   rBos: {fileID: 3536374064580107436}
   target: {fileID: 0}
   aimSpeed: 5
@@ -1877,8 +1879,15 @@ MonoBehaviour:
   armBone_L: {fileID: 3536374064580107436}
   isTracking: 0
   transitionSpeed: 7
+  trackingOffset: 2
+  waveEffect: {fileID: 3156528264800243857, guid: cccf9b40f05f96e438c269b7e6c1229b, type: 3}
+  smashEffectTimes:
+  - 2
+  - 2.7
+  - 3.5
+  effectPosY: 1.8
   punchRotationOffset: {x: -30, y: 120, z: 0}
-  fallRotationOffset: {x: 0, y: 0, z: 30}
+  fallRotationOffset: {x: -30, y: 120, z: 30}
   lockOffFrame: 1.5
   fallFrame: 2
   retrunFrame: 3
@@ -1889,14 +1898,16 @@ MonoBehaviour:
   isLeftArmDetached: 0
   groundLayer:
     serializedVersion: 2
-    m_Bits: 0
-  sepaArm: {fileID: 1012782819195413055}
+    m_Bits: 8
+  sepaArm: {fileID: 5224426238319890295, guid: be09bb6e465ad34418d3ee6935bd69a8, type: 3}
   isStartAction: 0
   actionInterval: 6
+  isSecond: 0
   addActions: 0100000005000000
+  addActionSecond: 01000000
   punchStateName: Punch_v3
   punchAnimReturnTime: 4
-  detachDelay: 1.5
+  detachDelay: 0.8
 --- !u!4 &6308404378603985230 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1034085623949093417, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}

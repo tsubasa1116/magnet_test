@@ -17,6 +17,8 @@ public class enemy_Boss : MonoBehaviour
     public float maxHP = 100.0f;
     public float takenDamage = 5.0f;
 
+    private bool isLookPlayer = true;
+
     private enum ArmState
     {
         Idle,
@@ -66,7 +68,12 @@ public class enemy_Boss : MonoBehaviour
     private Quaternion punchRot;
     private Vector3 nowPunchPos;
 
+    [Header("衝撃波のエフェクト設定")]
     [SerializeField] private GameObject waveEffect;
+    [SerializeField] private float[] smashEffectTimes = new float[] { 2.0f, 2.7f, 3.5f };
+    [SerializeField] private float effectPosY = 1.1f;
+
+    private int smashEffectCnt = 0; // エフェクトを発生させた回数のカウント
 
     [Header("ロケットパンチ")]
     public Vector3 punchRotationOffset = new Vector3(-30, 120, 0);
@@ -79,9 +86,11 @@ public class enemy_Boss : MonoBehaviour
     public float minFlyingHeight = 1.0f;   // 飛行中の最低高度
     public float fallGroundOffset = 0.6f;  // 着弾時に地面からどれくらい浮かすか
     public bool isLeftArmDetached = false; // 左腕が分離しているかどうか
+    public bool isRightArmDetached = false; // 右腕が分離しているかどうか
 
     [SerializeField] private LayerMask groundLayer; // 地面のレイヤー
     [SerializeField] private PunchArm sepaArm;      // 左腕分離用スクリプト
+    [SerializeField] private PunchArm sepaArmR;
 
     private bool hasSmashHit = false; // 叩きつけの多段ヒット防止フラグ
 
@@ -104,6 +113,8 @@ public class enemy_Boss : MonoBehaviour
     public float detachDelay = 1.5f;
     private bool isWaitForDetach = false;
     private float detachTimer = 0.0f;
+    private bool isWaitForDetachR = false;
+    private float detachTimerR = 0.0f;
 
     void Start()
     {
@@ -157,6 +168,12 @@ public class enemy_Boss : MonoBehaviour
             // 叩きつけ中、左腕は通常通りアニメーションの動きをさせる
             armBone_L.position = rawAnimPos_L;
             armBone_L.rotation = rawAnimRot_L;
+
+            if (!isRightArmDetached)
+            {
+                armBone_R.position = rawAnimPos_R + currentOffset;
+                CheckSmashHit(true); // 分離中はダメージ判定とエフェクトも出さない
+            }
         }
         if (bossState == BossState.SmashBig)
         {
@@ -186,6 +203,13 @@ public class enemy_Boss : MonoBehaviour
             // 叩きつけ中、左腕は通常通りアニメーションの動きをさせる
             armBone_L.position = rawAnimPos_L;
             armBone_L.rotation = rawAnimRot_L;
+
+            // 右腕には計算したズレを適用
+            if (!isRightArmDetached)
+            {
+                armBone_R.position = rawAnimPos_R + currentOffset;
+                CheckSmashHit(false);
+            }
         }
         else if (bossState == BossState.Punch)
         {
@@ -318,25 +342,54 @@ public class enemy_Boss : MonoBehaviour
     {
         if (target != null && bossMesh != null)
         {
+            if (isLookPlayer)
+            {
             Vector3 direction = target.position - transform.position;
             direction.y = 0;
             Quaternion targetRotation = Quaternion.LookRotation(direction);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, aimSpeed * Time.deltaTime);
+            }
 
-            if (Input.GetKeyDown(KeyCode.L))
+            if (Input.GetKeyDown(KeyCode.Keypad3))
             {
                 bossState = BossState.Punch;
             }
 
-            if (Input.GetKeyDown(KeyCode.O))
+            if (Input.GetKeyDown(KeyCode.Keypad1))
+            {
+                bossState = BossState.SmashNormal;
+            }
+
+            if (Input.GetKeyDown(KeyCode.Keypad2))
+            {
+                bossState = BossState.SmashBig;
+            }
+
+            if (Input.GetKeyDown(KeyCode.Keypad3))
+            {
+                bossState = BossState.Punch;
+            }
+
+            if (Input.GetKeyDown(KeyCode.Keypad8))
             {
                 HitToArm();
             }
 
-            if (Input.GetKeyDown(KeyCode.K))
+            if (Input.GetKeyDown(KeyCode.Keypad9))
+            {
+                HitToArmR();
+            }
+
+            if (Input.GetKeyDown(KeyCode.Keypad7))
+            {
+                anim.SetTrigger("Hit_L");
+            }
+
+            if (Input.GetKeyDown(KeyCode.Keypad5))
             {
                 bossState = BossState.Move;
             }
+
             if (Input.GetKeyDown(KeyCode.M))
             {
                 ExecuteDetachArm();
@@ -363,6 +416,8 @@ public class enemy_Boss : MonoBehaviour
             case BossState.Idle:
                 anim.SetBool("Move", false);
                 anim.SetBool("Idol", true);
+
+                isLookPlayer = true;
                 break;
             case BossState.Move:
                 float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
@@ -414,10 +469,13 @@ public class enemy_Boss : MonoBehaviour
                 if (attackTimer >= 0.3f) isTracking = true;  // 追尾ON
                 if (attackTimer >= 1.1f) isTracking = false; // 追尾OFF
 
+                if (attackTimer >= 1.2f) isLookPlayer = false;
+
                 attackTimer += Time.deltaTime;
 
                 if (attackTimer >= 3.3f)
                 {
+
                     bossState = BossState.Idle;
                     attackTimer = 0.0f;
                     startAttack = false;
@@ -431,13 +489,15 @@ public class enemy_Boss : MonoBehaviour
                     anim.SetTrigger("Smash_B");
                     startAttack = true;
 
-                    hasSpawnedEffect = false;
+                    smashEffectCnt = 0;
                     hasSmashHit = false;
 
                 }
 
                 if (attackTimer >= 0.3f) isTracking = true;  // 追尾ON
                 if (attackTimer >= 1.6f) isTracking = false; // 追尾OFF
+
+                if (attackTimer >= 2.0f) isLookPlayer = false;
 
                 attackTimer += Time.deltaTime;
 
@@ -490,6 +550,7 @@ public class enemy_Boss : MonoBehaviour
                     anim.SetTrigger("Rush");
                     startAttack = true;
                 }
+                if (attackTimer >= 1.5f) isLookPlayer = false;
                 attackTimer += Time.deltaTime;
                 if (attackTimer >= 3.3f)
                 {
@@ -512,6 +573,17 @@ public class enemy_Boss : MonoBehaviour
             {
                 ExecuteDetachArm();
                 isWaitForDetach = false;
+                anim.SetBool("Idol", true);
+            }
+        }
+
+        if (isWaitForDetachR)
+        {
+            detachTimerR += Time.deltaTime;
+            if (detachTimerR >= detachDelay)
+            {
+                ExecuteDetachArmR();
+                isWaitForDetachR = false;
                 anim.SetBool("Idol", true);
             }
         }
@@ -584,10 +656,10 @@ public class enemy_Boss : MonoBehaviour
             }
         }
     }
-    private bool hasSpawnedEffect = false;
+
     private void CheckSmashHit(bool N)
     {
-        // 1. ダメージ判定 (まだダメージを与えていない場合のみ判定)
+        // 1. ダメージ判定
         if (!hasSmashHit)
         {
             Collider[] hitColliders = Physics.OverlapSphere(armBone_R.position, punchHitRadius);
@@ -599,30 +671,44 @@ public class enemy_Boss : MonoBehaviour
                 if (player != null)
                 {
                     player.TakeDamage(attackDamage);
-                    hasSmashHit = true; // ダメージ判定をオフにする
+                    hasSmashHit = true; // 一旦ダメージ判定をオフにする
                     break;
                 }
             }
         }
 
-        // 2. エフェクト＆ログ発生処理 (1.7秒経過 ＆ まだ発生させていない場合)
-        if (attackTimer >= 1.7f && !hasSpawnedEffect)
+        // 2. エフェクト＆ログ発生処理
+        if (N)
         {
-            if (N)
+            // 通常叩きつけ(SmashNormal)の処理
+            if (attackTimer >= 1.7f && smashEffectCnt == 0)
             {
                 Debug.Log("Smash_N");
+                smashEffectCnt = 1;
             }
-            else
+        }
+        else
+        {
+            // 大叩きつけ(SmashBig)の処理：3回のエフェクトを時間差で発生
+            if (smashEffectCnt < smashEffectTimes.Length)
             {
-                // ボスの足元（Y軸）の高さで、XとZは右手の位置（叩きつけた場所）を計算
-                Vector3 effectPos = new Vector3(armBone_R.position.x, transform.position.y + 1.0f, armBone_R.position.z);
+                // 現在のカウントに対応する発生時間を超えたかチェック
+                if (attackTimer >= smashEffectTimes[smashEffectCnt])
+                {
+                    // 右手の真下の地面の高さを計算
+                    Vector3 effectPos = new Vector3(armBone_R.position.x, transform.position.y + effectPosY, armBone_R.position.z);
 
-                // 計算した位置（右手の真下の地面）にエフェクトを発生
-                Instantiate(waveEffect, effectPos, Quaternion.identity);
-                Debug.Log("Smash_B");
+                    // 計算した位置にエフェクトを発生
+                    Instantiate(waveEffect, effectPos, Quaternion.identity);
+                    Debug.Log($"Smash_B - {smashEffectCnt + 1}回目着弾！");
+
+                    // 次のパンチのために判定復活
+                    hasSmashHit = false;
+
+                    // カウントを進めて、次のパンチのタイミング待ちにする
+                    smashEffectCnt++;
+                }
             }
-
-            hasSpawnedEffect = true; // エフェクト発生済みフラグを立てる
         }
     }
 
@@ -670,15 +756,29 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
-    // 腕を実際に分離させる処理
+    public void HitToArmR()
+    {
+        // 右腕が分離しておらず、かつスマッシュ攻撃(通常・大)中の場合のみ処理を開始
+        if (!isRightArmDetached && (bossState == BossState.SmashNormal || bossState == BossState.SmashBig))
+        {
+            anim.SetTrigger("Hit_R");
+
+            // 分離待機フラグをオン
+            isWaitForDetachR = true;
+            detachTimerR = 0.0f;
+        }
+    }
+
+
+    // 腕分離
     private void ExecuteDetachArm()
     {
         isLeftArmDetached = true;
 
-        // 1. 本体の左腕ボーンのスケールを0にして「見えなくする」
+        // 本体の左腕ボーンのスケールを0にして「見えなくする」
         armBone_L.localScale = Vector3.zero;
 
-        // 2. 分離用のダミー腕オブジェクトを出現・物理挙動させる
+        // 分離用のダミー腕オブジェクトを出現・物理挙動させる
         if (sepaArm != null)
         {
             sepaArm.gameObject.SetActive(true);
@@ -686,32 +786,69 @@ public class enemy_Boss : MonoBehaviour
             // 位置を合わせる
             sepaArm.transform.position = armBone_L.position;
 
-            // PunchArm側の分離処理（Rigidbodyをオンにするなど）を実行
+            // PunchArm側の分離処理
             sepaArm.DetachArm();
         }
     }
 
-    // 腕復活任意のタイミングで呼び出してください）
+
+    private void ExecuteDetachArmR()
+    {
+        isRightArmDetached = true;
+
+        // 本体の左腕ボーンのスケールを0にして「見えなくする」
+        armBone_R.localScale = Vector3.zero;
+
+        // 分離用のダミー腕オブジェクトを出現・物理挙動させる
+        if (sepaArmR != null)
+        {
+            sepaArmR.gameObject.SetActive(true);
+
+            // 位置を合わせる
+            sepaArmR.transform.position = armBone_R.position;
+
+            // PunchArm側の分離処理
+            sepaArmR.DetachArm();
+        }
+    }
+
+    // 腕復活
     public void ReviveArm()
     {
         if (!isLeftArmDetached) return;
 
         isLeftArmDetached = false;
 
-        // 1. 本体の左腕ボーンのスケールを戻して「見えるようにする」
+        // 本体の左腕ボーンのスケールを戻して見えるようにする
         armBone_L.localScale = Vector3.one;
 
-        // 2. 分離用のダミー腕を非表示にする
+        // 分離用のダミー腕を非表示にする
         if (sepaArm != null)
         {
             sepaArm.gameObject.SetActive(false);
-            // 必要であれば sepaArm.Reset() のような、初期状態に戻すメソッドを呼ぶと安全です
         }
 
         // ステートを元に戻す
         armState = ArmState.Idle;
-        anim.SetTrigger("Revive"); // 復活モーションがあれば再生
+        // 復活モーション
     }
 
-    
+    public void ReviveArmR()
+    {
+        if (!isRightArmDetached) return;
+
+        isRightArmDetached = false;
+
+        // 本体の右腕ボーンのスケールを戻して見えるようにする
+        armBone_R.localScale = Vector3.one;
+
+        // 分離用のダミー腕を非表示にする
+        if (sepaArmR != null)
+        {
+            sepaArmR.gameObject.SetActive(false);
+        }
+
+    }
+
+
 }
