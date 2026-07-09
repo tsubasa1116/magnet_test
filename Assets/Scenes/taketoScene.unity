@@ -1059,6 +1059,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+--- !u!114 &214768485 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 364246862457991203, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+  m_PrefabInstance: {fileID: 1482262327}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cf859a8510deee409f0bee55cf6fa2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::enemy_Boss
 --- !u!114 &221033585 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2288196488922769325, guid: eb7fe6fa313d0e2469c9d53645938e78, type: 3}
@@ -1528,6 +1539,28 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 75cebad6ed96fdc41a76636ee3014d54, type: 3}
+--- !u!1 &380815098 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2280798110849845697, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+  m_PrefabInstance: {fileID: 1482262327}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &380815103
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 380815098}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e70c88edb19d50c44ad4f1429f994428, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
+  bossScript: {fileID: 214768485}
+  HPBerScript: {fileID: 517318051}
+  damageMultiplier: 0.1
+  attackTagN: N_Pole
+  attackTagS: S_Pole
 --- !u!1 &396433691
 GameObject:
   m_ObjectHideFlags: 0
@@ -1861,6 +1894,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 55c683dd4364ac94f9fcefac6e4de4fc, type: 3}
+--- !u!114 &517318051 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4322749592944333695, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
+  m_PrefabInstance: {fileID: 1412041504}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 101dee340fb60314ca1e1565221e9ff1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyHPBar
 --- !u!114 &521169794 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 483327007452348107, guid: 4cc527eda5475284f8141c99bc37344c, type: 3}
@@ -2665,6 +2709,28 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ea5fca4fd453e504e987ce5b63a4bff8, type: 3}
+--- !u!1 &912090111 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2283890673902413788, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+  m_PrefabInstance: {fileID: 1482262327}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &912090115
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 912090111}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e70c88edb19d50c44ad4f1429f994428, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
+  bossScript: {fileID: 214768485}
+  HPBerScript: {fileID: 517318051}
+  damageMultiplier: 0.1
+  attackTagN: N_Pole
+  attackTagS: S_Pole
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0
@@ -2842,6 +2908,28 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 6238593134723850039, guid: 75cebad6ed96fdc41a76636ee3014d54, type: 3}
   m_PrefabInstance: {fileID: 379426857}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &986193246 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3133309505677041975, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+  m_PrefabInstance: {fileID: 1482262327}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &986193248
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 986193246}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e70c88edb19d50c44ad4f1429f994428, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
+  bossScript: {fileID: 214768485}
+  HPBerScript: {fileID: 517318051}
+  damageMultiplier: 0.1
+  attackTagN: N_Pole
+  attackTagS: S_Pole
 --- !u!1001 &1006400157
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3546,6 +3634,28 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 6132868400632621419, guid: 5d0ad184c442b124dba1fb386b70dcc4, type: 3}
   m_PrefabInstance: {fileID: 1016829438}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1404707869 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3313825629218487321, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+  m_PrefabInstance: {fileID: 1482262327}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1404707874
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1404707869}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e70c88edb19d50c44ad4f1429f994428, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
+  bossScript: {fileID: 214768485}
+  HPBerScript: {fileID: 517318051}
+  damageMultiplier: 0.1
+  attackTagN: N_Pole
+  attackTagS: S_Pole
 --- !u!1001 &1412041504
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3908,6 +4018,24 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 1153334311986411115, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 855943488}
+    - targetCorrespondingSourceObject: {fileID: 2280798110849845697, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 380815103}
+    - targetCorrespondingSourceObject: {fileID: 3313825629218487321, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1404707874}
+    - targetCorrespondingSourceObject: {fileID: 5558149167010341836, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1790127421}
+    - targetCorrespondingSourceObject: {fileID: 2283890673902413788, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 912090115}
+    - targetCorrespondingSourceObject: {fileID: 6106090096569715535, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1838112014}
+    - targetCorrespondingSourceObject: {fileID: 3133309505677041975, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 986193248}
   m_SourcePrefab: {fileID: 100100000, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
 --- !u!1 &1484681283 stripped
 GameObject:
@@ -4299,6 +4427,28 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 6538225884160001696, guid: 634e01b0d5ccd2d40a34e21c04f93519, type: 3}
   m_PrefabInstance: {fileID: 1771787207}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1790127419 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5558149167010341836, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+  m_PrefabInstance: {fileID: 1482262327}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1790127421
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1790127419}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e70c88edb19d50c44ad4f1429f994428, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
+  bossScript: {fileID: 214768485}
+  HPBerScript: {fileID: 517318051}
+  damageMultiplier: 0.1
+  attackTagN: N_Pole
+  attackTagS: S_Pole
 --- !u!1 &1831273411
 GameObject:
   m_ObjectHideFlags: 3
@@ -4450,6 +4600,28 @@ MonoBehaviour:
   m_MaximumFOV: 60
   m_MinimumOrthoSize: 1
   m_MaximumOrthoSize: 5000
+--- !u!1 &1838112011 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6106090096569715535, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+  m_PrefabInstance: {fileID: 1482262327}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1838112014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1838112011}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e70c88edb19d50c44ad4f1429f994428, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
+  bossScript: {fileID: 214768485}
+  HPBerScript: {fileID: 517318051}
+  damageMultiplier: 0.1
+  attackTagN: N_Pole
+  attackTagS: S_Pole
 --- !u!1 &1838208532
 GameObject:
   m_ObjectHideFlags: 0
@@ -5370,6 +5542,10 @@ PrefabInstance:
     - target: {fileID: 7201604059315993789, guid: e99759dc0e2875c4ebf699e93c2de8ee, type: 3}
       propertyPath: m_Name
       value: DivHandR_root
+      objectReference: {fileID: 0}
+    - target: {fileID: 7201604059315993789, guid: e99759dc0e2875c4ebf699e93c2de8ee, type: 3}
+      propertyPath: m_TagString
+      value: S_Pole
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

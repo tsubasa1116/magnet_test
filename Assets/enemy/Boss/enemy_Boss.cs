@@ -16,6 +16,7 @@ public class enemy_Boss : MonoBehaviour
     public float stopDistance = 5.0f;
     public float maxHP = 100.0f;
     public float takenDamage = 5.0f;
+    public float revivTime = 5.0f;
 
     private bool isLookPlayer = true;
 
@@ -50,6 +51,7 @@ public class enemy_Boss : MonoBehaviour
     public float aimSpeed = 10.0f;
 
     private bool startAttack = false;
+    private bool isDown = false;
     [SerializeField] private Animator anim;
 
     [Header("ロボット腕の追尾設定")]
@@ -163,8 +165,6 @@ public class enemy_Boss : MonoBehaviour
             // 右腕には計算したズレを適用
             armBone_R.position = rawAnimPos_R + currentOffset;
 
-            CheckSmashHit(true);
-
             // 叩きつけ中、左腕は通常通りアニメーションの動きをさせる
             armBone_L.position = rawAnimPos_L;
             armBone_L.rotation = rawAnimRot_L;
@@ -197,8 +197,6 @@ public class enemy_Boss : MonoBehaviour
 
             // 右腕には計算したズレを適用
             armBone_R.position = rawAnimPos_R + currentOffset;
-
-            CheckSmashHit(false);
 
             // 叩きつけ中、左腕は通常通りアニメーションの動きをさせる
             armBone_L.position = rawAnimPos_L;
@@ -321,6 +319,10 @@ public class enemy_Boss : MonoBehaviour
             armBone_R.position = rawAnimPos_R;
             armBone_R.rotation = rawAnimRot_R;
         }
+        else if (bossState == BossState.Down)
+        {
+            return;
+        }
         else
         {
             // 攻撃時以外
@@ -350,42 +352,37 @@ public class enemy_Boss : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, aimSpeed * Time.deltaTime);
             }
 
-            if (Input.GetKeyDown(KeyCode.Keypad3))
-            {
-                bossState = BossState.Punch;
-            }
-
-            if (Input.GetKeyDown(KeyCode.Keypad1))
+            if (Input.GetKeyDown(KeyCode.Keypad1) || Input.GetKeyDown(KeyCode.Alpha1))
             {
                 bossState = BossState.SmashNormal;
             }
 
-            if (Input.GetKeyDown(KeyCode.Keypad2))
+            if (Input.GetKeyDown(KeyCode.Keypad2) || Input.GetKeyDown(KeyCode.Alpha2))
             {
                 bossState = BossState.SmashBig;
             }
 
-            if (Input.GetKeyDown(KeyCode.Keypad3))
+            if (Input.GetKeyDown(KeyCode.Keypad3) || Input.GetKeyDown(KeyCode.Alpha3))
             {
                 bossState = BossState.Punch;
             }
 
-            if (Input.GetKeyDown(KeyCode.Keypad8))
+            if (Input.GetKeyDown(KeyCode.Keypad8) || Input.GetKeyDown(KeyCode.Alpha8))
             {
                 HitToArm();
             }
 
-            if (Input.GetKeyDown(KeyCode.Keypad9))
+            if (Input.GetKeyDown(KeyCode.Keypad9) || Input.GetKeyDown(KeyCode.Alpha9))
             {
                 HitToArmR();
             }
 
-            if (Input.GetKeyDown(KeyCode.Keypad7))
+            if (Input.GetKeyDown(KeyCode.Keypad7) || Input.GetKeyDown(KeyCode.Alpha7))
             {
-                anim.SetTrigger("Hit_L");
+                bossState = BossState.Down;
             }
 
-            if (Input.GetKeyDown(KeyCode.Keypad5))
+            if (Input.GetKeyDown(KeyCode.Keypad5) || Input.GetKeyDown(KeyCode.Alpha5))
             {
                 bossState = BossState.Move;
             }
@@ -560,9 +557,28 @@ public class enemy_Boss : MonoBehaviour
                 }
                 break;
             case BossState.Down:
-                anim.SetBool("Move", false);
-                anim.SetBool("Idol", false);
-                // amim.SetBool("Down", true);
+                if (!isDown)
+                {
+                    anim.SetBool("Move", false);
+                    anim.SetBool("Idol", false);
+                    anim.SetTrigger("Down");
+                    anim.SetBool("isDown", true);
+
+                    isLookPlayer = false;
+                    isDown = true;
+                }
+
+                attackTimer += Time.deltaTime;
+
+                if (attackTimer >= revivTime)
+                {
+                    anim.SetTrigger("Reviv");
+                    bossState = BossState.Idle;
+                    attackTimer = 0.0f;
+                    isDown = false;
+                    isLookPlayer = true;
+                }
+
                 break;
         }
 
