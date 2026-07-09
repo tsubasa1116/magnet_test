@@ -68,7 +68,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 8813169928122647752, guid: 5ce127616780bdc4ebe407c550850263, type: 3}
+  - {fileID: 2100000, guid: a08b512124da4294b8ba72e96d46cf51, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -127,5 +127,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::jump
   jumpSound: {fileID: 0}
   jumpForceX: 0
-  jumpForceY: 15
+  jumpForceY: 9
   jumpForceZ: 0
+  jumpEffect: {fileID: 6901805557296395496, guid: 4083385cfa16c3642ba70ebb0bfbc741, type: 3}

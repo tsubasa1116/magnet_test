@@ -31,10 +31,15 @@ public class PlayerHealth : MonoBehaviour
 	// 敵などから呼ぶ
 	public void TakeDamage(int amount)
 	{
-		if (IsDead) return;
+        Debug.Log($"TakeDamage 呼ばれた！ ダメージ:{amount}");
+
+        if (IsDead) return;
 
 		Hp = Mathf.Max(0, Hp - amount);
-		OnDamaged?.Invoke();
+
+        Debug.Log($"現在HP:{Hp}");
+
+        OnDamaged?.Invoke();
 		if (Hp == 0) Die();
 	}
 
