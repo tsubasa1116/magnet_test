@@ -1,25 +1,10 @@
 using UnityEngine;
+using System.Collections;
 using UnityEngine.AI;
 using UnityEngine.UIElements;
 
 public class enemy_Boss : MonoBehaviour
 {
-    [Header("参照設定")]
-    public Transform bossMesh;     // ボス全体のメッシュ
-    public Transform targetPlayer;
-
-    [Header("調整パラメータ")]
-    public float armSpeed = 10.0f;
-    public float retrunSpeed = 30.0f;
-    public float moveSpeed = 10.0f;
-    public float targetDistance = 10.0f;
-    public float stopDistance = 5.0f;
-    public float maxHP = 100.0f;
-    public float takenDamage = 5.0f;
-    public float revivTime = 5.0f;
-
-    private bool isLookPlayer = true;
-
     private enum ArmState
     {
         Idle,
@@ -40,31 +25,45 @@ public class enemy_Boss : MonoBehaviour
         Summon,
         Down
     }
-
+    
     private BossState bossState = BossState.Idle;
     private ArmState armState = ArmState.Idle;
-    private Vector3 targetPosition;
-    private float attackTimer = 0.0f;
-
-    public Transform rBos;
-    public Transform target;
-    public float aimSpeed = 10.0f;
-
-    private bool startAttack = false;
-    private bool isDown = false;
+  
+    [Header("ボス全体に関する参照設定")]
+    [SerializeField] private Transform bossMesh;     // ボス全体のメッシュ
+    [SerializeField] private Transform targetPlayer; // プレイヤーのTransformをInspectorで設定
+    [SerializeField] private Transform target;　 // プレイヤーのTransformをInspectorで設定
     [SerializeField] private Animator anim;
 
-    [Header("ロボット腕の追尾設定")]
+    [Header("ボスパラメータ")]
+    public float moveSpeed = 10.0f;      // ボスの移動速度
+    public float targetDistance = 10.0f; // プレイヤーとの距離がこの値以上の時に追尾する
+    public float stopDistance = 5.0f;    // プレイヤーとの距離がこの値以下の時に停止する
+    public float maxHP = 100.0f;         // 最大HP
+    public float takenDamage = 5.0f;     // 受けるダメージ量
+    public float revivTime = 5.0f;       // ダウンから復活するまでの時間
+    public float aimSpeed = 10.0f;　     // ボスの回転速度
+    
+    private bool isLookPlayer = true; // プレイヤーを向くかどうかのフラグ
+    private float attackTimer = 0.0f; // 攻撃の経過時間を計測するタイマー
+    
+    private bool startAttack = false; // 攻撃開始フラグ
+    private bool isDown = false;      // ダウン中かどうかのフラグ
+
+    [Header("腕の設定")]
     public Transform armBone_R;
     public Transform armBone_L;
+    [SerializeField] private GameObject impactEffect;
 
     public bool isTracking = false; // 追尾中かどうか
 
-    public float transitionSpeed = 7f;
+    public float armSpeed = 10.0f;       // 腕の移動速度
+    public float retrunSpeed = 30.0f;    // 腕の戻る速度
+    public float transitionSpeed = 7.0f; // 腕の追尾の補間速度
+    public float trackingOffset = 2.0f;  // 腕が追尾するときにプレイヤーの手前で止まる距離
 
     private Vector3 currentOffset = Vector3.zero;
     private Vector3 lockedOffset = Vector3.zero;
-    public float  trackingOffset = 2.0f;
 
     private Vector3 punchPos;
     private Quaternion punchRot;
@@ -78,8 +77,10 @@ public class enemy_Boss : MonoBehaviour
     private int smashEffectCnt = 0; // エフェクトを発生させた回数のカウント
 
     [Header("ロケットパンチ")]
+    [SerializeField] private GameObject rocketEffect;
     public Vector3 punchRotationOffset = new Vector3(-30, 120, 0);
     public Vector3 fallRotationOffset = new Vector3(-30, 120, 30);
+    public Vector3 rocketEffectRotOffset = new Vector3(-30, 120, 30);
     public float lockOffFrame = 1.5f;      // 追尾解除フレーム
     public float fallFrame = 2.0f;         // 着弾開始フレーム
     public float retrunFrame = 3.0f;       // 引き戻し開始フレーム
@@ -87,14 +88,22 @@ public class enemy_Boss : MonoBehaviour
     public float punchHitRadius = 1.4f;    // 当たり判定の半径
     public float minFlyingHeight = 1.0f;   // 飛行中の最低高度
     public float fallGroundOffset = 0.6f;  // 着弾時に地面からどれくらい浮かすか
-    public bool isLeftArmDetached = false; // 左腕が分離しているかどうか
-    public bool isRightArmDetached = false; // 右腕が分離しているかどうか
+
 
     [SerializeField] private LayerMask groundLayer; // 地面のレイヤー
     [SerializeField] private PunchArm sepaArm;      // 左腕分離用スクリプト
     [SerializeField] private PunchArm sepaArmR;
 
     private bool hasSmashHit = false; // 叩きつけの多段ヒット防止フラグ
+    
+    private Vector3 targetPosition; // ロケットパンチのターゲット位置
+    
+    private Vector3 baseAnimPos_L;
+    private Quaternion baseAnimRot_L;
+    private bool isFirstFrameHit = false;
+    
+    private Vector3 fallPoint;
+    private bool hasFallPoint;
 
     [Header("行動パターン")]
     public bool isStartAction = false;  // ボスの行動開始
@@ -113,21 +122,33 @@ public class enemy_Boss : MonoBehaviour
 
     [Header("腕分離・復活設定")]
     public float detachDelay = 1.5f;
+    public float reviveArmTime = 0.4f;
+    public bool isLeftArmDetached = false; // 左腕が分離しているかどうか
+    public bool isRightArmDetached = false; // 右腕が分離しているかどうか
+
     private bool isWaitForDetach = false;
     private float detachTimer = 0.0f;
     private bool isWaitForDetachR = false;
     private float detachTimerR = 0.0f;
 
+    [Header("召喚設定")]
+    [SerializeField] private GameObject[] summonPrefabs; // 3種類の敵をセット
+    [SerializeField] private GameObject summonEffect;
+    public float summonRadius = 5.0f;                    // ボスを中心とした召喚半径
+    public int summonCount = 3;                          // 一度に召喚する数
+
+    // =========================================
+    // 初期化処理
+    // =========================================
     void Start()
     {
         anim = GetComponent<Animator>();
         anim.SetBool("Idol", true);
     }
 
-    private Vector3 baseAnimPos_L;
-    private Quaternion baseAnimRot_L;
-    private bool isFirstFrameHit = false;
-
+    // =========================================
+    // ステート用更新処理
+    // =========================================
     void LateUpdate()
     {
         if (armBone_R == null || armBone_L == null) return;
@@ -340,6 +361,9 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
+    // =========================================
+    // 更新処理
+    // =========================================
     void Update()
     {
         if (target != null && bossMesh != null)
@@ -387,6 +411,11 @@ public class enemy_Boss : MonoBehaviour
                 bossState = BossState.Move;
             }
 
+            if (Input.GetKeyDown(KeyCode.Keypad4) || Input.GetKeyDown(KeyCode.Alpha4))
+            {
+                bossState = BossState.Summon;
+            }
+
             if (Input.GetKeyDown(KeyCode.M))
             {
                 ExecuteDetachArm();
@@ -414,8 +443,9 @@ public class enemy_Boss : MonoBehaviour
                 anim.SetBool("Move", false);
                 anim.SetBool("Idol", true);
 
-                isLookPlayer = true;
+                //isLookPlayer = true;
                 break;
+
             case BossState.Move:
                 float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
 
@@ -449,9 +479,9 @@ public class enemy_Boss : MonoBehaviour
                     {
                         bossState = BossState.SmashNormal;
                     }
-                    
                 }
                 break;
+
             case BossState.SmashNormal:
                 if (!startAttack)
                 {
@@ -478,6 +508,7 @@ public class enemy_Boss : MonoBehaviour
                     startAttack = false;
                 }
                 break;
+
             case BossState.SmashBig:
                 if (!startAttack)
                 {
@@ -504,7 +535,8 @@ public class enemy_Boss : MonoBehaviour
                     attackTimer = 0.0f;
                     startAttack = false;
                 }
-                    break;
+                break;
+
             case BossState.Punch:
                 if (!startAttack)
                 {
@@ -528,8 +560,10 @@ public class enemy_Boss : MonoBehaviour
                 if (attackTimer > retrunFrame && armState == ArmState.Fall)
                 {
                     armState = ArmState.Returning;
+                    attackTimer = 0.0f;
                 }
                 break;
+
             case BossState.Summon:
                 if (!startAttack)
                 {
@@ -538,7 +572,17 @@ public class enemy_Boss : MonoBehaviour
                     anim.SetTrigger("Summon");
                     startAttack = true;
                 }
+
+                attackTimer += Time.deltaTime;
+
+                if (attackTimer >= 1.3f)
+                {
+                    bossState = BossState.Idle;
+                    attackTimer = 0.0f;
+                    startAttack = false;
+                }
                 break;
+
             case BossState.Rush:
                 if (!startAttack)
                 {
@@ -556,6 +600,7 @@ public class enemy_Boss : MonoBehaviour
                     startAttack = false;
                 }
                 break;
+
             case BossState.Down:
                 if (!isDown)
                 {
@@ -566,19 +611,21 @@ public class enemy_Boss : MonoBehaviour
 
                     isLookPlayer = false;
                     isDown = true;
+
+                    attackTimer = 0.0f;
                 }
 
                 attackTimer += Time.deltaTime;
 
                 if (attackTimer >= revivTime)
                 {
+                    anim.SetBool("isDown", false);
                     anim.SetTrigger("Reviv");
                     bossState = BossState.Idle;
                     attackTimer = 0.0f;
                     isDown = false;
-                    isLookPlayer = true;
+                    startAttack = false;
                 }
-
                 break;
         }
 
@@ -589,7 +636,10 @@ public class enemy_Boss : MonoBehaviour
             {
                 ExecuteDetachArm();
                 isWaitForDetach = false;
-                anim.SetBool("Idol", true);
+
+                bossState = BossState.Idle;
+                startAttack = false;
+                armState = ArmState.Idle;
             }
         }
 
@@ -600,11 +650,42 @@ public class enemy_Boss : MonoBehaviour
             {
                 ExecuteDetachArmR();
                 isWaitForDetachR = false;
-                anim.SetBool("Idol", true);
+
+                bossState = BossState.Idle;
+                startAttack = false;
+                armState = ArmState.Idle;
             }
         }
     }
 
+    // =========================================
+    // プレイヤー追尾（アニメーションイベント追加用）
+    // =========================================
+    public void eventLookPlayer()
+    {
+        isLookPlayer = true;
+    }
+
+    // ==============================
+    // ロケットパンチエフェクト遅延生成
+    // ==============================
+    private IEnumerator RocketEffectDelay(float delayTime)
+    {
+        // 指定した時間（秒）だけ待機
+        yield return new WaitForSeconds(delayTime);
+
+        Quaternion baseRot = armBone_L.rotation;
+
+        // 待機した後の（追尾が進んだ）腕の位置と回転を取得して生成
+        Quaternion effectRot = baseRot * Quaternion.Euler(rocketEffectRotOffset);
+        Vector3 effectPos = armBone_L.position;
+
+        Instantiate(rocketEffect, effectPos, effectRot);
+    }
+
+    // ============================
+    // ロケットパンチ発射処理
+    // ============================
     public void FirePunch()
     {
         bossState = BossState.Punch;
@@ -614,14 +695,17 @@ public class enemy_Boss : MonoBehaviour
         punchPos = armBone_L.position;
         punchRot = armBone_L.rotation;
 
+        StartCoroutine(RocketEffectDelay(0.1f));
+
         attackTimer = 0.0f;
         isTracking = true;
 
         Debug.Log("パンチ発射");
     }
 
-    private Vector3 fallPoint;
-    private bool hasFallPoint;
+    // ============================
+    // ロケットパンチの着弾位置計算
+    // ============================
     void CalcImpactPoint()
     {
         Vector3 rayStart = punchPos + Vector3.up * 2.0f;
@@ -643,6 +727,9 @@ public class enemy_Boss : MonoBehaviour
         hasFallPoint = true;
     }
 
+    // ============================
+    // ロケットパンチのヒット判定
+    // ============================
     private void CheckPunchHit()
     {
         // 分離した後の腕（物理オブジェクト）になっている場合は判定しない
@@ -673,6 +760,9 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
+    // =========================================
+    // 叩きつけ攻撃のヒット判定とエフェクト発生処理
+    // =========================================
     private void CheckSmashHit(bool N)
     {
         // 1. ダメージ判定
@@ -699,6 +789,8 @@ public class enemy_Boss : MonoBehaviour
             // 通常叩きつけ(SmashNormal)の処理
             if (attackTimer >= 1.7f && smashEffectCnt == 0)
             {
+                Vector3 effectPos = new Vector3(armBone_R.position.x, transform.position.y + 0.05f, armBone_R.position.z);
+                Instantiate(impactEffect, effectPos, Quaternion.identity);
                 Debug.Log("Smash_N");
                 smashEffectCnt = 1;
             }
@@ -713,8 +805,10 @@ public class enemy_Boss : MonoBehaviour
                 {
                     // 右手の真下の地面の高さを計算
                     Vector3 effectPos = new Vector3(armBone_R.position.x, transform.position.y + effectPosY, armBone_R.position.z);
+                    Vector3 effectPosI = new Vector3(armBone_R.position.x, transform.position.y + 0.05f, armBone_R.position.z);
 
                     // 計算した位置にエフェクトを発生
+                    Instantiate(impactEffect, effectPosI, Quaternion.identity);
                     Instantiate(waveEffect, effectPos, Quaternion.identity);
                     Debug.Log($"Smash_B - {smashEffectCnt + 1}回目着弾！");
 
@@ -728,6 +822,9 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
+    // ============================
+    // 行動パターンの切り替え
+    // ============================
     private void NextAction()
     {
         if (addActions == null || addActions.Length == 0) return;
@@ -756,6 +853,9 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
+    // ============================
+    // 左腕にヒットして分離する処理
+    // ============================
     public void HitToArm()
     {
         if (!isLeftArmDetached && bossState == BossState.Punch)
@@ -772,6 +872,9 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
+    // ============================
+    // 右腕にヒットして分離する処理
+    // ============================
     public void HitToArmR()
     {
         // 右腕が分離しておらず、かつスマッシュ攻撃(通常・大)中の場合のみ処理を開始
@@ -785,8 +888,9 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
-
-    // 腕分離
+    // ====================
+    // 左腕分離
+    // ====================
     private void ExecuteDetachArm()
     {
         isLeftArmDetached = true;
@@ -807,7 +911,9 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
-
+    // ====================
+    // 右腕分離
+    // ====================
     private void ExecuteDetachArmR()
     {
         isRightArmDetached = true;
@@ -828,7 +934,9 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
-    // 腕復活
+    // ====================
+    // 左腕復活
+    // ====================
     public void ReviveArm()
     {
         if (!isLeftArmDetached) return;
@@ -844,11 +952,14 @@ public class enemy_Boss : MonoBehaviour
             sepaArm.gameObject.SetActive(false);
         }
 
-        // ステートを元に戻す
         armState = ArmState.Idle;
-        // 復活モーション
+
+        StartCoroutine(ScaleUpAnimCoroutine(armBone_L, reviveArmTime));
     }
 
+    // ====================
+    // 右腕復活
+    // ====================
     public void ReviveArmR()
     {
         if (!isRightArmDetached) return;
@@ -864,7 +975,83 @@ public class enemy_Boss : MonoBehaviour
             sepaArmR.gameObject.SetActive(false);
         }
 
+        armState = ArmState.Idle;
+
+        StartCoroutine(ScaleUpAnimCoroutine(armBone_R, reviveArmTime));
     }
 
+    // ====================
+    // 敵召喚処理
+    // ====================
+    public void EventSummonEnemies()
+    {
+        if (summonPrefabs == null || summonPrefabs.Length == 0) return;
 
+        for (int i = 0; i < summonCount; i++)
+        {
+            // ボス周辺のランダムな位置（XZ平面）を計算
+            Vector2 randomCircle = Random.insideUnitCircle * summonRadius;
+
+            // ボスの現在位置を基準にオフセットを加算
+            Vector3 spawnPos = new Vector3(
+                transform.position.x + randomCircle.x,
+                transform.position.y,
+                transform.position.z + randomCircle.y
+            );
+
+            // 3種類の敵からランダムに1つ選択
+            int randomIndex = Random.Range(0, summonPrefabs.Length);
+            GameObject prefab = summonPrefabs[randomIndex];
+
+            // 敵を生成
+            GameObject enemy = Instantiate(prefab, spawnPos, Quaternion.identity);
+
+            Instantiate(summonEffect, spawnPos, Quaternion.identity);
+
+            if (targetPlayer != null)
+            {
+                // 1種類目の敵スクリプトを持っているかチェック
+                if (enemy.TryGetComponent(out enemy enemyNormal))
+                {
+                    enemyNormal.SetTarget(targetPlayer);
+                }
+                // 持っていなければ2種類目をチェック
+                else if (enemy.TryGetComponent(out enemy_bomb enemyBomb))
+                {
+                    enemyBomb.SetTarget(targetPlayer);
+                }
+                // 持っていなければ3種類目をチェック
+                else if (enemy.TryGetComponent(out enemy_Sky enemySky))
+                {
+                    enemySky.SetTarget(targetPlayer);
+                }
+            }
+        }
+    }
+
+    // ==========================
+    // 腕スケールアップ用コルーチン
+    // ==========================
+    private IEnumerator ScaleUpAnimCoroutine(Transform targetBone, float duration)
+    {
+        float time = 0f;
+        targetBone.localScale = Vector3.zero;
+
+        while (time < duration)
+        {
+            time += Time.deltaTime;
+
+            // 進行度 (0-1.0)
+            float t = time / duration;
+
+            // イーズアウト（徐々にゆっくりになる）
+            t = 1.0f - Mathf.Pow(1.0f - t, 3.0f);
+
+            targetBone.localScale = Vector3.Lerp(Vector3.zero, Vector3.one, t);
+            yield return null; // 次のフレームまで待機
+        }
+
+        // 最後に確実に元のサイズに戻す
+        targetBone.localScale = Vector3.one;
+    }
 }

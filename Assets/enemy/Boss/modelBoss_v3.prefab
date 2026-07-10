@@ -2014,20 +2014,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::enemy_Boss
   bossMesh: {fileID: 6807997120657929935}
   targetPlayer: {fileID: 0}
-  armSpeed: 10
-  retrunSpeed: 30
+  target: {fileID: 0}
+  anim: {fileID: 0}
   moveSpeed: 10
   targetDistance: 10
   stopDistance: 5
   maxHP: 100
   takenDamage: 5
-  rBos: {fileID: 3536374064580107436}
-  target: {fileID: 0}
-  aimSpeed: 5
-  anim: {fileID: 0}
+  revivTime: 5
+  aimSpeed: 2
   armBone_R: {fileID: 6067880366703168238}
   armBone_L: {fileID: 3536374064580107436}
+  impactEffect: {fileID: 2830351394133107073, guid: a734c43f85e607249af56c9494962a98, type: 3}
   isTracking: 0
+  armSpeed: 10
+  retrunSpeed: 30
   transitionSpeed: 7
   trackingOffset: 2
   waveEffect: {fileID: 3156528264800243857, guid: cccf9b40f05f96e438c269b7e6c1229b, type: 3}
@@ -2036,8 +2037,10 @@ MonoBehaviour:
   - 2.7
   - 3.5
   effectPosY: 1.8
+  rocketEffect: {fileID: 438367063023949214, guid: 59e7e3e6d770d144bb0738747064da26, type: 3}
   punchRotationOffset: {x: -30, y: 120, z: 0}
   fallRotationOffset: {x: -30, y: 120, z: 30}
+  rocketEffectRotOffset: {x: 100, y: 90, z: 30}
   lockOffFrame: 1.5
   fallFrame: 2
   retrunFrame: 3
@@ -2045,8 +2048,6 @@ MonoBehaviour:
   punchHitRadius: 1.5
   minFlyingHeight: 1
   fallGroundOffset: 0.5
-  isLeftArmDetached: 0
-  isRightArmDetached: 0
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
@@ -2060,6 +2061,16 @@ MonoBehaviour:
   punchStateName: Punch_v3
   punchAnimReturnTime: 4
   detachDelay: 0.8
+  reviveArmTime: 0.4
+  isLeftArmDetached: 0
+  isRightArmDetached: 0
+  summonPrefabs:
+  - {fileID: 8203393301518939849, guid: afa878191b6c821409ebc2f9a26ef20a, type: 3}
+  - {fileID: 3854670516678912948, guid: 95fab4ed2948b884faf3f74421425d3a, type: 3}
+  - {fileID: 1915632301364340301, guid: 192247c9ffc503a4c98446bf05fc530a, type: 3}
+  summonEffect: {fileID: 8777217394673370483, guid: cf45957e9cd9bc446b8fe8de6674f526, type: 3}
+  summonRadius: 5
+  summonCount: 3
 --- !u!4 &6308404378603985230 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1034085623949093417, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
