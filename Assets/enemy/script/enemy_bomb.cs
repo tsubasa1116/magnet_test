@@ -134,11 +134,11 @@ public class enemy_bomb : MonoBehaviour
                         transform.position = Vector3.MoveTowards(transform.position, targetCenterPos, attackSpeed * Time.deltaTime);
                     }
 
-                    //// プレイヤーに接近した時の判定
-                    //if (Vector3.Distance(transform.position, targetCenterPos) <= 1.0f)
-                    //{
-                    //    Attack();
-                    //}
+                    // プレイヤーに接近した時の判定
+                    if (Vector3.Distance(transform.position, targetCenterPos) <= 1.0f)
+                    {
+                        Attack();
+                    }
                 }
                 break;
 
@@ -368,29 +368,12 @@ public class enemy_bomb : MonoBehaviour
         if (mark != null) mark.SetActive(false);
     }
 
-    private void Attack() 
+    private void Attack()
     {
         PlayerHealth playerHealth = targetPlayer.GetComponent<PlayerHealth>();
-        Debug.Log(playerHealth);
-
         if (playerHealth != null) playerHealth.TakeDamage(attackDamage);
 
-        Die();
-    }
-
-    public void TakeDamage(float damageAmount)
-    {
-        currentHp -= damageAmount;
-
-        // ダメージを受けたときのエフェクトを再生
-        if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
-
-        if (currentHp <= 0) Die();
-    }
-
-    private void Die()
-    {
-        Destroy(gameObject);
+        Die();  // 自爆
     }
 
     private void OnCollisionEnter(Collision collision)
@@ -404,5 +387,32 @@ public class enemy_bomb : MonoBehaviour
 
             if (explosionEffect != null) Instantiate(explosionEffect, transform.position, Quaternion.identity);
         }
+
+        // 投げられたオブジェクトとの衝突判定
+        ThrowableObject throwable = collision.gameObject.GetComponent<ThrowableObject>();
+
+        if (throwable != null && throwable.IsThrown)
+        {
+            TakeDamage(throwable.Damage);
+
+            // 一度だけダメージを与える
+            throwable.ResetThrown();
+        }
+    }
+
+    public void TakeDamage(float damageAmount)
+    {
+        currentHp -= damageAmount;
+
+        // ダメージを受けたときのエフェクトを再生
+        //if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
+
+        if (currentHp <= 0) Die();
+    }
+
+    private void Die()
+    {
+        if (explosionEffect != null) Instantiate(explosionEffect, transform.position, Quaternion.identity);
+        Destroy(gameObject);
     }
 }

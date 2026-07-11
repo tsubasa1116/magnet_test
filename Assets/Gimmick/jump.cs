@@ -29,9 +29,7 @@ public class jump : MonoBehaviour
         playerRb.linearVelocity = vel;
 
         // ジャンプ
-        playerRb.AddForce(
-            new Vector3(jumpForceX, jumpForceY, jumpForceZ),
-            ForceMode.Impulse);
+        playerRb.AddForce(new Vector3(jumpForceX, jumpForceY, jumpForceZ), ForceMode.Impulse);
 
         // エフェクト
         if (jumpEffect != null)
