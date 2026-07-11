@@ -42,6 +42,7 @@ public class enemy : MonoBehaviour
 
     [Header("エフェクト")]
     [SerializeField] private GameObject enemyHitEffect;
+    [SerializeField] private GameObject enemyDeathEffect;
 
     private float currentHp;
     private NavMeshAgent agent;
@@ -399,12 +400,8 @@ public class enemy : MonoBehaviour
         float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
         if (distanceToPlayer <= attackRange + 0.5f) // 少しだけ判定に猶予を持たせる
         {
-            Controller playerControl = targetPlayer.GetComponent<Controller>();
-            if (playerControl != null)
-            {
-                playerControl.hp -= attackDamage;
-                Debug.Log("ぬ");
-            }
+            PlayerHealth playerHealth = targetPlayer.GetComponent<PlayerHealth>();
+            if (playerHealth != null) playerHealth.TakeDamage(attackDamage);
         }
     }
 
@@ -414,6 +411,19 @@ public class enemy : MonoBehaviour
 
         yield return anim.WaitForCurrentAnimationEnd();
         isAttack = false;
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        ThrowableObject throwable = collision.gameObject.GetComponent<ThrowableObject>();
+
+        if (throwable != null && throwable.IsThrown)
+        {
+            TakeDamage(throwable.Damage);
+
+            // 一度だけダメージを与える
+            throwable.ResetThrown();
+        }
     }
 
     public void TakeDamage(float damageAmount)
@@ -428,6 +438,7 @@ public class enemy : MonoBehaviour
 
     private void Die()
     {
+        if (enemyDeathEffect != null) Instantiate(enemyDeathEffect, transform.position, Quaternion.identity);
         Destroy(gameObject);
     }
 }

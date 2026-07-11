@@ -1367,9 +1367,6 @@ PrefabInstance:
       addedObject: {fileID: 2256275518879357622}
     - targetCorrespondingSourceObject: {fileID: 7920855686370797939, guid: 98c7753dfab3d6e4bb531639942dcf5f, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 8093920860876651401}
-    - targetCorrespondingSourceObject: {fileID: 7920855686370797939, guid: 98c7753dfab3d6e4bb531639942dcf5f, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 6392781413471496729}
     - targetCorrespondingSourceObject: {fileID: 6660347974100079900, guid: 98c7753dfab3d6e4bb531639942dcf5f, type: 3}
       insertIndex: -1
@@ -2611,6 +2608,10 @@ MonoBehaviour:
   floatAmplitude: 0.15
   floatFrequency: 6
   repelForce: 30
+  nPoleAttractEffect: {fileID: 0}
+  sPoleAttractEffect: {fileID: 0}
+  nPoleLaserEffect: {fileID: 0}
+  sPoleLaserEffect: {fileID: 0}
   jumpCooldown: 0
 --- !u!114 &7524280853114627061
 MonoBehaviour:
@@ -2686,31 +2687,6 @@ MonoBehaviour:
   hitEffect: {fileID: 2863794643059863984, guid: cbcb8b6e38d09d348bfbf6f83e83922a, type: 3}
   downEffect: {fileID: 546935710587009230, guid: d40501971b6b83f40a31cd597160694a, type: 3}
   hitEffectLife: 2
---- !u!114 &8093920860876651401
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8837871897461921188}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 199fb73de21b0994c92b2e9f8ed09a74, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MagnetPull
-  handPoint: {fileID: 6014791523648236041}
-  aimCamera: {fileID: 0}
-  rayRange: 30
-  rayMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  pullSmoothTime: 0.25
-  maxPullSpeed: 40
-  attachDistance: 0.3
-  floatAmplitude: 0.15
-  floatFrequency: 6
-  repelForce: 30
-  jumpCooldown: 0
 --- !u!114 &6392781413471496729
 MonoBehaviour:
   m_ObjectHideFlags: 0

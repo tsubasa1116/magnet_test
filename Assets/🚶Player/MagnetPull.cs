@@ -2,7 +2,6 @@ using UnityEngine;
 
 // Catch中(ZRホールド)に、画面中央のRayで「逆極」の対象に作用する。対象の種類で分岐:
 //   ・Grapple 点      → 立体機動(ワイヤーで飛びつく)
-//   ・jump(ジャンプ台)→ 大きくジャンプ(一発)
 //   ・RopewayMagnet    → ロープウェイに吸着して運ばれる
 //   ・それ以外(物体)  → 手元(handPoint)へ引き寄せる
 // 逆極の対応: プレイヤー S極 → "N_Pole" / N極 → "S_Pole"
@@ -36,7 +35,23 @@ public class MagnetPull : MonoBehaviour
 	private PlayerCatch catchState;
 	private PlayerStateMachine stateMachine;
 
-	private Rigidbody held;
+    [Header("引き寄せエフェクト")]
+    [SerializeField] private GameObject nPoleAttractEffect;
+    [SerializeField] private GameObject sPoleAttractEffect;
+    private GameObject currentAttractEffect;
+
+    [Header("発射エフェクト")]
+    [SerializeField] private GameObject nPoleReleaseEffect;
+    [SerializeField] private GameObject sPoleReleaseEffect;
+
+    [Header("レーザーエフェクト")]
+    [SerializeField] private GameObject nPoleLaserEffect;
+    [SerializeField] private GameObject sPoleLaserEffect;
+
+    private GameObject currentLaser;
+    private LineRenderer currentLine;
+
+    private Rigidbody held;
 	private Vector3 pullVel;           // SmoothDamp用の速度
 	private Collider[] heldColliders;  // 保持中に無効化するコライダー
 	private bool attached;
@@ -68,8 +83,8 @@ public class MagnetPull : MonoBehaviour
 
     void Update()
     {
-        if (jumpCooldown > 0f)
-            jumpCooldown -= Time.deltaTime;
+		// ジャンプの処理
+        if (jumpCooldown > 0f) jumpCooldown -= Time.deltaTime;
 
         if (!catchState.IsCatching)
         {
@@ -77,9 +92,7 @@ public class MagnetPull : MonoBehaviour
             return;
         }
 
-        if (currentJumpStand != null &&
-            jumpCooldown <= 0f &&
-            currentJumpStand.CanLaunch(stateMachine))
+        if (currentJumpStand != null && jumpCooldown <= 0f && currentJumpStand.CanLaunch(stateMachine))
         {
             currentJumpStand.Launch(playerRb);
             jumpCooldown = 0.6f;
@@ -97,6 +110,25 @@ public class MagnetPull : MonoBehaviour
                 Repel();
             else
                 EndInteraction();
+        }
+
+        if (currentLine != null && held != null)
+        {
+            currentLine.useWorldSpace = true;
+
+            currentLine.SetPosition(0, HandPos);
+            currentLine.SetPosition(1, held.worldCenterOfMass);
+
+            currentLaser.transform.position = Vector3.zero;
+        }
+        else if (attached)
+        {
+            DestroyEffect();
+        }
+
+        if (held != null)
+        {
+            Debug.Log($"Held : {held.name}");
         }
     }
 
@@ -135,7 +167,9 @@ public class MagnetPull : MonoBehaviour
 	{
 		if (aimCamera == null) return;
 
-		Ray ray = aimCamera.ScreenPointToRay(
+        if (held != null || attached) return;
+
+        Ray ray = aimCamera.ScreenPointToRay(
 			new Vector3(Screen.width / 2f, Screen.height / 2f, 0f));
 
 		// ギミック(ジャンプ台/ロープウェイ)はトリガーコライダーなので Collide で拾う。
@@ -183,7 +217,13 @@ public class MagnetPull : MonoBehaviour
 
 	private void Grab(Rigidbody rb)
 	{
-		held = rb;
+  if (held != null)
+    {
+        Debug.Log("Grabキャンセル");
+        return;
+    }
+
+        held = rb;
 		attached = false;
 		pullVel = Vector3.zero;
 		grabbedPole = stateMachine.CurrentState;
@@ -204,39 +244,94 @@ public class MagnetPull : MonoBehaviour
 		heldAura = rb.GetComponentInChildren<AuraRing>();
 		heldBomb = rb.GetComponent<Bomb>();
 		if (heldBomb != null) heldBomb.isThrown = false;
-	}
 
-	private void PullHeld()
-	{
-		Vector3 to = HandPos - held.position;
-		if (to.magnitude <= attachDistance)
-		{
-			Attach();
-			return;
-		}
+        // レーザー生成
+        if (currentLaser == null)
+        {
+            Debug.Log("レーザー生成");
 
-		// 上下のゆらぎ（浮遊感）。近づくほど弱める
-		float distFactor = Mathf.Clamp01(to.magnitude / 3f);
-		Vector3 bob = Vector3.up * Mathf.Sin(Time.time * floatFrequency) * floatAmplitude * distFactor;
-		Vector3 target = HandPos + bob;
+            GameObject laserPrefab = stateMachine.CurrentState == MagnetState.N ? nPoleLaserEffect : sPoleLaserEffect;
 
-		// 磁石に吸い寄せられるように滑らかに移動（SmoothDamp=ふわっと加速→減速）
-		Vector3 next = Vector3.SmoothDamp(held.position, target, ref pullVel, pullSmoothTime, maxPullSpeed, Time.fixedDeltaTime);
-		held.MovePosition(next);
-	}
+            if (laserPrefab != null)
+            {
+                currentLaser = Instantiate(laserPrefab, null);
+				currentLine = currentLaser.GetComponentInChildren<LineRenderer>();
 
-	private void Attach()
+                if (currentLine != null)
+                {
+                    currentLine.useWorldSpace = true;
+                    currentLine.positionCount = 2;
+
+                    currentLine.SetPosition(0, HandPos);
+                    currentLine.SetPosition(1, held.worldCenterOfMass);
+                }
+
+                Debug.Log(currentLine);
+            }
+        }
+
+        // プレイヤー側エフェクト
+        if (currentAttractEffect == null)
+        {
+            Debug.Log("吸引エフェクト生成");
+
+            GameObject attractPrefab = stateMachine.CurrentState == MagnetState.N ? nPoleAttractEffect : sPoleAttractEffect;
+
+            if (attractPrefab != null)
+            {
+                currentAttractEffect = Instantiate(attractPrefab, HandParent);
+
+                currentAttractEffect.transform.localPosition = Vector3.zero;
+                currentAttractEffect.transform.localRotation = Quaternion.identity;
+            }
+        }
+    }
+
+    private void PullHeld()
+    {
+        if (held == null) return;
+
+        Vector3 to = HandPos - held.position;
+
+        if (to.magnitude <= attachDistance)
+        {
+            Attach();
+            return;
+        }
+
+        // 上下のゆらぎ（浮遊感）
+        float distFactor = Mathf.Clamp01(to.magnitude / 3f);
+        Vector3 bob =
+            Vector3.up *
+            Mathf.Sin(Time.time * floatFrequency) *
+            floatAmplitude *
+            distFactor;
+
+        Vector3 target = HandPos + bob;
+
+        Vector3 dir = (target - held.position).normalized;
+
+        float speed = maxPullSpeed * Time.fixedDeltaTime;
+
+        held.MovePosition(held.position + dir * speed);
+    }
+
+    private void Attach()
 	{
 		attached = true;
 		held.transform.SetParent(HandParent); // 手に追従
 		held.transform.position = HandPos;
 		if (heldAura != null) heldAura.SetHeld(true);
-	}
+
+        DestroyEffect();
+    }
 
 	// ZRを離した：物理を元に戻して落とす
 	private void Release()
 	{
-		if (attached) held.transform.SetParent(null);
+        DestroyEffect();
+
+        if (attached) held.transform.SetParent(null);
 		RestoreColliders();
 		if (heldAura != null) heldAura.SetHeld(false);
 		held.isKinematic = savedIsKinematic;
@@ -247,7 +342,17 @@ public class MagnetPull : MonoBehaviour
 	// 極切替：自分の向いている方向へぶっ飛ばす
 	private void Repel()
 	{
-		Vector3 dir = transform.forward;
+        DestroyEffect();
+
+        // 発射エフェクトを再生
+        PlayReleaseEffect();
+
+        // もし掴んでいる物が ThrowableObject なら Throw() を呼ぶ
+        ThrowableObject throwable = held.GetComponent<ThrowableObject>();
+
+        if (throwable != null)	throwable.Throw();
+
+        Vector3 dir = transform.forward;
 		if (attached) held.transform.SetParent(null);
 		RestoreColliders();
 		if (heldAura != null) heldAura.SetHeld(false);
@@ -278,5 +383,34 @@ public class MagnetPull : MonoBehaviour
     public void SetCurrentJumpStand(jump stand)
     {
         currentJumpStand = stand;
+    }
+
+    private void PlayReleaseEffect()
+    {
+        if (HandParent == null) return;
+
+        GameObject effectPrefab = stateMachine.CurrentState == MagnetState.N ? nPoleReleaseEffect : sPoleReleaseEffect;
+
+        if (effectPrefab != null)
+        {
+            GameObject effect = Instantiate(effectPrefab, HandParent.position, HandParent.rotation);
+            Destroy(effect, 2f);   // 2秒後に削除
+        }
+    }
+
+    void DestroyEffect()
+    {
+        if (currentLaser != null)
+        {
+            Destroy(currentLaser);
+            currentLaser = null;
+            currentLine = null;
+        }
+
+        if (currentAttractEffect != null)
+        {
+            Destroy(currentAttractEffect);
+            currentAttractEffect = null;
+        }
     }
 }
