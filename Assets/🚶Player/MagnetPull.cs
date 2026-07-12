@@ -34,6 +34,7 @@ public class MagnetPull : MonoBehaviour
 
 	private PlayerCatch catchState;
 	private PlayerStateMachine stateMachine;
+	private PlayerAim aim;
 
     [Header("引き寄せエフェクト")]
     [SerializeField] private GameObject nPoleAttractEffect;
@@ -73,11 +74,16 @@ public class MagnetPull : MonoBehaviour
 	// エフェクト等が参照する：引き寄せ中/保持中の対象(無ければnull)
 	public Transform HeldObject => held != null ? held.transform : null;
 
+	// アニメーション側が参照する引き寄せの進行状態
+	public bool IsPulling => held != null && !attached; // 対象がこちらへ飛んでくる途中
+	public bool IsHolding => held != null && attached;  // 引き寄せ完了して手元に保持中
+
 	void Awake()
 	{
 		catchState = GetComponent<PlayerCatch>();
 		stateMachine = GetComponent<PlayerStateMachine>();
 		playerRb = GetComponent<Rigidbody>();
+		aim = GetComponent<PlayerAim>();
 		if (aimCamera == null) aimCamera = Camera.main;
 	}
 
@@ -169,6 +175,19 @@ public class MagnetPull : MonoBehaviour
 
         if (held != null || attached) return;
 
+		// ロックオン(注目)中は、注目している対象を直接引き寄せる。
+		// 逆極タグでない対象(敵など)に注目中は、誤って別の物を掴まないよう何もしない
+		if (aim != null && aim.IsLockedOn && aim.LockOnTarget != null)
+		{
+			Transform target = aim.LockOnTarget;
+			if (target.CompareTag(WantedTag())
+				&& Vector3.Distance(transform.position, target.position) <= rayRange)
+			{
+				InteractWith(target);
+			}
+			return;
+		}
+
         Ray ray = aimCamera.ScreenPointToRay(
 			new Vector3(Screen.width / 2f, Screen.height / 2f, 0f));
 
@@ -188,31 +207,37 @@ public class MagnetPull : MonoBehaviour
 				return;                       // 非対象のソリッド(壁等)で遮られる
 			}
 
-			// ① 立体機動：Grapple 点
-			Grapple grapple = col.GetComponentInParent<Grapple>();
-			if (grapple != null)
-			{
-				grabbedPole = stateMachine.CurrentState;
-				grapple.StartGrapple(gameObject); // 内部で StartGrappleEffect も呼ばれる
-				currentGrapple = grapple;
-				return;
-			}
-
-			// ③ ロープウェイ吸着
-			RopewayMagnet ropeway = col.GetComponentInParent<RopewayMagnet>();
-			if (ropeway != null)
-			{
-				grabbedPole = stateMachine.CurrentState;
-				ropeway.AttachPlayer(gameObject);
-				currentRopeway = ropeway;
-				return;
-			}
-
-			// ④ それ以外：通常の物体引き寄せ
-			Rigidbody rb = col.attachedRigidbody;
-			if (rb != null) Grab(rb);
+			InteractWith(col.transform);
 			return;
 		}
+	}
+
+	// 対象の種類ごとの作用(グラップル/ロープウェイ/通常の引き寄せ)を起動する
+	private void InteractWith(Transform target)
+	{
+		// ① 立体機動：Grapple 点
+		Grapple grapple = target.GetComponentInParent<Grapple>();
+		if (grapple != null)
+		{
+			grabbedPole = stateMachine.CurrentState;
+			grapple.StartGrapple(gameObject); // 内部で StartGrappleEffect も呼ばれる
+			currentGrapple = grapple;
+			return;
+		}
+
+		// ③ ロープウェイ吸着
+		RopewayMagnet ropeway = target.GetComponentInParent<RopewayMagnet>();
+		if (ropeway != null)
+		{
+			grabbedPole = stateMachine.CurrentState;
+			ropeway.AttachPlayer(gameObject);
+			currentRopeway = ropeway;
+			return;
+		}
+
+		// ④ それ以外：通常の物体引き寄せ
+		Rigidbody rb = target.GetComponentInParent<Rigidbody>();
+		if (rb != null) Grab(rb);
 	}
 
 	private void Grab(Rigidbody rb)
