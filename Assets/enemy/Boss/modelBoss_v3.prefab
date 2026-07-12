@@ -825,6 +825,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: BossShieldEffect
       objectReference: {fileID: 0}
+    - target: {fileID: 6946775777334896378, guid: 6bb7738f5fef0d04f8dd017e5e02aad4, type: 3}
+      propertyPath: m_IsTrigger
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8901188283424413028, guid: 6bb7738f5fef0d04f8dd017e5e02aad4, type: 3}
       propertyPath: m_LocalScale.x
       value: 168.83737
@@ -880,8 +884,37 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5149102784215540723, guid: 6bb7738f5fef0d04f8dd017e5e02aad4, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2861083667131168276}
   m_SourcePrefab: {fileID: 100100000, guid: 6bb7738f5fef0d04f8dd017e5e02aad4, type: 3}
+--- !u!1 &2235827190597492210 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5149102784215540723, guid: 6bb7738f5fef0d04f8dd017e5e02aad4, type: 3}
+  m_PrefabInstance: {fileID: 6373166630202867201}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2861083667131168276
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2235827190597492210}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c53ebfe866a3d424c96dcd041b26825b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BarrierCollider
+  bossScript: {fileID: 364246862457991203}
+  damageSettings:
+  - attackTag: N_Pole
+    damage: 50
+  - attackTag: S_Pole
+    damage: 50
+  - attackTag: 
+    damage: 0
+  isInvincible: 0
 --- !u!4 &2591072671298808677 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8901188283424413028, guid: 6bb7738f5fef0d04f8dd017e5e02aad4, type: 3}
@@ -1653,7 +1686,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 364246862457991203}
-  HPBerScript: {fileID: 0}
   damageMultiplier: 1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -1718,7 +1750,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 364246862457991203}
-  HPBerScript: {fileID: 0}
   damageMultiplier: 1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -1750,7 +1781,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 364246862457991203}
-  HPBerScript: {fileID: 0}
   damageMultiplier: 0.1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -1803,7 +1833,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 364246862457991203}
-  HPBerScript: {fileID: 0}
   damageMultiplier: 1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -1884,7 +1913,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 364246862457991203}
-  HPBerScript: {fileID: 0}
   damageMultiplier: 1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -1901,7 +1929,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 0}
-  HPBerScript: {fileID: 0}
   damageMultiplier: 1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -1978,7 +2005,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 364246862457991203}
-  HPBerScript: {fileID: 0}
   damageMultiplier: 1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -2016,16 +2042,21 @@ MonoBehaviour:
   targetPlayer: {fileID: 0}
   target: {fileID: 0}
   anim: {fileID: 0}
+  hpBarScript: {fileID: 0}
   moveSpeed: 10
   targetDistance: 10
   stopDistance: 5
   maxHP: 100
+  currentHP: 0
+  barrierMaxHP: 100
+  currentBarrierHP: 0
   takenDamage: 5
   revivTime: 5
   aimSpeed: 2
+  invincibleTime: 0.5
   armBone_R: {fileID: 6067880366703168238}
   armBone_L: {fileID: 3536374064580107436}
-  impactEffect: {fileID: 2830351394133107073, guid: a734c43f85e607249af56c9494962a98, type: 3}
+  impactEffect: {fileID: 7149892766667903377, guid: f7f2c32f783121c46a6897ec2c7065cb, type: 3}
   isTracking: 0
   armSpeed: 10
   retrunSpeed: 30

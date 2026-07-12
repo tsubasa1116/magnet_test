@@ -36,8 +36,6 @@ public class enemy_HPBer : MonoBehaviour
 
     private void Start()
     {
-        maxHP = bossScript.maxHP;
-        currentHP = maxHP;
 
         if (blueBar) blueBar.fillAmount = 1.0f;
         if (whiteBar) whiteBar.fillAmount = 1.0f;
@@ -46,6 +44,16 @@ public class enemy_HPBer : MonoBehaviour
         {
             originalPosition = hpBarObj.anchoredPosition;
         }
+    }
+
+    public void SyncHP(float currentBossHP, float maxBossHP)
+    {
+        // ボスの実際のHPをもとに、バーの目標値を計算
+        targetFillAmount = currentBossHP / maxBossHP;
+
+        // ダメージ時の演出（待機時間とシェイク）を発生させる
+        waitTimer = damageWait;
+        currentShakeTimer = shakeDuration;
     }
 
     private void Update()
@@ -97,35 +105,24 @@ public class enemy_HPBer : MonoBehaviour
     [ContextMenu("Debug/Apply Test Damage")]
     public void ApplyTestDamage()
     {
-        TakeDamage(testDamageValue, testDamageMultiplier);
+        if (bossScript != null)
+        {
+            bossScript.TakeDamage(testDamageValue, testDamageMultiplier); // ボス本体にダメージを与える
+        }
     }
 
     [ContextMenu("Debug/Apply Test Heal")]
     public void ApplyTestHeal()
     {
-        TakeHeal(testHealValue);
+        if (bossScript != null)
+        {
+            bossScript.currentHP += testHealValue;
+            bossScript.currentHP = Mathf.Clamp(bossScript.currentHP, 0.0f, bossScript.maxHP);
+            SyncHP(bossScript.currentHP, bossScript.maxHP);
+        }
     }
 
     // =========================================================
-
-    public void TakeDamage(float damage, float damageMultiplier)
-    {
-        int finalDamage = Mathf.RoundToInt(damage * damageMultiplier);
-        currentHP -= finalDamage;
-        currentHP = Mathf.Clamp(currentHP, 0.0f, maxHP);
-        targetFillAmount = currentHP / maxHP;
-
-        waitTimer = damageWait;
-        currentShakeTimer = shakeDuration;
-    }
-
-    public void TakeHeal(float healAmount)
-    {
-        currentHP += healAmount;
-        currentHP = Mathf.Clamp(currentHP, 0.0f, maxHP);
-        targetFillAmount = currentHP / maxHP;
-        waitTimer = 0.0f;
-    }
 
     private void UpdateShake()
     {

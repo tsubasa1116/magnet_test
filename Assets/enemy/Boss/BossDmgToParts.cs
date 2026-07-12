@@ -5,7 +5,6 @@ public class BossDmgToParts : MonoBehaviour
     [Header("参照設定")]
     [Tooltip("スクリプト")]
     public enemy_Boss  bossScript;
-    public enemy_HPBer HPBerScript;
 
     [Header("判定設定")]
     [Tooltip("部位毎のダメージ倍")]
@@ -35,7 +34,7 @@ public class BossDmgToParts : MonoBehaviour
 
     private void SendDamageToBoss(GameObject attacker)
     {
-        if (HPBerScript == null) return;
+        if (bossScript == null) return;
 
         // 【重要】ここで攻撃側のオブジェクトから基本ダメージを取得します。
         // ※以下の "PlayerAttackScript" はご自身のプロジェクトのクラス名に書き換えてください。
@@ -50,6 +49,6 @@ public class BossDmgToParts : MonoBehaviour
         */
 
         // メインスクリプトにダメージと倍率を送信
-        HPBerScript.TakeDamage(baseDamage, damageMultiplier);
+        bossScript.TakeDamage(baseDamage, damageMultiplier);
     }
 }

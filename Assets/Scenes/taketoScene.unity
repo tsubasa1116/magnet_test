@@ -1557,7 +1557,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 214768485}
-  HPBerScript: {fileID: 517318051}
   damageMultiplier: 0.1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -2727,7 +2726,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 214768485}
-  HPBerScript: {fileID: 517318051}
   damageMultiplier: 0.1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -2926,7 +2924,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 214768485}
-  HPBerScript: {fileID: 517318051}
   damageMultiplier: 0.1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -3657,7 +3654,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 214768485}
-  HPBerScript: {fileID: 517318051}
   damageMultiplier: 0.1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -4043,6 +4039,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1488565537}
     - target: {fileID: 364246862457991203, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: hpBarScript
+      value: 
+      objectReference: {fileID: 517318051}
+    - target: {fileID: 364246862457991203, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
       propertyPath: targetPlayer
       value: 
       objectReference: {fileID: 355729280}
@@ -4062,6 +4062,46 @@ PrefabInstance:
       propertyPath: rocketEffectOffset.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 536366982308233712, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_Size.y
+      value: 129.55763
+      objectReference: {fileID: 0}
+    - target: {fileID: 536366982308233712, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_Size.z
+      value: 155.14247
+      objectReference: {fileID: 0}
+    - target: {fileID: 536366982308233712, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_Center.x
+      value: -0.00035544456
+      objectReference: {fileID: 0}
+    - target: {fileID: 536366982308233712, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_Center.y
+      value: 357.5674
+      objectReference: {fileID: 0}
+    - target: {fileID: 536366982308233712, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_Center.z
+      value: 37.10263
+      objectReference: {fileID: 0}
+    - target: {fileID: 4680475182339824214, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_Height
+      value: 191.73415
+      objectReference: {fileID: 0}
+    - target: {fileID: 4680475182339824214, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_Radius
+      value: 79.175575
+      objectReference: {fileID: 0}
+    - target: {fileID: 4680475182339824214, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_Center.x
+      value: -2.3236573
+      objectReference: {fileID: 0}
+    - target: {fileID: 4680475182339824214, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_Center.y
+      value: 78.74776
+      objectReference: {fileID: 0}
+    - target: {fileID: 4680475182339824214, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_Center.z
+      value: 30.194046
+      objectReference: {fileID: 0}
     - target: {fileID: 5648251799808482444, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
       propertyPath: m_LocalPosition.x
       value: -152
@@ -4079,16 +4119,28 @@ PrefabInstance:
       value: modelBoss_v3
       objectReference: {fileID: 0}
     - target: {fileID: 6798326865856173196, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 2.7445946
+      objectReference: {fileID: 0}
+    - target: {fileID: 6798326865856173196, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 2.7445946
+      objectReference: {fileID: 0}
+    - target: {fileID: 6798326865856173196, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 2.7445946
+      objectReference: {fileID: 0}
+    - target: {fileID: 6798326865856173196, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 897.95685
+      value: 898.45
       objectReference: {fileID: 0}
     - target: {fileID: 6798326865856173196, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.00000045565133
+      value: 0.9
       objectReference: {fileID: 0}
     - target: {fileID: 6798326865856173196, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -23.746803
+      value: -32.64
       objectReference: {fileID: 0}
     - target: {fileID: 6798326865856173196, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
       propertyPath: m_LocalRotation.w
@@ -4555,7 +4607,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 214768485}
-  HPBerScript: {fileID: 517318051}
   damageMultiplier: 0.1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -4728,7 +4779,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossDmgToParts
   bossScript: {fileID: 214768485}
-  HPBerScript: {fileID: 517318051}
   damageMultiplier: 0.1
   attackTagN: N_Pole
   attackTagS: S_Pole
@@ -5335,7 +5385,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8471490768086180393, guid: 1f1e2495b5409a7408b2f6ac7693984b, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -24.35
+      value: -15.51
       objectReference: {fileID: 0}
     - target: {fileID: 8833759118801870648, guid: 1f1e2495b5409a7408b2f6ac7693984b, type: 3}
       propertyPath: m_LocalPosition.x

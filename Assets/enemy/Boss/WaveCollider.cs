@@ -7,6 +7,8 @@ public class WaveColloder : MonoBehaviour
     public float maxRadius = 8.0f;
     [Tooltip("最大半径に到達するまでの時間（秒）")]
     public float expandDuration = 0.6f;
+    [Tooltip("最大まで広がった後判定を消すまでの時間（秒）")]
+    public float destroy = 0.3f;
 
     [Header("ジャンプ回避の設定")]
     [Tooltip("衝撃波の高さ")]
@@ -22,13 +24,19 @@ public class WaveColloder : MonoBehaviour
 
     void Update()
     {
-        if (hasHit) return;
-
         timer += Time.deltaTime;
         float progress = timer / expandDuration;
 
         // 現在の衝撃波の先端の半径を計算
         currentRadius = Mathf.Lerp(0.0f, maxRadius, progress);
+
+        if (timer >= expandDuration + destroy)
+        {
+            Destroy(gameObject);
+            return; // これ以上処理しない
+        }
+
+        if (hasHit) return;
 
         // 周囲のコライダーを拾う
         Collider[] hitColliders = Physics.OverlapSphere(transform.position, currentRadius);

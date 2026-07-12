@@ -34,21 +34,27 @@ public class enemy_Boss : MonoBehaviour
     [SerializeField] private Transform targetPlayer; // プレイヤーのTransformをInspectorで設定
     [SerializeField] private Transform target;　 // プレイヤーのTransformをInspectorで設定
     [SerializeField] private Animator anim;
+    [SerializeField] private enemy_HPBer hpBarScript;
 
     [Header("ボスパラメータ")]
     public float moveSpeed = 10.0f;      // ボスの移動速度
     public float targetDistance = 10.0f; // プレイヤーとの距離がこの値以上の時に追尾する
     public float stopDistance = 5.0f;    // プレイヤーとの距離がこの値以下の時に停止する
     public float maxHP = 100.0f;         // 最大HP
+    public float currentHP;              // 現在のHP
+    public float barrierMaxHP = 100.0f;  // バリアの最大HP
+    public float currentBarrierHP;       // 現在のバリアHP
     public float takenDamage = 5.0f;     // 受けるダメージ量
     public float revivTime = 5.0f;       // ダウンから復活するまでの時間
     public float aimSpeed = 10.0f;　     // ボスの回転速度
-    
+    public float invincibleTime = 0.5f;  // 無敵時間
+
     private bool isLookPlayer = true; // プレイヤーを向くかどうかのフラグ
     private float attackTimer = 0.0f; // 攻撃の経過時間を計測するタイマー
     
     private bool startAttack = false; // 攻撃開始フラグ
     private bool isDown = false;      // ダウン中かどうかのフラグ
+    private bool isInvincible = false;// 無敵状態かどうかのフラグ
 
     [Header("腕の設定")]
     public Transform armBone_R;
@@ -114,6 +120,10 @@ public class enemy_Boss : MonoBehaviour
     [SerializeField] private BossState[] addActions; // 行動パターンのリスト
     [SerializeField] private BossState[] addActionSecond; // 行動パターンのリスト
 
+    private bool firstSummon = false;      // 1段階目の初回召喚フラグ
+    private bool secondSummon = false;     // 2段階目の初回召喚フラグ
+    private bool checkStartAction = false; // isStartActionの変更検知用
+
     [Header("アニメーションスキップ")]
     [Tooltip("パンチのステート名")]
     [SerializeField] private string punchStateName = "Punch_v3";
@@ -142,6 +152,9 @@ public class enemy_Boss : MonoBehaviour
     // =========================================
     void Start()
     {
+        currentHP = maxHP;
+        currentBarrierHP = barrierMaxHP;
+
         anim = GetComponent<Animator>();
         anim.SetBool("Idol", true);
     }
@@ -426,6 +439,13 @@ public class enemy_Boss : MonoBehaviour
             }
         }
 
+        if (isStartAction && !checkStartAction)
+        {
+            actionTimer = actionInterval;
+            checkStartAction = true;
+        }
+        
+
         if (bossState == BossState.Idle)
         {
             actionTimer += Time.deltaTime;
@@ -575,7 +595,7 @@ public class enemy_Boss : MonoBehaviour
 
                 attackTimer += Time.deltaTime;
 
-                if (attackTimer >= 1.3f)
+                if (attackTimer >= 1.0f)
                 {
                     bossState = BossState.Idle;
                     attackTimer = 0.0f;
@@ -827,26 +847,53 @@ public class enemy_Boss : MonoBehaviour
     // ============================
     private void NextAction()
     {
-        if (addActions == null || addActions.Length == 0) return;
+        
 
         if (isStartAction)
         {
+            if (!isSecond && currentHP <= 50.0f)
+            {
+                isSecond = true;
+            }
+
             if (!isSecond)
             {
-                // リストの中からランダムで1つ選ぶ
-                int randomIndex = Random.Range(0, addActions.Length);
-                BossState nextState = addActions[randomIndex];
 
-                // 選んだステートに切り替える
-                bossState = nextState;
+                if (!firstSummon)
+                {
+                    bossState = BossState.Summon;
+                    firstSummon = true;
+                }
+                else
+                {
+                    if (addActions == null || addActions.Length == 0) return;
+
+                    // リストの中からランダムで1つ選ぶ
+                    int randomIndex = Random.Range(0, addActions.Length);
+                    BossState nextState = addActions[randomIndex];
+
+                    // 選んだステートに切り替える
+                    bossState = nextState;
+                }
             }
             else
             {
-                int randIdxSec = Random.Range(0, addActionSecond.Length);
-                BossState nextStateSec = addActionSecond[randIdxSec];
+                if (!secondSummon)
+                {
+                    // 2段階目の最初の行動は確定で召喚
+                    bossState = BossState.Summon;
+                    secondSummon = true;
+                }
+                else
+                {
+                    if (addActionSecond == null || addActionSecond.Length == 0) return;
 
-                // 選んだステートに切り替える
-                bossState = nextStateSec;
+                    int randIdxSec = Random.Range(0, addActionSecond.Length);
+                    BossState nextStateSec = addActionSecond[randIdxSec];
+
+                    // 選んだステートに切り替える
+                    bossState = nextStateSec;
+                }
             }
 
             Debug.Log("10秒経過");
@@ -1053,5 +1100,69 @@ public class enemy_Boss : MonoBehaviour
 
         // 最後に確実に元のサイズに戻す
         targetBone.localScale = Vector3.one;
+    }
+
+    // ==========================
+    // ボス被ダメ判定処理
+    // ==========================
+    public void TakeDamage(float damage, float multiplier)
+    {
+        if (!isDown) return;
+        if (isInvincible) return;
+
+        isInvincible = true;
+
+        int finalDamage = Mathf.RoundToInt(damage * multiplier);
+
+        // HPを減らす
+        currentHP -= finalDamage;
+        currentHP = Mathf.Clamp(currentHP, 0.0f, maxHP);
+
+        // HPバーのUIを更新させる
+        if (hpBarScript != null)
+        {
+            hpBarScript.SyncHP(currentHP, maxHP);
+        }
+
+        StartCoroutine(InvincibleCooltime());
+
+        // HPが0以下になったらダウン状態へ移行
+        if (currentHP <= 0 && bossState != BossState.Down)
+        {
+            isDown = false;
+            bossState = BossState.Down;
+        }
+    }
+
+    // ==========================
+    // 無敵時間用コルーチン
+    // ==========================
+    private IEnumerator InvincibleCooltime()
+    {
+        yield return new WaitForSeconds(invincibleTime); // 0.2秒待つ
+        isInvincible = false;                  // スイッチをOFFに戻す
+    }
+
+    // ===================================
+    // バリアが攻撃された時に呼ばれる関数
+    // ===================================
+    public void TakeBarrierDamage(float damage)
+    {
+        if (isDown) return;
+
+        // バリアのHPを減らす
+        currentBarrierHP -= damage;
+        Debug.Log($"バリアに {damage} のダメージ！ (残りバリア: {currentBarrierHP}/{barrierMaxHP})");
+
+        // バリアのHPが0以下になったらダウンさせる
+        if (currentBarrierHP <= 0.0f)
+        {
+            bossState = BossState.Down;
+            currentBarrierHP = barrierMaxHP; // バリアHP全回復
+        }
+        else
+        {
+            // バリアが削れていくときの演出（色変化？エフェクト？）
+        }
     }
 }
