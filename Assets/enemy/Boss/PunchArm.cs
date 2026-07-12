@@ -10,9 +10,9 @@ public class PunchArm : MonoBehaviour
     [SerializeField] private Transform ArmMesh;
     [SerializeField] private int attackDamage = 1;
 
-    private void OnTriggerEnter(Collider other)
+    private void OnCollisionEnter(Collision collision)
     {
-        var playerController = other.GetComponent<Controller>();
+        var playerController = collision.gameObject.GetComponent<PlayerHealth>();
         if (playerController != null)
         {
             playerController.TakeDamage(attackDamage);

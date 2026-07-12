@@ -763,7 +763,7 @@ public class enemy_Boss : MonoBehaviour
             if (hit.transform.root == transform.root) continue;
 
             // 衝突した相手に Controller（プレイヤー）が付いているか確認
-            var player = hit.GetComponent<Controller>();
+            var player = hit.GetComponent<PlayerHealth>();
             if (player != null)
             {
                 // ダメージを与える
@@ -772,12 +772,16 @@ public class enemy_Boss : MonoBehaviour
                 armState = ArmState.Returning;
                 attackTimer = retrunFrame;
 
+                isInvincible = true; // 無敵状態にする
+
                 // アニメーションを「引き戻し開始フレーム」へ強制ジャンプ
                 anim.PlayInFixedTime(punchStateName, 0, punchAnimReturnTime);
 
                 break;
             }
         }
+
+        StartCoroutine(InvincibleCooltime());
     }
 
     // =========================================

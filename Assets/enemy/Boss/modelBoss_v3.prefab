@@ -813,6 +813,59 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 109.51382, y: 21.09308, z: 31.92013}
   m_Center: {x: -81.16513, y: 23.95387, z: -108.44125}
+--- !u!1 &9091748541871210527
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1652285774251878452}
+  - component: {fileID: 5516529404484911093}
+  m_Layer: 0
+  m_Name: col_onlyHandR
+  m_TagString: S_Pole
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1652285774251878452
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9091748541871210527}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.5099825, y: -0.14520428, z: 0.84568906, w: -0.060362272}
+  m_LocalPosition: {x: -517.98975, y: 78.855515, z: -272.56387}
+  m_LocalScale: {x: 100, y: 99.999985, z: 100.000015}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6067880366703168238}
+  m_LocalEulerAnglesHint: {x: 10.963, y: 62.158, z: 14.484}
+--- !u!65 &5516529404484911093
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9091748541871210527}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1.1226376, z: 2.786589}
+  m_Center: {x: -0.000000021693824, y: -0.28508118, z: 0.18274137}
 --- !u!1001 &6373166630202867201
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1509,6 +1562,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 1001851037500291465, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 989607065814475847}
+    - targetCorrespondingSourceObject: {fileID: 1001851037500291465, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1652285774251878452}
     - targetCorrespondingSourceObject: {fileID: -96942323090931222, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6684209278460861881}
@@ -1591,6 +1647,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 968005269285435432, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7631779366166141602}
+    - targetCorrespondingSourceObject: {fileID: 968005269285435432, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4664681266974238121}
     - targetCorrespondingSourceObject: {fileID: -960960679523954096, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7744926259661096168}
@@ -1957,6 +2016,11 @@ CapsuleCollider:
   m_Height: 155.68033
   m_Direction: 1
   m_Center: {x: -56.56162, y: 12.584039, z: 0.6267282}
+--- !u!4 &5844721507097907357 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 634624921528394746, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
+  m_PrefabInstance: {fileID: 6472300754322813799}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &6067880366703168238 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1001851037500291465, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
@@ -2010,6 +2074,22 @@ MonoBehaviour:
   damageMultiplier: 1
   attackTagN: N_Pole
   attackTagS: S_Pole
+--- !u!114 &4664681266974238121
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6106090096569715535}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e04884bb3f28b8545a689ae58954e7db, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PunchArm
+  singleBoxCollider: {fileID: 5516529404484911093}
+  boneRoot: {fileID: 6106090096569715535}
+  ArmMesh: {fileID: 5844721507097907357}
+  attackDamage: 1
 --- !u!1 &6130334705992224310 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
