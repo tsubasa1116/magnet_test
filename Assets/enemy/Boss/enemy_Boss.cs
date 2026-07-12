@@ -763,7 +763,7 @@ public class enemy_Boss : MonoBehaviour
             if (hit.transform.root == transform.root) continue;
 
             // 衝突した相手に Controller（プレイヤー）が付いているか確認
-            var player = hit.GetComponent<Controller>();
+            var player = hit.GetComponent<PlayerHealth>();
             if (player != null)
             {
                 // ダメージを与える
@@ -793,7 +793,7 @@ public class enemy_Boss : MonoBehaviour
             {
                 if (hit.transform.root == transform.root) continue;
 
-                var player = hit.GetComponent<Controller>();
+                var player = hit.GetComponent<PlayerHealth>();
                 if (player != null)
                 {
                     player.TakeDamage(attackDamage);
