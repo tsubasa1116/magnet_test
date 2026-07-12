@@ -413,6 +413,16 @@ public class enemy : MonoBehaviour
         isAttack = false;
     }
 
+    public void TakeDamage(float damageAmount)
+    {
+        currentHp -= damageAmount;
+
+        // ダメージを受けたときのエフェクトを再生
+        if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
+
+        if (currentHp <= 0) Die();
+    }
+
     private void OnCollisionEnter(Collision collision)
     {
         ThrowableObject throwable = collision.gameObject.GetComponent<ThrowableObject>();
@@ -424,16 +434,6 @@ public class enemy : MonoBehaviour
             // 一度だけダメージを与える
             throwable.ResetThrown();
         }
-    }
-
-    public void TakeDamage(float damageAmount)
-    {
-        currentHp -= damageAmount;
-
-        // ダメージを受けたときのエフェクトを再生
-        if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
-
-        if (currentHp <= 0) Die();
     }
 
     private void Die()

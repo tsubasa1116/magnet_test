@@ -1,4 +1,5 @@
 using System.Collections;
+using Unity.VisualScripting.Antlr3.Runtime;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -58,6 +59,9 @@ public class enemy_bomb : MonoBehaviour
 
     private bool isMagnetized = false; // 磁力の影響(吹っ飛んでいる最中など)を受けているかどうか
     private float timeOffset;          // 個体ごとにフワフワのタイミングをずらすための乱数
+
+    //[SerializeField] private AudioSource audioSource;
+    //[SerializeField] private AudioClip explosionSE; // 爆発音
 
     void Start()
     {
@@ -379,13 +383,14 @@ public class enemy_bomb : MonoBehaviour
     private void OnCollisionEnter(Collision collision)
     {
         // 突撃でダメージ判定
-        if (currentState != EnemyState.Attack) return;
-
-        if (collision.gameObject.CompareTag("Player"))
+        if (currentState == EnemyState.Attack)
         {
-            Attack();
+            if (collision.gameObject.CompareTag("Player"))
+            {
+                Attack();
 
-            if (explosionEffect != null) Instantiate(explosionEffect, transform.position, Quaternion.identity);
+                if (explosionEffect != null) Instantiate(explosionEffect, transform.position, Quaternion.identity);
+            }
         }
 
         // 投げられたオブジェクトとの衝突判定
@@ -413,6 +418,7 @@ public class enemy_bomb : MonoBehaviour
     private void Die()
     {
         if (explosionEffect != null) Instantiate(explosionEffect, transform.position, Quaternion.identity);
-        Destroy(gameObject);
+        //audioSource.PlayOneShot(explosionSE); 
+        Destroy(gameObject/*, explosionSE.length*/);
     }
 }
