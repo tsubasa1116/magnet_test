@@ -57,7 +57,10 @@ public class enemy : MonoBehaviour
     private bool isMagnetized = false; // 磁力で制御されているかどうかを判定
     private bool isAttack = false; // 攻撃アニメーション中かどうか
 
-
+    public void SetTarget(Transform player)
+    {
+        targetPlayer = player;
+    }
     void Start()
     {
         currentHp = maxHp;

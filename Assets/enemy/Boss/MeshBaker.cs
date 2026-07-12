@@ -22,10 +22,10 @@ public class MeshBaker : MonoBehaviour
 
         // 撮影したメッシュをAssetsフォルダに保存
 #if UNITY_EDITOR
-        AssetDatabase.CreateAsset(bakedMesh, "Assets/Baked_Fist_Mesh.asset");
+        AssetDatabase.CreateAsset(bakedMesh, "Assets/DivHandR_root.asset");
         AssetDatabase.SaveAssets();
 #endif
-        GameObject bakedObj = new GameObject("Baked_Fist_Arm");
+        GameObject bakedObj = new GameObject("DivHandR_root");
         bakedObj.AddComponent<MeshFilter>().mesh = bakedMesh;
         bakedObj.AddComponent<MeshRenderer>().material = targetSkinnedMesh.material;
 

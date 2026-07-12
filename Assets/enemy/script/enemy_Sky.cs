@@ -64,6 +64,11 @@ public class enemy_Sky : MonoBehaviour
 
     private bool isMagnetized = false; // 磁力の影響(吹っ飛んでいる最中など)を受けているかどうか
     private float timeOffset;          // 個体ごとにフワフワのタイミングをずらすための乱数
+
+    public void SetTarget(Transform player)
+    {
+        targetPlayer = player;
+    }
     void Start()
     {
         currentHp = maxHp;

@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 82e7a59a107829140bf71f78fa4b4397
+guid: 89dd77ed4d4a35a4e9d339e47c9f70d9
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
@@ -35,7 +35,7 @@ ModelImporter:
       takeName: Take 001
       internalID: 1827226128182048838
       firstFrame: 0
-      lastFrame: 40
+      lastFrame: 70
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
@@ -55,8 +55,15 @@ ModelImporter:
       bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
       curves: []
       events:
-      - time: 0.45649812
-        functionName: EventSummonEnemies
+      - time: 0.7229424
+        functionName: ReviveArm
+        data: 
+        objectReferenceParameter: {instanceID: 0}
+        floatParameter: 0
+        intParameter: 0
+        messageOptions: 0
+      - time: 0.7250179
+        functionName: ReviveArmR
         data: 
         objectReferenceParameter: {instanceID: 0}
         floatParameter: 0

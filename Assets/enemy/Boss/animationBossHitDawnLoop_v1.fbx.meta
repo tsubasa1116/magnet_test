@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 82e7a59a107829140bf71f78fa4b4397
+guid: 5c76877f42cd0ea40afae55485495c99
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
@@ -34,15 +34,15 @@ ModelImporter:
       name: Take 001
       takeName: Take 001
       internalID: 1827226128182048838
-      firstFrame: 0
-      lastFrame: 40
+      firstFrame: 96
+      lastFrame: 156
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
       cycleOffset: 0
       loop: 0
       hasAdditiveReferencePose: 0
-      loopTime: 0
+      loopTime: 1
       loopBlend: 0
       loopBlendOrientation: 0
       loopBlendPositionY: 0
@@ -54,18 +54,11 @@ ModelImporter:
       mirror: 0
       bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
       curves: []
-      events:
-      - time: 0.45649812
-        functionName: EventSummonEnemies
-        data: 
-        objectReferenceParameter: {instanceID: 0}
-        floatParameter: 0
-        intParameter: 0
-        messageOptions: 0
+      events: []
       transformMask: []
       maskType: 3
       maskSource: {instanceID: 0}
-      additiveReferencePoseFrame: 0
+      additiveReferencePoseFrame: 96
     isReadable: 0
   meshes:
     lODScreenPercentages: []
