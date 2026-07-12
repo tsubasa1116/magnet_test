@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Collections;
 
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerMovement : MonoBehaviour
@@ -33,9 +34,11 @@ public class PlayerMovement : MonoBehaviour
 	private Vector3 targetForward; // 見た目の向きの目標。入力が止んでも保持してそこへ向き続ける
 	private float currentMoveSpeed; // 実際に適用中の移動速度(加速のため保持)
 
-	// --- アニメーション側(AnimationStateController)が参照する状態フラグ ---
-	// 「どう動いているか」はこの行動コードが持ち、見た目の制御はAnimation側に任せる
-	public Vector2 MoveInput => moveInput;
+    private bool isExternalForce;
+
+    // --- アニメーション側(AnimationStateController)が参照する状態フラグ ---
+    // 「どう動いているか」はこの行動コードが持ち、見た目の制御はAnimation側に任せる
+    public Vector2 MoveInput => moveInput;
 	public bool IsMoving => moveInput.sqrMagnitude > 0.01f;
 	public bool IsRunning => isDashing && IsMoving;
 	public bool IsGrounded => isGrounded;
@@ -105,7 +108,11 @@ public class PlayerMovement : MonoBehaviour
 		float desired = (isDashing ? dashSpeed : moveSpeed) * Mathf.Clamp01(moveInput.magnitude);
 		isBlocked = IsMoving && desired > 0.01f && v.magnitude < desired * blockedRatio;
 
-		Move();
+        if (!IsOnRopeway)
+        {
+            Move();
+        }
+        
 		ApplyExtraGravity();
 	}
 
@@ -173,26 +180,46 @@ public class PlayerMovement : MonoBehaviour
 		// --- 速度 ---
 		if (!IsMoving)
 		{
-			// 入力が無いときは水平速度を止める（滑り防止）
-			rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
-			currentMoveSpeed = moveSpeed; // 停止中は基準速度に戻す(再開時に最高速から始まらない)
+            //// 入力が無いときは水平速度を止める（滑り防止）
+            //if (!isExternalForce)
+            //{
+            //    rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            //}
+            currentMoveSpeed = moveSpeed; // 停止中は基準速度に戻す(再開時に最高速から始まらない)
 			return;
 		}
 
 		// 目標速度へだんだん加速/減速（ダッシュON/OFFが急にならない）
 		float targetSpeed = isDashing ? dashSpeed : moveSpeed;
 		currentMoveSpeed = Mathf.MoveTowards(currentMoveSpeed, targetSpeed, acceleration * Time.deltaTime);
-
-		rb.linearVelocity = new Vector3(
-			moveDir.x * currentMoveSpeed,
-			rb.linearVelocity.y,
-			moveDir.z * currentMoveSpeed
-		);
-	}
+      
+		if (!isExternalForce)
+        {
+            rb.linearVelocity = new Vector3(
+                moveDir.x * currentMoveSpeed,
+                rb.linearVelocity.y,
+                moveDir.z * currentMoveSpeed
+            );
+        }
+    }
 
 	private bool CheckGrounded()
 	{
 		// 足元に短いRayを飛ばして地面判定
 		return Physics.Raycast(transform.position, Vector3.down, 1.1f, groundLayer);
 	}
+
+    public void StartExternalForce(float duration)
+    {
+        StartCoroutine(ExternalForceCoroutine(duration));
+    }
+
+    private IEnumerator ExternalForceCoroutine(float duration)
+    {
+        isExternalForce = true;
+
+        yield return new WaitForSeconds(duration);
+
+        isExternalForce = false;
+    }
 }
