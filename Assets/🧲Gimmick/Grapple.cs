@@ -2,11 +2,6 @@ using UnityEngine;
 
 public class Grapple : MonoBehaviour
 {
-    [Header("立体機動")]
-    [SerializeField] private float grappleSpeed = 10f;
-    [SerializeField] private float stopDistance = 5f;
-    private bool isGrappling = false;
-
     [Header("エフェクト")]
     [SerializeField] private GameObject nPoleObjectAttractEffect;
     [SerializeField] private GameObject sPoleObjectAttractEffect;
@@ -21,78 +16,148 @@ public class Grapple : MonoBehaviour
 
     private GameObject player;
     private Rigidbody playerRb;
-    private SpringJoint grappleJoint;
+
+    [Header("立体機動")]
+    [SerializeField] private float pullForce = 50f;      // 引っ張る力
+    [SerializeField] private float reelSpeed = 15f;      // ワイヤー巻き取り速度
+    [SerializeField] private float stopDistance = 5f;    // 終了距離
+
+    private bool isGrappling;
+
+    private Vector3 grapplePoint;        // アンカー位置
+    private float ropeLength;            // 現在のロープ長
 
     // プレイヤーから呼び出す
     public void StartGrapple(GameObject targetPlayer)
     {
-        if (isGrappling) return;
+        if (isGrappling)
+            return;
 
         player = targetPlayer;
+
+        if (player == null)
+            return;
+
         playerRb = player.GetComponent<Rigidbody>();
 
-        if (playerRb == null) return;
+        if (playerRb == null)
+            return;
 
         isGrappling = true;
 
-        grappleJoint = player.AddComponent<SpringJoint>();
-        grappleJoint.autoConfigureConnectedAnchor = false;
-        grappleJoint.connectedAnchor = transform.position;
+        // アンカー位置を保存
+        grapplePoint = transform.position;
 
-        float distance = Vector3.Distance(player.transform.position, transform.position);
+        // 現在のロープ長
+        ropeLength = Vector3.Distance(playerRb.position, grapplePoint);
 
-        grappleJoint.maxDistance = distance * 0.8f;
-        grappleJoint.minDistance = 0f;
-        grappleJoint.spring = 10f;
-        grappleJoint.damper = 5f;
-        grappleJoint.massScale = 4.5f;
+        // 最初に少しだけ引っ張る
+        Vector3 dir = (grapplePoint - playerRb.position).normalized;
+        playerRb.AddForce(dir * pullForce * 0.5f, ForceMode.VelocityChange);
 
-        // 開始時に少し勢いをつける
-        Vector3 dir = (transform.position - player.transform.position).normalized;
+        PlayerMovement movement = player.GetComponent<PlayerMovement>();
 
-        playerRb.AddForce(dir * 10f, ForceMode.Impulse);
+        if (movement != null)
+        {
+            movement.IsOnRopeway = true;
+        }
 
+        // エフェクト開始
         StartGrappleEffect();
     }
 
     void Update()
     {
-        if (!isGrappling || player == null) return;
+        if (!isGrappling || player == null)
+            return;
 
-        // プレイヤーを対象方向へ向かせる
-        Vector3 direction = (transform.position - player.transform.position).normalized;
+        // プレイヤーをアンカー方向へ向ける
+        Vector3 direction = (grapplePoint - player.transform.position).normalized;
 
-        player.transform.rotation = 
-            Quaternion.RotateTowards(player.transform.rotation, 
-            Quaternion.LookRotation(direction), 600f * Time.deltaTime);
+        if (direction != Vector3.zero)
+        {
+            player.transform.rotation = Quaternion.RotateTowards(
+                player.transform.rotation,
+                Quaternion.LookRotation(direction),
+                600f * Time.deltaTime);
+        }
 
-
-        // エフェクトを常にプレイヤー方向へ向ける
+        // エフェクト
         if (currentEffect != null)
         {
-            // オブジェクトの少し前に配置
-            currentEffect.transform.position = transform.position + direction * 5.0f;
+            currentEffect.transform.position =
+                grapplePoint + direction * 5f;
 
-            // プレイヤーの方向を向かせる
-            currentEffect.transform.rotation = Quaternion.LookRotation(-direction);
+            currentEffect.transform.rotation =
+                Quaternion.LookRotation(-direction);
         }
 
-        // 徐々にワイヤーを縮める
-        if (grappleJoint != null)
+        // ワイヤー描画
+        if (currentLine != null)
         {
-            grappleJoint.maxDistance = Mathf.MoveTowards(grappleJoint.maxDistance,0f,grappleSpeed * Time.deltaTime);
+            currentLine.SetPosition(0, grapplePoint);
+            currentLine.SetPosition(1, player.transform.position);
         }
 
-        if (currentLine != null && player != null)
-        {
-            currentLine.SetPosition(0, transform.position);        // オブジェクト
-            currentLine.SetPosition(1, player.transform.position); // プレイヤー
-        }
-
-        // 十分近づいたら終了
-        if (Vector3.Distance(player.transform.position, transform.position) <= stopDistance)
+        // 近づいたら終了
+        if (Vector3.Distance(player.transform.position, grapplePoint) <= stopDistance)
         {
             StopGrapple();
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        if (!isGrappling || playerRb == null)
+            return;
+
+        GrappleMove();
+    }
+
+    private void GrappleMove()
+    {
+        // ロープ方向
+        Vector3 rope = grapplePoint - playerRb.position;
+
+        float distance = rope.magnitude;
+
+        if (distance <= 0.1f)
+            return;
+
+        Vector3 dir = rope.normalized;
+
+        // 上方向へ引っ張りすぎない
+        if (dir.y > 0f)
+        {
+            dir.y *= 0.2f;
+            dir.Normalize();
+        }
+
+        // ワイヤー巻き取り
+        ropeLength -= reelSpeed * Time.fixedDeltaTime;
+        ropeLength = Mathf.Max(stopDistance, ropeLength);
+
+        // アンカー方向へ引っ張る
+        playerRb.AddForce(dir * pullForce, ForceMode.Acceleration);
+
+        // ロープ長を超えたら補正
+        if (distance > ropeLength)
+        {
+            // ロープ長に合わせる
+            playerRb.position =
+                grapplePoint - dir * ropeLength;
+
+            // ロープ方向へ離れる速度だけ消す
+            Vector3 velocity = playerRb.linearVelocity;
+
+            float awaySpeed = Vector3.Dot(velocity, dir);
+
+            if (awaySpeed < 0f)
+            {
+                velocity -= dir * awaySpeed;
+            }
+
+            playerRb.linearVelocity = velocity;
         }
     }
 
@@ -120,18 +185,22 @@ public class Grapple : MonoBehaviour
 
     public void StopGrapple()
     {
-        isGrappling = false;
+        if (!isGrappling)
+            return;
 
-        if (grappleJoint != null)
-        {
-            Destroy(grappleJoint);
-        }
+        isGrappling = false;
 
         StopGrappleEffect();
 
+        PlayerMovement movement = player.GetComponent<PlayerMovement>();
+
+        if (movement != null)
+        {
+            movement.IsOnRopeway = false;
+        }
+
         player = null;
         playerRb = null;
-        grappleJoint = null;
     }
 
     // 立体機動終了時に呼ぶ
