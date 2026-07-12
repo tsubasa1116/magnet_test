@@ -4,6 +4,7 @@ using UnityEngine.AI;
 
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(Rigidbody))] // 磁力などの物理演算で制御するために必要
+
 public class enemy_Sky : MonoBehaviour
 {
     private enum EnemyState
@@ -13,7 +14,7 @@ public class enemy_Sky : MonoBehaviour
         Chase,  // 追跡（今回は原則使用せず、Attack内で距離調整を行います）
         Attack, // 攻撃・距離保持
         Search, // 探索（見失って周囲を探している）
-        Return  // 帰還（初期位置に戻っている）
+        Return  // 帰還（初期位置に戻っている）}
     }
 
     [Header("パラメータ")]
@@ -47,6 +48,7 @@ public class enemy_Sky : MonoBehaviour
     [Header("エフェクト")]
     [SerializeField] private GameObject enemyHitEffect;
     [SerializeField] private GameObject enemyFloatingEffect;
+    [SerializeField] private GameObject enemyDeathEffect;
 
     private float currentHp;
     private NavMeshAgent agent;
@@ -95,8 +97,8 @@ public class enemy_Sky : MonoBehaviour
         {
             GameObject effect = Instantiate(enemyFloatingEffect, transform.position, Quaternion.identity, transform);
 
-            // 少し下に表示したい場合
-            effect.transform.localPosition = new Vector3(0, -0.5f, 0);
+            // 少し下に表示する
+            effect.transform.localPosition = new Vector3(0, -0.3f, 0);
         }
     }
 
@@ -429,6 +431,19 @@ public class enemy_Sky : MonoBehaviour
         }
     }
 
+    private void OnCollisionEnter(Collision collision)
+    {
+        ThrowableObject throwable = collision.gameObject.GetComponent<ThrowableObject>();
+
+        if (throwable != null && throwable.IsThrown)
+        {
+            TakeDamage(throwable.Damage);
+
+            // 一度だけダメージを与える
+            throwable.ResetThrown();
+        }
+    }
+
     public void TakeDamage(float damageAmount)
     {
         currentHp -= damageAmount;
@@ -441,6 +456,7 @@ public class enemy_Sky : MonoBehaviour
 
     private void Die()
     {
+        if (enemyDeathEffect != null) Instantiate(enemyDeathEffect, transform.position, Quaternion.identity);
         Destroy(gameObject);
     }
 }
