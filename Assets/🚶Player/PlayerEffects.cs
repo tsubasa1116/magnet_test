@@ -96,7 +96,6 @@ public class PlayerEffects : MonoBehaviour
 		Spawn(s == MagnetState.N ? nPoleChangeEffect : sPoleChangeEffect, poleEffectLife);
 	}
 
-
     private void OnDamaged() => Spawn(hitEffect, hitEffectLife);
 	private void OnDied() => Spawn(downEffect, hitEffectLife);
 

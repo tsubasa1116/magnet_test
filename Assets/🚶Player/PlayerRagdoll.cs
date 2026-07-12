@@ -98,4 +98,48 @@ public class PlayerRagdoll : MonoBehaviour
 		foreach (var rb in boneBodies)
 			rb.linearVelocity = inheritVelocity;
 	}
+
+    public void DisableRagdoll()
+    {
+        // ボーン物理OFF
+        SetRagdollActive(false);
+
+        // 本体Colliderを有効
+        if (mainCollider != null)
+            mainCollider.enabled = true;
+
+        // 本体Rigidbodyを元に戻す
+        if (mainRigidbody != null)
+        {
+            mainRigidbody.isKinematic = false;
+            mainRigidbody.constraints = RigidbodyConstraints.FreezeRotation;
+            mainRigidbody.linearVelocity = Vector3.zero;
+            mainRigidbody.angularVelocity = Vector3.zero;
+        }
+
+        // Animator再開
+        if (animator != null)
+        {
+            animator.enabled = true;
+            animator.Rebind();
+            animator.Update(0f);
+        }
+
+        // 操作系を再開
+        if (disableOnDeath != null)
+        {
+            foreach (var b in disableOnDeath)
+            {
+                if (b != null)
+                    b.enabled = true;
+            }
+        }
+
+        // カメラ操作を元に戻す
+        if (lookCamera != null)
+        {
+            lookCamera.m_XAxis.m_MaxSpeed = 300f;
+            lookCamera.m_YAxis.m_MaxSpeed = 2f;
+        }
+    }
 }
