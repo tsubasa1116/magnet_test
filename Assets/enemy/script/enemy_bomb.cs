@@ -60,9 +60,10 @@ public class enemy_bomb : MonoBehaviour
     private bool isMagnetized = false; // 磁力の影響(吹っ飛んでいる最中など)を受けているかどうか
     private float timeOffset;          // 個体ごとにフワフワのタイミングをずらすための乱数
 
-    //[SerializeField] private AudioSource audioSource;
-    //[SerializeField] private AudioClip explosionSE; // 爆発音
-
+    public void SetTarget(Transform player)
+    {
+        targetPlayer = player;
+    }
     void Start()
     {
         currentHp = maxHp;
