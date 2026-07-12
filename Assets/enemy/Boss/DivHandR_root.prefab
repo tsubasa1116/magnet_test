@@ -11,9 +11,10 @@ GameObject:
   - component: {fileID: 898387986045828986}
   - component: {fileID: 6936588296315687276}
   - component: {fileID: 8861351571806367428}
+  - component: {fileID: 1732908449706125358}
   m_Layer: 0
   m_Name: DivHandR_root
-  m_TagString: Untagged
+  m_TagString: S_Hand
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -82,6 +83,22 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.9417114, y: 1.1573851, z: 2.7668357}
   m_Center: {x: -0.06430054, y: 0.30720556, z: 1.2996614}
+--- !u!114 &1732908449706125358
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7201604059315993789}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e04884bb3f28b8545a689ae58954e7db, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PunchArm
+  singleBoxCollider: {fileID: 0}
+  boneRoot: {fileID: 0}
+  ArmMesh: {fileID: 0}
+  attackDamage: 1
 --- !u!1 &7372957997069214635
 GameObject:
   m_ObjectHideFlags: 0

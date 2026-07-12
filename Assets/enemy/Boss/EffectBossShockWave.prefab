@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 8847351065361945908}
   - component: {fileID: 8388894014197441068}
   - component: {fileID: 7207699293921568464}
-  - component: {fileID: 1417068843197052526}
+  - component: {fileID: -5861517311654972964}
   m_Layer: 0
   m_Name: EffectBossShockWave
   m_TagString: Untagged
@@ -29,7 +29,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 2.4284, y: 2.4284, z: 2.4284}
+  m_LocalScale: {x: 2.9269, y: 2.9269, z: 2.9269}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -43,7 +43,7 @@ ParticleSystem:
   m_GameObject: {fileID: 3156528264800243857}
   serializedVersion: 8
   lengthInSec: 1
-  simulationSpeed: 0.3
+  simulationSpeed: 0.5
   stopAction: 2
   cullingMode: 0
   ringBufferMode: 0
@@ -4895,7 +4895,7 @@ ParticleSystemRenderer:
   m_MeshWeighting1: 1
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
---- !u!114 &1417068843197052526
+--- !u!114 &-5861517311654972964
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -4906,9 +4906,10 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b9f909f1af23bb54ea8222449c4c895a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WaveCollider
-  maxRadius: 11
-  expandDuration: 1.25
+  m_EditorClassIdentifier: Assembly-CSharp::WaveColloder
+  maxRadius: 8
+  expandDuration: 0.6
+  destroy: 0.3
   waveHeight: 1
-  waveThickness: 0.3
+  waveThickness: 1.5
   damage: 5

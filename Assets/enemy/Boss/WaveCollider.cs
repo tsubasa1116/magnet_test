@@ -42,7 +42,7 @@ public class WaveColloder : MonoBehaviour
         Collider[] hitColliders = Physics.OverlapSphere(transform.position, currentRadius);
         foreach (var hit in hitColliders)
         {
-            var player = hit.GetComponent<Controller>();
+            var player = hit.GetComponent<PlayerHealth>();
             if (player != null)
             {
                 // 高さのチェック（プレイヤーのY座標 - 波紋の発生元のY座標）

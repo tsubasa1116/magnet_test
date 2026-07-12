@@ -909,11 +909,13 @@ MonoBehaviour:
   bossScript: {fileID: 364246862457991203}
   damageSettings:
   - attackTag: N_Pole
-    damage: 50
+    damage: 30
   - attackTag: S_Pole
+    damage: 30
+  - attackTag: N_Hand
     damage: 50
-  - attackTag: 
-    damage: 0
+  - attackTag: S_Hand
+    damage: 50
   isInvincible: 0
 --- !u!4 &2591072671298808677 stripped
 Transform:
@@ -2062,13 +2064,13 @@ MonoBehaviour:
   retrunSpeed: 30
   transitionSpeed: 7
   trackingOffset: 2
-  waveEffect: {fileID: 3156528264800243857, guid: cccf9b40f05f96e438c269b7e6c1229b, type: 3}
+  waveEffect: {fileID: 3156528264800243857, guid: 0e4bf3d4f4670024f80d33350bc0283d, type: 3}
   smashEffectTimes:
   - 2
   - 2.7
   - 3.5
   effectPosY: 1.8
-  rocketEffect: {fileID: 438367063023949214, guid: 59e7e3e6d770d144bb0738747064da26, type: 3}
+  rocketEffect: {fileID: 438367063023949214, guid: ba3e9f71196b2ae44a787ae64c794259, type: 3}
   punchRotationOffset: {x: -30, y: 120, z: 0}
   fallRotationOffset: {x: -30, y: 120, z: 30}
   rocketEffectRotOffset: {x: 100, y: 90, z: 30}
