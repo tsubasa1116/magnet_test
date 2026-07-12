@@ -48,9 +48,17 @@ public class PlayerHealth : MonoBehaviour
 		IsDead = true;
 		OnDied?.Invoke();
 		ragdoll.EnableRagdoll();
-	}
+    }
 
-	// 動作確認用：Inspectorの「⋮」から実行できる
-	[ContextMenu("Debug: Kill")]
+    public void Revive()
+    {
+        Hp = maxHp;
+        IsDead = false;
+
+        OnDamaged?.Invoke();
+    }
+
+    // 動作確認用：Inspectorの「⋮」から実行できる
+    [ContextMenu("Debug: Kill")]
 	private void DebugKill() => TakeDamage(maxHp);
 }
