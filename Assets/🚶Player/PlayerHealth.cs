@@ -29,8 +29,9 @@ public class PlayerHealth : MonoBehaviour
 	public event System.Action OnDamaged; // HPが変化した(Revive含む。UI更新用)
 	public event System.Action OnHit;     // 実際にダメージを受けた瞬間だけ(演出用)
 	public event System.Action OnDied;
+    public static event System.Action OnPlayerDied;
 
-	private PlayerRagdoll ragdoll;
+    private PlayerRagdoll ragdoll;
 	private Rigidbody rb;
 	private PlayerMovement movement;
 	private float invincibleUntil;
@@ -90,7 +91,8 @@ public class PlayerHealth : MonoBehaviour
 	{
 		IsDead = true;
 		OnDied?.Invoke();
-		ragdoll.EnableRagdoll();
+        OnPlayerDied?.Invoke();    // ゲーム全体へ通知
+        ragdoll.EnableRagdoll();
     }
 
     public void Revive()

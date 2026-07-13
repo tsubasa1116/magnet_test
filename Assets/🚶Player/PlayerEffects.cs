@@ -78,36 +78,53 @@ public class PlayerEffects : MonoBehaviour
 		HandleRunEffect();
 	}
 
-	private void HandleRunEffect()
-	{
-		bool running = movement != null && movement.IsRunning;
+    private void HandleRunEffect()
+    {
+        if (currentRunEffect != null)
+            StopRunEffect();
 
-		if (running)
-		{
-			runStopTimer = 0f;
-			if (currentRunEffect == null && runEffect != null)
-			{
-				currentRunEffect = Instantiate(runEffect, transform.position, Quaternion.identity, transform);
-				currentRunEffect.transform.localPosition = Vector3.zero;
-			}
-		}
-		else if (currentRunEffect != null)
-		{
-			runStopTimer += Time.deltaTime;
-			if (runStopTimer >= runStopDelay) StopRunEffect();
-		}
-	}
+        if (health != null && health.IsDead)
+        {
+            if (currentRunEffect != null)
+                StopRunEffect();
+            return;
+        }
 
-	private void StopRunEffect()
-	{
-		currentRunEffect.transform.SetParent(null);
-		var ps = currentRunEffect.GetComponent<ParticleSystem>();
-		if (ps != null) ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
-		Destroy(currentRunEffect, 2f);
-		currentRunEffect = null;
-	}
+        bool running = movement != null && movement.IsRunning;
 
-	private void OnPoleChanged(MagnetState s)
+        if (running)
+        {
+            runStopTimer = 0f;
+            if (currentRunEffect == null && runEffect != null)
+            {
+                currentRunEffect = Instantiate(runEffect, transform.position, Quaternion.identity, transform);
+                currentRunEffect.transform.localPosition = Vector3.zero;
+            }
+        }
+        else if (currentRunEffect != null)
+        {
+            runStopTimer += Time.deltaTime;
+            if (runStopTimer >= runStopDelay)
+                StopRunEffect();
+        }
+    }
+
+    private void StopRunEffect()
+    {
+        if (currentRunEffect == null)
+            return;
+
+        currentRunEffect.transform.SetParent(null);
+
+        var ps = currentRunEffect.GetComponent<ParticleSystem>();
+        if (ps != null)
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+
+        Destroy(currentRunEffect, 2f);
+        currentRunEffect = null;
+    }
+
+    private void OnPoleChanged(MagnetState s)
 	{
 		Spawn(s == MagnetState.N ? nPoleChangeEffect : sPoleChangeEffect, poleEffectLife);
 	}
@@ -121,10 +138,14 @@ public class PlayerEffects : MonoBehaviour
 		damageReaction = StartCoroutine(DamageReaction());
 	}
 
-	private void OnDied() => Spawn(downEffect, hitEffectLife);
+    private void OnDied()
+    {
+        StopRunEffect();                  // ダッシュエフェクトが残っていれば消す
+        Spawn(downEffect, hitEffectLife, true);
+    }
 
-	// 被弾リアクション: 一瞬赤く染める → 無敵時間中は点滅して「今は無敵」と分かるようにする
-	private IEnumerator DamageReaction()
+    // 被弾リアクション: 一瞬赤く染める → 無敵時間中は点滅して「今は無敵」と分かるようにする
+    private IEnumerator DamageReaction()
 	{
 		// ① 赤フラッシュ(元の色を退避してから染める)
 		var originals = new List<(Material mat, string prop, Color color)>();
@@ -167,23 +188,19 @@ public class PlayerEffects : MonoBehaviour
 			if (r != null) r.enabled = visible;
 	}
 
-    private void Spawn(GameObject prefab, float life)
+    private void Spawn(GameObject prefab, float life, bool allowWhenDead = false)
     {
         if (prefab == null) return;
 
+        // 死亡中はダウンエフェクト以外は生成しない
+        if (!allowWhenDead && health != null && health.IsDead)
+            return;
+
         Transform point = poleEffectPoint != null ? poleEffectPoint : transform;
 
-        Debug.Log($"EffectPoint : {point.name}  Position : {point.position}");
-		Debug.Log($"Transform : {transform.position}");
+        GameObject fx = Instantiate(prefab, point.position, point.rotation);
 
-		// ワールド座標で生成
-		GameObject fx = Instantiate(prefab, point.position, point.rotation);
-
-        // ワールド座標を維持したまま親子付け
         fx.transform.SetParent(point, true);
-
-        Debug.Log(fx.transform.position);
-        Debug.Log(point.position);
 
         if (life > 0f)
             Destroy(fx, life);

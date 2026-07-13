@@ -15,6 +15,8 @@ public class PlayerStateMachine : MonoBehaviour
     // 状態が変わったとき他スクリプトに通知するイベント
     public event System.Action<MagnetState> OnStateChanged;
 
+    private PlayerHealth health;
+
     [Header("UI")]
     [SerializeField] private GameObject NMugUI;
     [SerializeField] private GameObject SMugUI;
@@ -34,6 +36,7 @@ public class PlayerStateMachine : MonoBehaviour
     void Awake()
     {
         catchState = GetComponent<PlayerCatch>();
+        health = GetComponent<PlayerHealth>();
     }
 
     void Update()
@@ -61,6 +64,9 @@ public class PlayerStateMachine : MonoBehaviour
     // PlayerInputから自動で呼ばれる（Invertアクション = ZL / Q で極を切り替え）
     public void OnInvert(InputValue value)
     {
+        if (health != null && health.IsDead)
+            return;
+
         if (value.isPressed && !isChangeMode)
         {
             SwitchState();
