@@ -18,7 +18,7 @@ public class enemy : MonoBehaviour
 
     [Header("基本パラメータ")]
     [SerializeField] private float maxHp = 100.0f;
-    [SerializeField] private float found = 10.0f;
+    [SerializeField] private float found = 7.5f;
     [SerializeField] private float attackRange = 2.0f;
     [SerializeField] private float searchTime = 3.0f;   // 索敵している時間
     [SerializeField] private float searchRadius = 5.0f; // 索敵範囲
@@ -77,6 +77,30 @@ public class enemy : MonoBehaviour
         if (markQuestion != null) markQuestion.SetActive(false);
     }
 
+    private void OnEnable()
+    {
+        PlayerHealth.OnPlayerDied += OnPlayerDied;
+    }
+
+    private void OnDisable()
+    {
+        PlayerHealth.OnPlayerDied -= OnPlayerDied;
+    }
+
+    private void OnPlayerDied()
+    {
+        attackTimer = 0f;
+        isAttack = false;
+
+        StopAllCoroutines();
+
+        if (agent != null && agent.enabled)
+        {
+            agent.ResetPath();
+            ChangeState(EnemyState.Wait);
+        }
+    }
+
     void FixedUpdate() // 物理演算に関する処理はFixedUpdateで行う
     {
         MagneticInteraction();
@@ -84,15 +108,15 @@ public class enemy : MonoBehaviour
 
     void Update()
     {
-        if (attackTimer > 0f)
-        {
-            attackTimer -= Time.deltaTime;
-        }
+        if (targetPlayer == null) return;
+
+        PlayerHealth health = targetPlayer.GetComponent<PlayerHealth>();
+        if (health != null && health.IsDead) return;
+
+        if (attackTimer > 0f) attackTimer -= Time.deltaTime;
 
         // 磁力で飛ばされている間はAIの思考（追跡など）をストップさせる
         if (isMagnetized) return;
-
-        if (targetPlayer == null) return;
 
         float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
 

@@ -102,6 +102,29 @@ public class enemy_Sky : MonoBehaviour
         }
     }
 
+    private void OnEnable()
+    {
+        PlayerHealth.OnPlayerDied += OnPlayerDied;
+    }
+
+    private void OnDisable()
+    {
+        PlayerHealth.OnPlayerDied -= OnPlayerDied;
+    }
+
+    private void OnPlayerDied()
+    {
+        attackTimer = 0f;
+
+        StopAllCoroutines();
+
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        {
+            agent.ResetPath();
+            ChangeState(EnemyState.Wait);
+        }
+    }
+
     void FixedUpdate()
     {
         MagneticInteraction();
@@ -109,21 +132,20 @@ public class enemy_Sky : MonoBehaviour
 
     void Update()
     {
+        if (targetPlayer == null) return;
+
+        PlayerHealth health = targetPlayer.GetComponent<PlayerHealth>();
+        if (health != null && health.IsDead) return;
+
         // NavMeshAgentが有効な間のみふわふわ浮かせる
         if (agent.enabled)
-        {
             agent.baseOffset = hoverHeight + Mathf.Sin((Time.time + timeOffset) * hoverSpeed) * hoverRange;
-        }
 
         // 攻撃タイマーの更新
-        if (attackTimer > 0f)
-        {
-            attackTimer -= Time.deltaTime;
-        }
+        if (attackTimer > 0f) attackTimer -= Time.deltaTime;
 
         // 磁力で飛ばされている間はAIの思考（追跡など）をストップする
         if (isMagnetized) return;
-        if (targetPlayer == null) return;
 
         float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
 
@@ -344,11 +366,11 @@ public class enemy_Sky : MonoBehaviour
 
         if (nextState == EnemyState.Wait)
         {
-            agent.isStopped = true;
+            if (agent.isOnNavMesh) agent.isStopped = true;
         }
         else if (nextState == EnemyState.Notice)
         {
-            agent.isStopped = true;
+            if (agent.isOnNavMesh) agent.isStopped = true;
             noticeTimer = noticeTime;
             if (markExclamation != null) markExclamation.SetActive(true);
             StartCoroutine(HideMark(markExclamation, noticeTime));
