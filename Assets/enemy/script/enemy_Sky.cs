@@ -451,7 +451,11 @@ public class enemy_Sky : MonoBehaviour
         // ダメージを受けたときのエフェクトを再生
         if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
 
-        if (currentHp <= 0) Die();
+        if (currentHp <= 0)
+        {
+            HitStop.Play(0.12f); // 倒した手応えのヒットストップ
+            Die();
+        }
     }
 
     private void Die()

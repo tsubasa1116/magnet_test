@@ -376,7 +376,7 @@ public class enemy_bomb : MonoBehaviour
     private void Attack()
     {
         PlayerHealth playerHealth = targetPlayer.GetComponent<PlayerHealth>();
-        if (playerHealth != null) playerHealth.TakeDamage(attackDamage);
+        if (playerHealth != null) playerHealth.TakeDamage(attackDamage, transform.position);
 
         Die();  // 自爆
     }
@@ -413,7 +413,11 @@ public class enemy_bomb : MonoBehaviour
         // ダメージを受けたときのエフェクトを再生
         //if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
 
-        if (currentHp <= 0) Die();
+        if (currentHp <= 0)
+        {
+            HitStop.Play(0.12f); // 倒した手応えのヒットストップ(自爆時は入らない)
+            Die();
+        }
     }
 
     private void Die()

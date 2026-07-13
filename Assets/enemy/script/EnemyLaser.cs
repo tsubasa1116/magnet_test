@@ -28,7 +28,7 @@ public class EnemyLaser : MonoBehaviour
 
             if (player != null)
             {
-                player.TakeDamage(damage);
+                player.TakeDamage(damage, transform.position);
             }
 
             timer = damageInterval;

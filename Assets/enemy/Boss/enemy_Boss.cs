@@ -767,7 +767,7 @@ public class enemy_Boss : MonoBehaviour
             if (player != null)
             {
                 // ダメージを与える
-                player.TakeDamage(attackDamage);
+                player.TakeDamage(attackDamage, transform.position);
 
                 armState = ArmState.Returning;
                 attackTimer = retrunFrame;
@@ -796,7 +796,7 @@ public class enemy_Boss : MonoBehaviour
                 var player = hit.GetComponent<PlayerHealth>();
                 if (player != null)
                 {
-                    player.TakeDamage(attackDamage);
+                    player.TakeDamage(attackDamage, transform.position);
                     hasSmashHit = true; // 一旦ダメージ判定をオフにする
                     break;
                 }
