@@ -209,7 +209,7 @@ public class enemy_Boss : MonoBehaviour
                 CheckSmashHit(true); // 分離中はダメージ判定とエフェクトも出さない
             }
         }
-        if (bossState == BossState.SmashBig)
+        else if (bossState == BossState.SmashBig)
         {
             // 叩きつけ(右腕)
             if (isTracking)
@@ -429,6 +429,11 @@ public class enemy_Boss : MonoBehaviour
                 bossState = BossState.Summon;
             }
 
+            if (Input.GetKeyDown(KeyCode.Keypad6) || Input.GetKeyDown(KeyCode.Alpha6))
+            {
+                bossState = BossState.Rush;
+            }
+
             if (Input.GetKeyDown(KeyCode.M))
             {
                 ExecuteDetachArm();
@@ -510,6 +515,7 @@ public class enemy_Boss : MonoBehaviour
                     anim.SetTrigger("Smash_N");
                     startAttack = true;
 
+                    smashEffectCnt = 0;
                     hasSmashHit = false;
                 }
 
@@ -797,7 +803,7 @@ public class enemy_Boss : MonoBehaviour
             {
                 if (hit.transform.root == transform.root) continue;
 
-                var player = hit.GetComponent<Controller>();
+                var player = hit.GetComponent<PlayerHealth>();
                 if (player != null)
                 {
                     player.TakeDamage(attackDamage);
@@ -851,8 +857,6 @@ public class enemy_Boss : MonoBehaviour
     // ============================
     private void NextAction()
     {
-        
-
         if (isStartAction)
         {
             if (!isSecond && currentHP <= 50.0f)
@@ -903,6 +907,9 @@ public class enemy_Boss : MonoBehaviour
             Debug.Log("10秒経過");
         }
     }
+
+    public string attackTagN = "N_Pole";
+    public string attackTagS = "S_Pole";
 
     // ============================
     // 左腕にヒットして分離する処理
@@ -1001,6 +1008,8 @@ public class enemy_Boss : MonoBehaviour
         if (sepaArm != null)
         {
             sepaArm.gameObject.SetActive(false);
+
+            sepaArm.ResetArm();
         }
 
         armState = ArmState.Idle;
@@ -1024,6 +1033,8 @@ public class enemy_Boss : MonoBehaviour
         if (sepaArmR != null)
         {
             sepaArmR.gameObject.SetActive(false);
+
+            sepaArmR.ResetArm();
         }
 
         armState = ArmState.Idle;

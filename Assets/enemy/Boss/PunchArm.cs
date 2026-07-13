@@ -10,8 +10,12 @@ public class PunchArm : MonoBehaviour
     [SerializeField] private Transform ArmMesh;
     [SerializeField] private int attackDamage = 1;
 
+    private bool isDetached = false;
+
     private void OnCollisionEnter(Collision collision)
     {
+        if (isDetached) return;
+
         var playerController = collision.gameObject.GetComponent<PlayerHealth>();
         if (playerController != null)
         {
@@ -19,9 +23,14 @@ public class PunchArm : MonoBehaviour
         }
     }
 
-    // 腕が分離したときに呼ぶ関数gaa
+    public void ResetArm()
+    {
+        isDetached = false;
+    }
+
+    // 腕が分離したときに呼ぶ関数
     public void DetachArm()
     {
-        
+        isDetached = true;
     }
 }
