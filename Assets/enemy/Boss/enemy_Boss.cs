@@ -35,6 +35,7 @@ public class enemy_Boss : MonoBehaviour
     [SerializeField] private Transform target;　 // プレイヤーのTransformをInspectorで設定
     [SerializeField] private Animator anim;
     [SerializeField] private enemy_HPBer hpBarScript;
+    [SerializeField] private Transform barrier;
 
     [Header("ボスパラメータ")]
     public float moveSpeed = 10.0f;      // ボスの移動速度
@@ -55,6 +56,7 @@ public class enemy_Boss : MonoBehaviour
     private bool startAttack = false; // 攻撃開始フラグ
     private bool isDown = false;      // ダウン中かどうかのフラグ
     private bool isInvincible = false;// 無敵状態かどうかのフラグ
+    private bool isWaitRevive = false;
 
     [Header("腕の設定")]
     public Transform armBone_R;
@@ -71,9 +73,12 @@ public class enemy_Boss : MonoBehaviour
     private Vector3 currentOffset = Vector3.zero;
     private Vector3 lockedOffset = Vector3.zero;
 
-    private Vector3 punchPos;
-    private Quaternion punchRot;
-    private Vector3 nowPunchPos;
+    private bool isHitR = false;
+    private bool isFirstFrameHitR = false;
+    private Vector3 baseAnimPos_R;
+    private Quaternion baseAnimRot_R;
+    private Vector3 nowSmashPosR;
+    private Quaternion nowSmashRotR;
 
     [Header("衝撃波のエフェクト設定")]
     [SerializeField] private GameObject waveEffect;
@@ -107,6 +112,9 @@ public class enemy_Boss : MonoBehaviour
     private Vector3 baseAnimPos_L;
     private Quaternion baseAnimRot_L;
     private bool isFirstFrameHit = false;
+    private Vector3 punchPos;
+    private Quaternion punchRot;
+    private Vector3 nowPunchPos;
     
     private Vector3 fallPoint;
     private bool hasFallPoint;
@@ -180,6 +188,13 @@ public class enemy_Boss : MonoBehaviour
             isFirstFrameHit = false;
         }
 
+        if (isFirstFrameHitR)
+        {
+            baseAnimPos_R = rawAnimPos_R;
+            baseAnimRot_R = rawAnimRot_R;
+            isFirstFrameHitR = false;
+        }
+
         if (bossState == BossState.SmashNormal)
         {
             // 叩きつけ(右腕)
@@ -205,8 +220,19 @@ public class enemy_Boss : MonoBehaviour
 
             if (!isRightArmDetached)
             {
-                armBone_R.position = rawAnimPos_R + currentOffset;
-                CheckSmashHit(true); // 分離中はダメージ判定とエフェクトも出さない
+                if(isHitR)
+                {
+                    Vector3 animPosDeltaR = rawAnimPos_R - baseAnimPos_R;
+                    Quaternion animRotDeltaR = rawAnimRot_R * Quaternion.Inverse(baseAnimRot_R);
+
+                    armBone_R.position = nowSmashPosR + animPosDeltaR;
+                    armBone_R.rotation = animRotDeltaR * nowSmashRotR;
+                }
+                else
+                {
+                    armBone_R.position = rawAnimPos_R + currentOffset;
+                    CheckSmashHit(true); // 分離中はダメージ判定とエフェクトも出さない
+                }
             }
         }
         else if (bossState == BossState.SmashBig)
@@ -239,8 +265,20 @@ public class enemy_Boss : MonoBehaviour
             // 右腕には計算したズレを適用
             if (!isRightArmDetached)
             {
-                armBone_R.position = rawAnimPos_R + currentOffset;
-                CheckSmashHit(false);
+                if (isHitR)
+                {
+                    // Hit中はアニメーションの差分を計算して適用
+                    Vector3 animPosDeltaR = rawAnimPos_R - baseAnimPos_R;
+                    Quaternion animRotDeltaR = rawAnimRot_R * Quaternion.Inverse(baseAnimRot_R);
+
+                    armBone_R.position = nowSmashPosR + animPosDeltaR;
+                    armBone_R.rotation = animRotDeltaR * nowSmashRotR;
+                }
+                else
+                {
+                    armBone_R.position = rawAnimPos_R + currentOffset;
+                    CheckSmashHit(false);
+                }
             }
         }
         else if (bossState == BossState.Punch)
@@ -635,6 +673,8 @@ public class enemy_Boss : MonoBehaviour
                     anim.SetTrigger("Down");
                     anim.SetBool("isDown", true);
 
+                    barrier.gameObject.SetActive(false);
+
                     isLookPlayer = false;
                     isDown = true;
 
@@ -648,6 +688,9 @@ public class enemy_Boss : MonoBehaviour
                     anim.SetBool("isDown", false);
                     anim.SetTrigger("Reviv");
                     bossState = BossState.Idle;
+
+                    isWaitRevive = true;
+
                     attackTimer = 0.0f;
                     isDown = false;
                     startAttack = false;
@@ -690,6 +733,11 @@ public class enemy_Boss : MonoBehaviour
     public void eventLookPlayer()
     {
         isLookPlayer = true;
+        if (isWaitRevive)
+        {
+            barrier.gameObject.SetActive(true);
+            isWaitRevive = false;
+        }
     }
 
     // ==============================
@@ -940,6 +988,11 @@ public class enemy_Boss : MonoBehaviour
         {
             anim.SetTrigger("Hit_R");
 
+            isHitR = true;
+            isFirstFrameHitR = true;
+            nowSmashPosR = armBone_R.position;
+            nowSmashRotR = armBone_R.rotation;
+
             // 分離待機フラグをオン
             isWaitForDetachR = true;
             detachTimerR = 0.0f;
@@ -974,6 +1027,7 @@ public class enemy_Boss : MonoBehaviour
     // ====================
     private void ExecuteDetachArmR()
     {
+        isHitR = false;
         isRightArmDetached = true;
 
         // 本体の左腕ボーンのスケールを0にして「見えなくする」
@@ -1010,6 +1064,7 @@ public class enemy_Boss : MonoBehaviour
             sepaArm.gameObject.SetActive(false);
 
             sepaArm.ResetArm();
+
         }
 
         armState = ArmState.Idle;

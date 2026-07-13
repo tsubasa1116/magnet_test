@@ -102,9 +102,10 @@ GameObject:
   - component: {fileID: 6435840197675947950}
   - component: {fileID: 2549865202531650390}
   - component: {fileID: 5224426238319890295}
+  - component: {fileID: 7045062494413079798}
   m_Layer: 0
   m_Name: DivHandL_root
-  m_TagString: N_Hand
+  m_TagString: N_Pole
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -189,3 +190,18 @@ MonoBehaviour:
   boneRoot: {fileID: 0}
   ArmMesh: {fileID: 0}
   attackDamage: 1
+  bossScript: {fileID: 0}
+--- !u!114 &7045062494413079798
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1556018225667247542}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25e6fe930b009fb4b839e279fa1e03ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ThrowableObject
+  damage: 100
+  IsThrown: 0
