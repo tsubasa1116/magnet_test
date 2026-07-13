@@ -5,12 +5,12 @@ using UnityEngine.SceneManagement;
 
 public class title : MonoBehaviour
 {
-    [Header("ƒ^ƒCƒgƒ‹UIŠÇ—")]
+    [Header("ã‚¿ã‚¤ãƒˆãƒ«UIç®¡ç†")]
     [SerializeField] public GameObject pressUI;
     [SerializeField] public GameObject titleMenuUI;
     [SerializeField] bool isOpen = false;
 
-    [Header("ƒJ[ƒ\ƒ‹")]
+    [Header("ã‚«ãƒ¼ã‚½ãƒ«")]
     [SerializeField] public RectTransform cursor;
     [SerializeField] public RectTransform cursorMain;
     [SerializeField] public float[] cursorPosY;
@@ -20,12 +20,12 @@ public class title : MonoBehaviour
     [SerializeField] private float inputComboCnt = 0.2f;
     [SerializeField] private float lastInputTime = 0.0f;
 
-    [Header("PressAnyButton“_–Å")]
-    [SerializeField] public CanvasGroup pressButton; // “_–Å‚³‚¹‚é‚½‚ßAImage‚æ‚èŠy
+    [Header("PressAnyButtonç‚¹æ»…")]
+    [SerializeField] public CanvasGroup pressButton; // ç‚¹æ»…ã•ã›ã‚‹ãŸã‚ã€Imageã‚ˆã‚Šæ¥½
     [SerializeField] public float blinkSpeed = 2.0f;
     [SerializeField] public AnimationCurve blinkCurve;
 
-    [Header("ƒXƒRƒA•\¦")]
+    [Header("ã‚¹ã‚³ã‚¢è¡¨ç¤º")]
     [SerializeField] public RectTransform score;
     [SerializeField] public CanvasGroup scoreText;
     [SerializeField] public bool isFadeIn = false;
@@ -34,22 +34,43 @@ public class title : MonoBehaviour
     [SerializeField] public float fadeSpeed = 2.0f;
     [SerializeField] public float lerpSpeed = 10.0f;
     [SerializeField] public float waitFade  = 3.0f;
+    [SerializeField] private Sprite[] scoreSprites;
 
+    void Start()
+    {
+        // å‰å›ã®ã‚¹ã‚³ã‚¢ã‚’è¨ˆç®—
+        int rank = GameResultManager.CalculateScoreRank();
+
+        if (scoreSprites != null && scoreSprites.Length > rank && scoreText != null)
+        {
+            Image targetImage = scoreText.GetComponent<Image>();
+
+            if (targetImage != null)
+            {
+                targetImage.sprite = scoreSprites[rank];
+            }
+            else
+            {
+                // Image targetImage = scoreText.GetComponentInChildren<Image>();
+                Debug.LogWarning("scoreTextã«Imageã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ï¼");
+            }
+        }
+    }
 
     void Update()
     {
-        //float sin = 0.5f + 0.5f * Mathf.Sin(Time.time * blinkSpeed); // “_–Å
-        //float strokeSin = Mathf.Pow(sin, 1.1f); // “_–Å‚Ì‹­‚³‚ğ’²®
+        //float sin = 0.5f + 0.5f * Mathf.Sin(Time.time * blinkSpeed); // ç‚¹æ»…
+        //float strokeSin = Mathf.Pow(sin, 1.1f); // ç‚¹æ»…ã®å¼·ã•ã‚’èª¿æ•´
         //pressButton.alpha = 0.01f + 0.99f * strokeSin;
 
-        //// PressAnyButton“_–Å
+        //// PressAnyButtonç‚¹æ»…
         //float cos = Mathf.Cos(Time.time * blinkSpeed * 2.0f);
         //float t = (cos + 1.0f) / 2.0f;
         //pressButton.alpha = Mathf.Lerp(0.01f, 1.0f, t);
 
-        //// PressAnyButton“_–Åiˆê’è‘¬“x‚Å‰•œj
+        //// PressAnyButtonç‚¹æ»…ï¼ˆä¸€å®šé€Ÿåº¦ã§å¾€å¾©ï¼‰
         //float t = Mathf.PingPong(Time.time * blinkSpeed, 0.97f) + 0.03f;
-        //t = Mathf.Clamp01(t); // 0.0f`1.0f‚Ì”ÍˆÍ‚É§ŒÀ
+        //t = Mathf.Clamp01(t); // 0.0fï½1.0fã®ç¯„å›²ã«åˆ¶é™
         //t = t * t;
         //pressButton.alpha = Mathf.Lerp(0.01f, 1.0f, t);
 
@@ -63,15 +84,15 @@ public class title : MonoBehaviour
         }
         if(isOpen)
         {
-            // ƒJ[ƒ\ƒ‹‚ğ¶‚©‚ç‚Ê‚é‚Á
+            // ã‚«ãƒ¼ã‚½ãƒ«ã‚’å·¦ã‹ã‚‰ã¬ã‚‹ã£
             float currentX = cursorMain.anchoredPosition.x; 
             currentX = Mathf.Lerp(currentX, 0.0f, Time.deltaTime * maskSpeed);
             cursorMain.anchoredPosition = new Vector2(currentX, 0.0f);
 
-            // ƒXƒRƒAŒQ‚ğ‰æ–ÊŠO‚©‚ç‚Ê‚é‚Á
+            // ã‚¹ã‚³ã‚¢ç¾¤ã‚’ç”»é¢å¤–ã‹ã‚‰ã¬ã‚‹ã£
             score.anchoredPosition = Vector2.Lerp(score.anchoredPosition, newPos, Time.deltaTime * lerpSpeed);
 
-            // ƒXƒRƒAƒeƒLƒXƒg‚ğƒtƒF[ƒhƒCƒ“
+            // ã‚¹ã‚³ã‚¢ãƒ†ã‚­ã‚¹ãƒˆã‚’ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¤ãƒ³
             if (isFadeIn)
             {
                 if (scoreText.alpha < 1.0f) scoreText.alpha += Time.deltaTime * fadeSpeed;
@@ -88,11 +109,11 @@ public class title : MonoBehaviour
                 }
                 if (cursorIndex == 1)
                 {
-                    // ƒIƒvƒVƒ‡ƒ“‰æ–Ê‚É‘JˆÚi–¢À‘•j
+                    // ã‚ªãƒ—ã‚·ãƒ§ãƒ³ç”»é¢ã«é·ç§»ï¼ˆæœªå®Ÿè£…ï¼‰
                 }
                 if (cursorIndex == 2)
                 {
-                    UnityEditor.EditorApplication.isPlaying = false; // ƒGƒfƒBƒ^ã‚Å’â~
+                    UnityEditor.EditorApplication.isPlaying = false; // ã‚¨ãƒ‡ã‚£ã‚¿ä¸Šã§åœæ­¢
                     Application.Quit();
                 }
             }
@@ -100,7 +121,7 @@ public class title : MonoBehaviour
         }
     }
 
-    // ƒƒjƒ…[‚ğŠJ‚­
+    // ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã‚’é–‹ã
     void OpenMenu()
     {
         isOpen = true;
@@ -108,17 +129,17 @@ public class title : MonoBehaviour
         titleMenuUI.SetActive(true);
 
         isFadeIn = false;
-        StartCoroutine(FadeWait(waitFade)); // 1•b‘Ò‚Á‚Ä‚©‚çƒtƒF[ƒhƒCƒ“
-        score.anchoredPosition = startPos; // ƒXƒRƒA‚Ì‰ŠúˆÊ’u
+        StartCoroutine(FadeWait(waitFade)); // 1ç§’å¾…ã£ã¦ã‹ã‚‰ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¤ãƒ³
+        score.anchoredPosition = startPos; // ã‚¹ã‚³ã‚¢ã®åˆæœŸä½ç½®
     }
 
-    // ƒJ[ƒ\ƒ‹ˆÚ“®
+    // ã‚«ãƒ¼ã‚½ãƒ«ç§»å‹•
     void MoveCursor(int direction)
     {
         bool isCombo = (Time.time - lastInputTime) < inputComboCnt;
         lastInputTime = Time.time;
 
-        // ƒJ[ƒ\ƒ‹‚ÌˆÊ’u’²ß
+        // ã‚«ãƒ¼ã‚½ãƒ«ã®ä½ç½®èª¿ç¯€
         cursorIndex += direction;
         if(cursorIndex < 0) cursorIndex = cursorPosY.Length - 1;
         if(cursorIndex >= cursorPosY.Length) cursorIndex = 0;
