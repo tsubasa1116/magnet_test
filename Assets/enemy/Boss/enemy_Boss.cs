@@ -412,6 +412,8 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
+    [SerializeField] private GameOverTransition gameOverTransition;
+
     // =========================================
     // 更新処理
     // =========================================
@@ -472,6 +474,17 @@ public class enemy_Boss : MonoBehaviour
                 bossState = BossState.Rush;
             }
 
+            if (Input.GetKeyDown(KeyCode.H))
+            {
+                SceneLoad.LoadDirect("ResultScene", FadeType.White);
+            }
+
+            if (Input.GetKeyDown(KeyCode.J))
+            {
+                gameOverTransition.GoToGameOver();
+            }
+
+           
             if (Input.GetKeyDown(KeyCode.M))
             {
                 ExecuteDetachArm();
