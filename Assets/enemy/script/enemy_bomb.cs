@@ -60,6 +60,8 @@ public class enemy_bomb : MonoBehaviour
     private bool isMagnetized = false; // 磁力の影響(吹っ飛んでいる最中など)を受けているかどうか
     private float timeOffset;          // 個体ごとにフワフワのタイミングをずらすための乱数
 
+    private Animator anim;
+
     public void SetTarget(Transform player)
     {
         targetPlayer = player;
@@ -69,6 +71,7 @@ public class enemy_bomb : MonoBehaviour
         currentHp = maxHp;
         agent = GetComponent<NavMeshAgent>();
         rb = GetComponent<Rigidbody>();
+        anim = GetComponent<Animator>();
 
         // 通常時はNavMeshAgentで移動するため物理演算(Rigidbody)はオフにしておく
         if (rb != null)
@@ -85,6 +88,8 @@ public class enemy_bomb : MonoBehaviour
 
         if (markExclamation != null) markExclamation.SetActive(false);
         if (markQuestion != null) markQuestion.SetActive(false);
+
+        anim.SetBool("Idol", true);
     }
 
     void FixedUpdate()
@@ -133,10 +138,13 @@ public class enemy_bomb : MonoBehaviour
                         // 回転処理
                         Quaternion lookRotation = Quaternion.LookRotation(dirToPlayer.normalized);
                         float spinAngle = (Time.time * spinSpeed) % 360.0f;
-                        transform.rotation = lookRotation * Quaternion.Euler(0, 180, spinAngle);
+                        transform.rotation = lookRotation * Quaternion.Euler(0, 0, spinAngle);
 
                         // 3次元での直線追尾（体当たり）
                         transform.position = Vector3.MoveTowards(transform.position, targetCenterPos, attackSpeed * Time.deltaTime);
+
+                        anim.SetBool("Idol", false);
+                        anim.SetBool("Move", true);
                     }
 
                     // プレイヤーに接近した時の判定
@@ -153,14 +161,22 @@ public class enemy_bomb : MonoBehaviour
                 {
                     searchTimer -= Time.deltaTime;
                     if (searchTimer <= 0) ChangeState(EnemyState.Return);
-                    else if (agent.remainingDistance < 0.5f) WanderAround();
+                    else if (agent.remainingDistance < 0.5f)
+                    {
+                        WanderAround();
+                    }
                 }
                 break;
 
             case EnemyState.Return:
                 if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
-                else if (agent.remainingDistance < 0.5f) ChangeState(EnemyState.Wait);
-                break;
+                else if (agent.remainingDistance < 0.5f)
+                {
+                    ChangeState(EnemyState.Wait);
+                    anim.SetBool("Idol", true);
+                    anim.SetBool("Move", false);
+                }
+                    break;
         }
     }
 
@@ -377,7 +393,7 @@ public class enemy_bomb : MonoBehaviour
     {
         PlayerHealth playerHealth = targetPlayer.GetComponent<PlayerHealth>();
         if (playerHealth != null) playerHealth.TakeDamage(attackDamage);
-
+        anim.SetTrigger("Attack");
         Die();  // 自爆
     }
 

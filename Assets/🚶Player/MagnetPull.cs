@@ -73,7 +73,14 @@ public class MagnetPull : MonoBehaviour
 	// エフェクト等が参照する：引き寄せ中/保持中の対象(無ければnull)
 	public Transform HeldObject => held != null ? held.transform : null;
 
-	void Awake()
+    // エネミー専用の吸着位置微調整用
+    [Header("敵の吸着位置調整")]
+    [Tooltip("X:左右, Y:上下, Z:前後")]
+    [SerializeField] private Vector3 enemyAttachOffset = new Vector3(0.0f, -0.2f, -1.0f);
+    [Tooltip("引き寄せ中の敵の回転速度")]
+    [SerializeField] private float pullRotateSpeed = 4.0f;
+
+    void Awake()
 	{
 		catchState = GetComponent<PlayerCatch>();
 		stateMachine = GetComponent<PlayerStateMachine>();
@@ -224,7 +231,12 @@ public class MagnetPull : MonoBehaviour
     }
 
         held = rb;
-		attached = false;
+
+        // 敵だったら「引き寄せられた」ことを通知
+        enemy enemyScript = rb.GetComponentInParent<enemy>();
+        if (enemyScript != null) enemyScript.OnMagnetGrabbed();
+
+        attached = false;
 		pullVel = Vector3.zero;
 		grabbedPole = stateMachine.CurrentState;
 
@@ -291,12 +303,37 @@ public class MagnetPull : MonoBehaviour
     {
         if (held == null) return;
 
-        Vector3 to = HandPos - held.position;
+        bool isEnemy = held.GetComponentInParent<enemy>() != null;
 
+        // ユーザー様の設計通り、引き寄せ中の目標地点はピュアに手元（HandPos）にする
+        Vector3 targetPos = HandPos;
+
+        // 移動の計算基準を Rigidbody の物理位置ではなく、確実なトランスフォーム位置にする
+        Vector3 currentPos = held.transform.position;
+        Vector3 to = targetPos - currentPos;
+
+        // トランスフォーム基準で距離を測り、くっつき判定
         if (to.magnitude <= attachDistance)
         {
             Attach();
             return;
+        }
+
+        // エネミー引き寄せ中の滑らかな横回転処理
+        if (isEnemy)
+        {
+            Vector3 lookDir = -HandParent.forward;
+            lookDir.y = 0;
+            if (lookDir == Vector3.zero) lookDir = -transform.forward;
+
+            Quaternion targetRot = Quaternion.LookRotation(lookDir, Vector3.up);
+
+            // トランスフォームの回転を直接補間
+            held.transform.rotation = Quaternion.Slerp(
+                held.transform.rotation,
+                targetRot,
+                Time.fixedDeltaTime * pullRotateSpeed
+            );
         }
 
         // 上下のゆらぎ（浮遊感）
@@ -307,27 +344,44 @@ public class MagnetPull : MonoBehaviour
             floatAmplitude *
             distFactor;
 
-        Vector3 target = HandPos + bob;
+        Vector3 target = targetPos + bob;
 
-        Vector3 dir = (target - held.position).normalized;
-
+        // MovePosition を使わず、直接トランスフォームの位置を MoveTowards で近づける！
+        // これにより物理同期の遅延（ゴースト現象）が100%解消され、リアルタイムに吸い寄せられます。
         float speed = maxPullSpeed * Time.fixedDeltaTime;
-
-        held.MovePosition(held.position + dir * speed);
+        held.transform.position = Vector3.MoveTowards(currentPos, target, speed);
     }
 
     private void Attach()
-	{
-		attached = true;
-		held.transform.SetParent(HandParent); // 手に追従
-		held.transform.position = HandPos;
-		if (heldAura != null) heldAura.SetHeld(true);
+    {
+        attached = true;
+        held.transform.SetParent(HandParent); // 手に追従
+
+        bool isEnemy = held.GetComponentInParent<enemy>() != null;
+        if (isEnemy)
+        {
+            // 手にくっついた瞬間のローカル座標を、設定したオフセットに直接固定！
+            // これで重心の計算に惑わされず、ピタッと狙った位置に固定されます。
+            held.transform.localPosition = enemyAttachOffset;
+
+            Quaternion rotationY = Quaternion.Euler(0f, 180f, 0f);
+
+            // 必要であれば、吸い寄せた時に敵の回転をプレイヤーの正面に向ける
+            held.transform.localRotation = rotationY;
+        }
+        else
+        {
+            // 【通常オブジェクトの場合】これまでの挙動通り、手元（原点）にぴったりくっつける
+            held.transform.localPosition = Vector3.zero;
+        }
+
+        if (heldAura != null) heldAura.SetHeld(true);
 
         DestroyEffect();
     }
 
-	// ZRを離した：物理を元に戻して落とす
-	private void Release()
+    // ZRを離した：物理を元に戻して落とす
+    private void Release()
 	{
         DestroyEffect();
 
@@ -336,7 +390,12 @@ public class MagnetPull : MonoBehaviour
 		if (heldAura != null) heldAura.SetHeld(false);
 		held.isKinematic = savedIsKinematic;
 		held.useGravity = savedUseGravity;
-		ClearHeld();
+
+        // 敵だったら「そっと離された」ことを通知
+        enemy enemyScript = held.GetComponentInParent<enemy>();
+        if (enemyScript != null) enemyScript.OnMagnetReleased();
+
+        ClearHeld();
 	}
 
 	// 極切替：自分の向いている方向へぶっ飛ばす
@@ -360,7 +419,12 @@ public class MagnetPull : MonoBehaviour
 		held.isKinematic = false;
 		held.useGravity = true;
 		held.AddForce(dir * repelForce, ForceMode.Impulse);
-		ClearHeld();
+
+        // 敵だったら「吹っ飛ばされた」ことを通知
+        enemy enemyScript = held.GetComponentInParent<enemy>();
+        if (enemyScript != null) enemyScript.OnMagnetRepelled();
+
+        ClearHeld();
 	}
 
 	private void RestoreColliders()
@@ -413,4 +477,5 @@ public class MagnetPull : MonoBehaviour
             currentAttractEffect = null;
         }
     }
+
 }
