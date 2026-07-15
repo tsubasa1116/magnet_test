@@ -1,6 +1,7 @@
-using UnityEngine;
 using System.Collections;
+using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.Android;
 using UnityEngine.UIElements;
 
 public class enemy_Boss : MonoBehaviour
@@ -413,6 +414,7 @@ public class enemy_Boss : MonoBehaviour
     }
 
     [SerializeField] private GameOverTransition gameOverTransition;
+    [SerializeField] private Mission mission;
 
     // =========================================
     // 更新処理
@@ -484,7 +486,27 @@ public class enemy_Boss : MonoBehaviour
                 gameOverTransition.GoToGameOver();
             }
 
-           
+            if (Input.GetKeyDown(KeyCode.G))
+            {
+                mission.SetMission(0);
+            }
+
+            if (Input.GetKeyDown(KeyCode.F))
+            {
+                mission.ClearMission(0);
+            }
+
+            if (Input.GetKeyDown(KeyCode.V))
+            {
+                mission.SetMission(1);
+            }
+
+            if (Input.GetKeyDown(KeyCode.B))
+            {
+                mission.ClearMission(1);
+            }
+
+
             if (Input.GetKeyDown(KeyCode.M))
             {
                 ExecuteDetachArm();

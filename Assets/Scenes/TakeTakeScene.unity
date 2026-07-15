@@ -3679,6 +3679,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 109326355}
     - target: {fileID: 364246862457991203, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
+      propertyPath: mission
+      value: 
+      objectReference: {fileID: 1962319295}
+    - target: {fileID: 364246862457991203, guid: c0bd167a3988c3a4396451ac07f0463a, type: 3}
       propertyPath: sepaArm
       value: 
       objectReference: {fileID: 1801905719}
@@ -5987,6 +5991,10 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2045422956392891019, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7025293726310422737, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
       propertyPath: player
       value: 
@@ -5999,6 +6007,14 @@ PrefabInstance:
       propertyPath: ecgImageSub
       value: 
       objectReference: {fileID: 1655498017}
+    - target: {fileID: 7734012872948403242, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8471575784870053704, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 3415521364079398196, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
@@ -8075,6 +8091,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6b0a51075a4c4e84e9d22aa52e23a34c, type: 3}
+--- !u!114 &1962319295 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1021456532849189814, guid: 078d9aed7559fdd4b8d2c453c7ecfc79, type: 3}
+  m_PrefabInstance: {fileID: 1412041504}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 202d40187de7f204ebfa2f1dd8ac5565, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Mission
 --- !u!224 &1972877600 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 1726301371319407844, guid: eb7fe6fa313d0e2469c9d53645938e78, type: 3}
