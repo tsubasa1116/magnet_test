@@ -40,6 +40,7 @@ public class AnimationStateController : MonoBehaviour
 	private static readonly int JumpHash = Animator.StringToHash("Jump");
 	private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
 	private static readonly int IsAimingHash = Animator.StringToHash("IsAiming");
+	private static readonly int IsHoldingHash = Animator.StringToHash("IsHolding");
 
 	void Start()
 	{
@@ -58,29 +59,30 @@ public class AnimationStateController : MonoBehaviour
 
 	void Update()
 	{
-		// Catch中(ZRホールド)に、体がカメラを向くストレイフ＋catch姿勢にする。
-		// ただし次の2つの場合は体のアニメはそのままにして、
-		// 腕だけ CatchHold レイヤー(アバターマスク)でキャッチ姿勢を出す:
-		//   ・引き寄せ完了(保持中) → 体は通常移動アニメ
-		//   ・空中でのキャッチ     → 体は空中アニメ(catchと交互に切り替わってチラつくのを防ぐ)
+		// Catch中(ZRホールド)は体がカメラを向くストレイフ＋catch姿勢(Aimステート)。
+		// 引き寄せ完了(保持中)の地上は専用の保持移動(Holdステート: CatchRun系ブレンド)。
+		// 空中でのキャッチだけは体を空中アニメのままにして、
+		// 腕だけ CatchHold レイヤー(アバターマスク)でキャッチ姿勢を出す(交互切り替わりのチラつき防止)。
 		bool catching = movement.IsCatching;
 		bool pulling = magnetPull != null && magnetPull.IsPulling;
 		bool holding = magnetPull != null && magnetPull.IsHolding;
 		bool grounded = movement.IsGrounded;
 		bool strafing = catching && !holding && grounded;
-		bool armPose = catching && (holding || !grounded);
+		bool holdingMove = holding && grounded;
+		bool armPose = catching && !grounded;
 		animator.SetBool(IsAimingHash, strafing);
+		animator.SetBool(IsHoldingHash, holdingMove);
 
-		// 腕キャッチレイヤーのウェイトをなめらかに出し入れ
+		// 腕キャッチレイヤー(空中キャッチ時のみ)のウェイトをなめらかに出し入れ
 		// (レイヤー未作成でもエラーにならないようガード)
 		aimWeight = Mathf.MoveTowards(aimWeight, armPose ? 1f : 0f, aimWeightSpeed * Time.deltaTime);
 		if (aimLayerIndex > 0 && aimLayerIndex < animator.layerCount)
 			animator.SetLayerWeight(aimLayerIndex, aimWeight);
 
-		if (strafing)
+		if (strafing || holdingMove)
 		{
 			// 体はカメラを向いている＝入力がそのままローカルのストレイフ方向
-			// 壁で止められている時は入力ゼロ扱い→中央(IdolCatch)になる
+			// 壁で止められている時は入力ゼロ扱い→中央(IdolCatch/CatchMiddle)になる
 			Vector2 mv = movement.IsBlocked ? Vector2.zero : movement.MoveInput;
 			aimX = Mathf.MoveTowards(aimX, mv.x, aimDamping * Time.deltaTime);
 			aimZ = Mathf.MoveTowards(aimZ, mv.y, aimDamping * Time.deltaTime);
@@ -88,7 +90,7 @@ public class AnimationStateController : MonoBehaviour
 			animator.SetFloat(VelocityXHash, aimX);
 			animator.SetFloat(VelocityZHash, aimZ);
 			// 引き寄せ中は足の運びを速める(catch移動ステートの再生速度に反映)
-			animator.SetFloat(MoveSpeedHash, pulling ? pullFootSpeed : 1f);
+			animator.SetFloat(MoveSpeedHash, strafing && pulling ? pullFootSpeed : 1f);
 		}
 		else
 		{

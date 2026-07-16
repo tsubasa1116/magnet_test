@@ -5764,6 +5764,13 @@ MonoBehaviour:
   faceS: {fileID: 2800000, guid: 2c96c7c4b66f6144db998523b76c139a, type: 3}
   faceEmissionN: {fileID: 2800000, guid: 893e0ff9bc5cc7341bdb95a7de61569d, type: 3}
   faceEmissionS: {fileID: 2800000, guid: d8cdb7c67d1fb684c938fd3b741f352d, type: 3}
+  autoExpression: 1
+  faceCatchN: {fileID: 0}
+  faceCatchS: {fileID: 0}
+  faceDamageN: {fileID: 0}
+  faceDamageS: {fileID: 0}
+  faceDownN: {fileID: 0}
+  faceDownS: {fileID: 0}
 --- !u!114 &1008238216
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5887,6 +5894,7 @@ MonoBehaviour:
   lookUpStartY: 0.35
   maxLookUpAngle: 78
   lookUpSpeedScale: 0.55
+  lookUpSpeedScale: 100
   lockOnTags:
   - Enemy
   - N_Pole
@@ -5937,8 +5945,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: '::'
   moveSpeed: 2
   dashSpeed: 5
+  dashInputThreshold: 0.85
   rotationSpeed: 480
   acceleration: 5
+  airAcceleration: 8
   jumpForce: 5
   groundLayer:
     serializedVersion: 2
@@ -9248,6 +9258,7 @@ MonoBehaviour:
   m_Follow: {fileID: 0}
   m_Lens:
     FieldOfView: 30.70625
+    FieldOfView: 26.10031
     OrthographicSize: 10
     NearClipPlane: 0.1
     FarClipPlane: 5000
@@ -9343,6 +9354,7 @@ MonoBehaviour:
   m_Follow: {fileID: 0}
   m_Lens:
     FieldOfView: 30.70625
+    FieldOfView: 26.10031
     OrthographicSize: 10
     NearClipPlane: 0.1
     FarClipPlane: 5000

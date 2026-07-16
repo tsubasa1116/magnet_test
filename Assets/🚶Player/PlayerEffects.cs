@@ -80,17 +80,15 @@ public class PlayerEffects : MonoBehaviour
 
     private void HandleRunEffect()
     {
-        if (currentRunEffect != null)
-            StopRunEffect();
-
+        // 死亡中は即消す
         if (health != null && health.IsDead)
         {
-            if (currentRunEffect != null)
-                StopRunEffect();
+            if (currentRunEffect != null) StopRunEffect();
             return;
         }
 
-        bool running = movement != null && movement.IsRunning;
+        // 地上でダッシュしている時だけ出す(空中では出さない)
+        bool running = movement != null && movement.IsRunning && movement.IsGrounded;
 
         if (running)
         {
@@ -104,7 +102,9 @@ public class PlayerEffects : MonoBehaviour
         else if (currentRunEffect != null)
         {
             runStopTimer += Time.deltaTime;
-            if (runStopTimer >= runStopDelay)
+            // 空中に出たら即消す(走りエフェクトが宙に浮いてついてくるのを防ぐ)
+            bool airborne = movement != null && !movement.IsGrounded;
+            if (airborne || runStopTimer >= runStopDelay)
                 StopRunEffect();
         }
     }

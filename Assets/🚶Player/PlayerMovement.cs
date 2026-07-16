@@ -8,10 +8,14 @@ public class PlayerMovement : MonoBehaviour
 	[Header("移動設定")]
 	[SerializeField] private float moveSpeed = 5f;
 	[SerializeField] private float dashSpeed = 12f;
+	[Tooltip("スティックをこの倒し具合以上でダッシュ、未満で歩き(ダッシュボタンは廃止)")]
+	[SerializeField, Range(0f, 1f)] private float dashInputThreshold = 0.85f;
 	[Tooltip("見た目の向きが進行方向へ追従する速さ(度/秒)。小さいほどゆっくり振り向く。移動方向自体は即時")]
 	[SerializeField] private float rotationSpeed = 480f;
 	[Tooltip("目標速度に達するまでの加速度(/秒)。小さいほどダッシュがじわっと速くなる")]
 	[SerializeField] private float acceleration = 20f;
+	[Tooltip("空中での加速度(m/s²)。小さいほど空中でキー入力が効きにくく、ジャンプ軌道や吹き飛びが保たれる")]
+	[SerializeField] private float airAcceleration = 8f;
 
 	[Header("ジャンプ設定")]
 	[SerializeField] private float jumpForce = 7f;
@@ -33,6 +37,7 @@ public class PlayerMovement : MonoBehaviour
 	private PlayerCatch catchState;
 	private Vector3 targetForward; // 見た目の向きの目標。入力が止んでも保持してそこへ向き続ける
 	private float currentMoveSpeed; // 実際に適用中の移動速度(加速のため保持)
+	private bool jumpConsumed; // ジャンプ連打による2段ジャンプ防止(着地するまでtrue)
 
     private Vector3 externalVelocity;
     private bool isExternalForce;
@@ -100,7 +105,12 @@ public class PlayerMovement : MonoBehaviour
 
 		// 実際のボタンの押下状態をそのまま反映（離せば必ずfalseに戻る）
 		isDashing = dashAction != null && dashAction.IsPressed();
+		// スティックの倒し具合でダッシュ判定(深く倒す=ダッシュ、浅い=歩き)
+		isDashing = moveInput.magnitude >= dashInputThreshold;
 		isGrounded = CheckGrounded();
+
+		// 接地していて上昇中でなければジャンプ権を回復(連打による2段ジャンプ防止)
+		if (isGrounded && rb.linearVelocity.y <= 0.01f) jumpConsumed = false;
 
 		// Move() が velocity を上書きする前に、前ステップで物理解決された実速度を測る。
 		// 入力があるのに実速度が極端に小さい＝壁などで止められている。
@@ -134,7 +144,10 @@ public class PlayerMovement : MonoBehaviour
 	public void OnJump(InputValue value)
 	{
 		if (value.isPressed && isGrounded)
+		// jumpConsumed: 離陸直後は接地判定がまだtrueのため、連打で2段ジャンプになるのを防ぐ
+		if (value.isPressed && isGrounded && !jumpConsumed)
 		{
+			jumpConsumed = true;
 			rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
 			Jumped?.Invoke(); // ジャンプ開始をアニメ側へ通知
 		}
@@ -225,6 +238,32 @@ public class PlayerMovement : MonoBehaviour
                 inputVelocity.x,
                 rb.linearVelocity.y,
                 inputVelocity.z);
+			if (isGrounded)
+			{
+				rb.linearVelocity = new Vector3(
+					moveDir.x * currentMoveSpeed,
+					rb.linearVelocity.y,
+					moveDir.z * currentMoveSpeed
+				);
+			}
+			else
+			{
+				// 空中: 目の前に壁があれば、壁に向かう入力成分を落とす(壁張り付き防止)
+				if (Physics.Raycast(transform.position + Vector3.up * 0.5f, moveDir,
+					out RaycastHit wall, 0.7f, ~0, QueryTriggerInteraction.Ignore)
+					&& !wall.collider.transform.IsChildOf(transform))
+				{
+					moveDir = Vector3.ProjectOnPlane(moveDir, wall.normal);
+					moveDir.y = 0f;
+				}
+
+				// 空中: 速度を直接書き換えず、弱い加速度で寄せる(空中制御を効きにくくする)
+				Vector3 v = rb.linearVelocity;
+				Vector3 horizontal = new Vector3(v.x, 0f, v.z);
+				horizontal = Vector3.MoveTowards(
+					horizontal, moveDir * currentMoveSpeed, airAcceleration * Time.fixedDeltaTime);
+				rb.linearVelocity = new Vector3(horizontal.x, v.y, horizontal.z);
+			}
         }
     }
 
