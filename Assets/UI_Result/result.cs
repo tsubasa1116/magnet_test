@@ -32,6 +32,7 @@ public class result : MonoBehaviour
     [SerializeField] private Image[] destroyDigits; // 左から順に入れる
     [SerializeField] private Image[] timeDigits;    // 時10, 時1, 分10, 分1, 秒10, 秒1 の順に入れる
 
+    private bool isInputOk = false;
 
     private int destroyCnt;
     private int timeSeconds;
@@ -89,9 +90,11 @@ public class result : MonoBehaviour
 
         titleBackBackUI.transform.localScale = new Vector3(scaleValue, scaleValue, 1.0f);
 
+        if (!isInputOk) return;
+
         if (Input.GetKeyDown(KeyCode.Return))
         {
-            SceneManager.LoadScene("TitleScene");
+            SceneLoad.LoadWithLoadingScreen("TitleScene", FadeType.White);
         }
     }
 
@@ -164,6 +167,8 @@ public class result : MonoBehaviour
         titleBackBackUI.SetActive(true);
         StartCoroutine(FadeIn(titleBackUI, 0.8f));
         yield return StartCoroutine(FadeIn(titleBackBackUI, 0.8f));
+
+        isInputOk = true;
     }
 
     // ==================================

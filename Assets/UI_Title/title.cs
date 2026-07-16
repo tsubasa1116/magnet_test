@@ -9,6 +9,7 @@ public class title : MonoBehaviour
     [SerializeField] public GameObject pressUI;
     [SerializeField] public GameObject titleMenuUI;
     [SerializeField] public GameObject titleLogoUI;
+    [SerializeField] public GameObject infoUI;
     [SerializeField] public GameObject optionMenuUI;
     [SerializeField] public GameObject idleCursor;
     [SerializeField] public RectTransform cursorOP;
@@ -69,11 +70,16 @@ public class title : MonoBehaviour
     [SerializeField] private CanvasGroup lightingLayer;
     [SerializeField] private float[] lightingAlpha;
 
+    private bool isInputOk = false;
+
     void Start()
     {
         LoadSettings();
         UpdateAllSlider();
         UpdateLighting();
+
+        InitUI();
+        StartCoroutine(TitleAnimationSequence());
 
         // 前回のスコアを計算
         int rank = GameResultManager.CalculateScoreRank();
@@ -94,10 +100,28 @@ public class title : MonoBehaviour
         }
     }
 
+    private void InitUI()
+    {
+        SetCanvasGroupAlpha(pressUI, 0);
+        pressButton.alpha = 0;
+        SetCanvasGroupAlpha(titleLogoUI, 0);
+        SetCanvasGroupAlpha(infoUI, 0);
+    }
+
+    private void SetCanvasGroupAlpha(GameObject target, float alpha)
+    {
+        CanvasGroup cg = target.GetComponent<CanvasGroup>();
+        if (cg == null) cg = target.AddComponent<CanvasGroup>();
+        cg.alpha = alpha;
+    }
+
     void Update()
     {
-        float t = Mathf.PingPong(Time.time * blinkSpeed, 1.0f);
-        pressButton.alpha = blinkCurve.Evaluate(t);
+        if (isInputOk)
+        {
+            float t = Mathf.PingPong(Time.time * blinkSpeed, 1.0f);
+            pressButton.alpha = blinkCurve.Evaluate(t);
+        }
 
         if (!isOpen && Input.GetKeyDown(KeyCode.Return))
         {
@@ -171,6 +195,38 @@ public class title : MonoBehaviour
         }
     }
 
+    private IEnumerator TitleAnimationSequence()
+    {
+        yield return new WaitForSeconds(1.0f);
+
+        // タイトルロゴをフェードで表示
+        yield return StartCoroutine(FadeIn(titleLogoUI, 2.5f));
+        yield return new WaitForSeconds(0.3f);
+
+        // プレスボタンをフェードで表示
+        StartCoroutine(FadeIn(pressUI, 1.5f));
+        yield return StartCoroutine(FadeIn(infoUI, 1.5f));
+        yield return new WaitForSeconds(1.0f);
+
+        isInputOk = true;
+    }
+
+    private IEnumerator FadeIn(GameObject target, float duration)
+    {
+        CanvasGroup cg = target.GetComponent<CanvasGroup>();
+        if (cg == null) cg = target.AddComponent<CanvasGroup>();
+
+        float elapsed = 0.0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            cg.alpha = Mathf.Clamp01(elapsed / duration);
+            yield return null;
+        }
+        cg.alpha = 1.0f;
+    }
+
+
     void UpdateLighting()
     {
         const int lightingSliderIndex = 2; // 3番目のスライダーが明るさの場合
@@ -195,6 +251,7 @@ public class title : MonoBehaviour
         isOpen = true;
         isOption = false;
         pressUI.SetActive(false);
+        infoUI.SetActive(false);
         titleMenuUI.SetActive(true);
 
         isFadeIn = false;
