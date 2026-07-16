@@ -18,8 +18,8 @@ public class Grapple : MonoBehaviour
     private Rigidbody playerRb;
 
     [Header("立体機動")]
-    [SerializeField] private float pullForce = 50f;      // 引っ張る力
-    [SerializeField] private float reelSpeed = 15f;      // ワイヤー巻き取り速度
+    [SerializeField] private float pullForce = 20f;      // 引っ張る力
+    [SerializeField] private float reelSpeed = 10f;      // ワイヤー巻き取り速度
     [SerializeField] private float stopDistance = 5f;    // 終了距離
 
     private bool isGrappling;
@@ -53,7 +53,7 @@ public class Grapple : MonoBehaviour
 
         // 最初に少しだけ引っ張る
         Vector3 dir = (grapplePoint - playerRb.position).normalized;
-        playerRb.AddForce(dir * pullForce * 0.5f, ForceMode.VelocityChange);
+        playerRb.AddForce(dir * pullForce, ForceMode.Acceleration);
 
         PlayerMovement movement = player.GetComponent<PlayerMovement>();
 
@@ -121,17 +121,17 @@ public class Grapple : MonoBehaviour
 
         float distance = rope.magnitude;
 
-        if (distance <= 0.1f)
-            return;
+        //if (distance <= 0.1f)
+        //    return;
 
         Vector3 dir = rope.normalized;
 
-        // 上方向へ引っ張りすぎない
-        if (dir.y > 0f)
-        {
-            dir.y *= 0.2f;
-            dir.Normalize();
-        }
+        //// 上方向へ引っ張りすぎない
+        //if (dir.y > 0f)
+        //{
+        //    dir.y *= 0.2f;
+        //    dir.Normalize();
+        //}
 
         // ワイヤー巻き取り
         ropeLength -= reelSpeed * Time.fixedDeltaTime;
@@ -143,10 +143,6 @@ public class Grapple : MonoBehaviour
         // ロープ長を超えたら補正
         if (distance > ropeLength)
         {
-            // ロープ長に合わせる
-            playerRb.position =
-                grapplePoint - dir * ropeLength;
-
             // ロープ方向へ離れる速度だけ消す
             Vector3 velocity = playerRb.linearVelocity;
 

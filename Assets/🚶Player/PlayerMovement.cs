@@ -34,6 +34,7 @@ public class PlayerMovement : MonoBehaviour
 	private Vector3 targetForward; // 見た目の向きの目標。入力が止んでも保持してそこへ向き続ける
 	private float currentMoveSpeed; // 実際に適用中の移動速度(加速のため保持)
 
+    private Vector3 externalVelocity;
     private bool isExternalForce;
 
     // --- アニメーション側(AnimationStateController)が参照する状態フラグ ---
@@ -139,75 +140,111 @@ public class PlayerMovement : MonoBehaviour
 		}
 	}
 
-	// --- 移動 ---
+    // --- 移動 ---
 
-	private void Move()
-	{
-		// カメラ基準の移動方向（水平面）
-		Vector3 forward = cameraTransform.forward;
-		Vector3 right = cameraTransform.right;
-		forward.y = 0f;
-		right.y = 0f;
-		forward.Normalize();
-		right.Normalize();
+    private void Move()
+    {
+        // カメラ基準の移動方向（水平面）
+        Vector3 forward = cameraTransform.forward;
+        Vector3 right = cameraTransform.right;
+        forward.y = 0f;
+        right.y = 0f;
+        forward.Normalize();
+        right.Normalize();
 
-		Vector3 moveDir = forward * moveInput.y + right * moveInput.x;
-		if (moveDir.sqrMagnitude > 1f) moveDir.Normalize();
+        Vector3 moveDir = forward * moveInput.y + right * moveInput.x;
+        if (moveDir.sqrMagnitude > 1f)
+            moveDir.Normalize();
 
-		// --- 向きの制御 ---
-		if (IsCatching)
-		{
-			// Catch中は常にカメラの向き(水平)に体を向ける＝ストレイフ
-			if (forward.sqrMagnitude > 0.001f)
-			{
-				targetForward = forward;
-				transform.rotation = Quaternion.LookRotation(forward);
-			}
-		}
-		else
-		{
-			// 入力がある間は目標方向を更新（操作はこの時点で即時に反映される）。
-			// 入力が止んでも targetForward は保持され、見た目は最後の向きへ向き続ける。
-			// → チョン押しして離しても、モデルはちゃんとその方向まで振り向く。
-			if (IsMoving)
-				targetForward = moveDir.normalized;
+        // --- 向きの制御 ---
+        if (IsCatching)
+        {
+            if (forward.sqrMagnitude > 0.001f)
+            {
+                targetForward = forward;
+                transform.rotation = Quaternion.LookRotation(forward);
+            }
+        }
+        else
+        {
+            if (IsMoving)
+                targetForward = moveDir.normalized;
 
-			Quaternion targetRot = Quaternion.LookRotation(targetForward);
-			transform.rotation = Quaternion.RotateTowards(
-				transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
-		}
+            Quaternion targetRot = Quaternion.LookRotation(targetForward);
+            transform.rotation = Quaternion.RotateTowards(
+                transform.rotation,
+                targetRot,
+                rotationSpeed * Time.deltaTime);
+        }
 
-		// --- 速度 ---
-		if (!IsMoving)
-		{
-            //// 入力が無いときは水平速度を止める（滑り防止）
-            //if (!isExternalForce)
-            //{
-            //    rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
-            //}
-            currentMoveSpeed = moveSpeed; // 停止中は基準速度に戻す(再開時に最高速から始まらない)
-			return;
-		}
+        // 入力が無い
+        if (!IsMoving)
+        {
+            currentMoveSpeed = moveSpeed;
 
-		// 目標速度へだんだん加速/減速（ダッシュON/OFFが急にならない）
-		float targetSpeed = isDashing ? dashSpeed : moveSpeed;
-		currentMoveSpeed = Mathf.MoveTowards(currentMoveSpeed, targetSpeed, acceleration * Time.deltaTime);
-      
-		if (!isExternalForce)
+            if (!isExternalForce)
+            {
+                rb.linearVelocity = new Vector3(
+                    0f,
+                    rb.linearVelocity.y,
+                    0f);
+            }
+
+            return;
+        }
+
+        // 加速
+        float targetSpeed = isDashing ? dashSpeed : moveSpeed;
+
+        currentMoveSpeed = Mathf.MoveTowards(
+            currentMoveSpeed,
+            targetSpeed,
+            acceleration * Time.deltaTime);
+
+        Vector3 inputVelocity = moveDir * currentMoveSpeed;
+
+        // ===== 外力中 =====
+        if (isExternalForce)
+        {
+            externalVelocity = Vector3.MoveTowards(
+                externalVelocity,
+                Vector3.zero,
+                20f * Time.deltaTime);
+
+            // 入力で外力を直接変化させる
+            externalVelocity += moveDir * 25f * Time.deltaTime;
+
+            Vector3 finalVelocity = externalVelocity;
+            finalVelocity.y = rb.linearVelocity.y;
+
+            rb.linearVelocity = finalVelocity;
+        }        // ===== 通常移動 =====
+        else
         {
             rb.linearVelocity = new Vector3(
-                moveDir.x * currentMoveSpeed,
+                inputVelocity.x,
                 rb.linearVelocity.y,
-                moveDir.z * currentMoveSpeed
-            );
+                inputVelocity.z);
         }
     }
 
-	private bool CheckGrounded()
+    private bool CheckGrounded()
 	{
 		// 足元に短いRayを飛ばして地面判定
 		return Physics.Raycast(transform.position, Vector3.down, 1.1f, groundLayer);
 	}
+
+    public void SetExternalVelocity(Vector3 velocity)
+    {
+        externalVelocity = velocity;
+
+        rb.linearVelocity = new Vector3(
+            velocity.x,
+            rb.linearVelocity.y,
+            velocity.z);
+
+        StartExternalForce(2.0f);
+    }
 
     public void StartExternalForce(float duration)
     {

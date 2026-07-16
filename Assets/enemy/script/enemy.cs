@@ -407,7 +407,7 @@ public class enemy : MonoBehaviour
     {
         if (anim != null)
         {
-            anim.SetTrigger("beam");
+            anim.SetTrigger("Laser");
             //anim.Play("Attack_v1", 0, animStartPer);
         }
 
