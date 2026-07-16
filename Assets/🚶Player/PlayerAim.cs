@@ -13,6 +13,12 @@ public class PlayerAim : MonoBehaviour
 	[Header("対象カメラ(通常時のFreeLookを割り当てる)")]
 	[SerializeField] private CinemachineFreeLook freeLook;
 
+	[Header("カメラ基準値(プレイ中の一時値がシーンに保存されて劣化するのを防ぐため、起動時に強制適用)")]
+	[Tooltip("通常時のFOV")]
+	[SerializeField] private float baseFOV = 50f;
+	[Tooltip("カメラ上下(Y軸)の基準速度。上下の視点移動が遅い時はここを上げる")]
+	[SerializeField] private float baseYAxisSpeed = 2.5f;
+
 	[Header("エイム設定")]
 	[SerializeField] private float aimFOV = 28f;           // エイム時のFOV(小さいほどアップ)
 	[SerializeField] private float aimRadiusScale = 0.6f;  // エイム時の距離倍率(小さいほど接近)
@@ -26,7 +32,7 @@ public class PlayerAim : MonoBehaviour
 	[Tooltip("カメラを一番下まで下げた時の仰角(度)。FreeLookの構造上90ちょうどは不可、80前後が実用上限")]
 	[SerializeField] private float maxLookUpAngle = 78f;
 	[Tooltip("見上げゾーンでの上下視点速度の倍率(1=通常と同じ、小さいほどゆっくり上を向く)")]
-	[SerializeField] private float lookUpSpeedScale = 0.55f;
+	[SerializeField] private float lookUpSpeedScale = 0.85f;
 
 	[Header("ロックオン設定(R3押し込み)")]
 	[Tooltip("ロックオン対象のタグ(吸い寄せオブジェクトと敵)")]
@@ -99,9 +105,12 @@ public class PlayerAim : MonoBehaviour
 
 	void Start()
 	{
-		// 通常時の見た目を控えておく
-		normalFOV = freeLook.m_Lens.FieldOfView;
-		normalYMaxSpeed = freeLook.m_YAxis.m_MaxSpeed;
+		// シーンに保存された値は「プレイ中の一時値」で汚染されていることがあるため、
+		// FOVとY軸速度はInspectorの基準値を正として毎回強制適用する(汚染の自動修復)
+		normalFOV = baseFOV;
+		freeLook.m_Lens.FieldOfView = baseFOV;
+		normalYMaxSpeed = baseYAxisSpeed;
+		freeLook.m_YAxis.m_MaxSpeed = baseYAxisSpeed;
 		for (int i = 0; i < 3; i++)
 		{
 			normalRadii[i] = freeLook.m_Orbits[i].m_Radius;
