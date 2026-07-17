@@ -3,64 +3,70 @@ using UnityEngine;
 using UnityEngine.AI;
 
 [RequireComponent(typeof(NavMeshAgent))]
-[RequireComponent(typeof(Rigidbody))] // 物理演算で吹き飛ばすために必要
+[RequireComponent(typeof(Rigidbody))]
 public class enemy : MonoBehaviour
 {
-    private enum EnemyState
+    public enum EnemyState
     {
-        Wait,   // 待機（初期位置にいる）
-        Notice, // 発見（立ち止まって警戒している）
-        Chase,  // 追跡（プレイヤーを追いかけている）
+        Wait,   // 待機
+        Notice, // 発見
+        Chase,  // 追跡
         Attack, // 攻撃
-        Search, // 索敵（周囲をうろうろ探している）
-        Return  // 帰還（元の初期位置に戻っている）
+        Search, // 索敵
+        Return, // 帰還
+        MagnetPulled, // 磁力で引き寄せられ・保持されている状態
+        MagnetThrown,  // 磁力で発射・落下している状態
+        Hit           // 壁などに激突してダウンしている状態
     }
 
     [Header("基本パラメータ")]
     [SerializeField] private float maxHp = 100.0f;
     [SerializeField] private float found = 7.5f;
     [SerializeField] private float attackRange = 2.0f;
-    [SerializeField] private float searchTime = 3.0f;   // 索敵している時間
-    [SerializeField] private float searchRadius = 5.0f; // 索敵範囲
+    [SerializeField] private float searchTime = 3.0f;
+    [SerializeField] private float searchRadius = 5.0f;
     [SerializeField] private float noticeTime = 1.0f;
-    [SerializeField] private float lookBackSpeed = 8.0f; // プレイヤー注視の振り返る速度
-
-    [Header("磁力パラメータ")] // 磁力の影響力の設定
-    [SerializeField] private float magnetRadius = 8.0f;  // 磁力を感知する距離
-    [SerializeField] private float magnetForce = 50.0f;  // 磁力の強さ
+    [SerializeField] private float lookBackSpeed = 8.0f;
 
     [Header("参照")]
     [SerializeField] private Transform targetPlayer;
-    [SerializeField] private GameObject markExclamation; // ！マーク
-    [SerializeField] private GameObject markQuestion;    // ？マーク
+    [SerializeField] private GameObject markExclamation;
+    [SerializeField] private GameObject markQuestion;
 
     [Header("攻撃")]
     [SerializeField] private Animator anim;
     [SerializeField] private float attackInterval = 2.0f;
     [SerializeField] private int attackDamage = 10;
-    [SerializeField] private float attackTimer;
+    private float attackTimer;
 
     [Header("エフェクト")]
     [SerializeField] private GameObject enemyHitEffect;
     [SerializeField] private GameObject enemyDeathEffect;
 
+    [Header("激突ヒット")]
+    [Tooltip("壁や地面に激突したとみなす最小の衝撃（速度）。これより速いスピードでぶつかったらヒットになる")]
+    [SerializeField] private float hitImpactThreshold = 5.0f;
+    [Tooltip("激突してから起き上がってAI（追跡）に復帰するまでの時間（秒）")]
+    [SerializeField] private float hitDuration = 1.5f;
+    private float hitTimer;
+
     private float currentHp;
     private NavMeshAgent agent;
-    private Rigidbody rb; // 物理演算用
-
+    private Rigidbody rb;
     private Vector3 startPosition;
 
     private EnemyState currentState = EnemyState.Wait;
-    private float searchTimer; // 索敵の残り時間をカウントするタイマー
+    private float searchTimer;
     private float noticeTimer;
+    private bool isAttack = false;
 
-    private bool isMagnetized = false; // 磁力で制御されているかどうかを判定
-    private bool isAttack = false; // 攻撃アニメーション中かどうか
+    // 吹っ飛ばされた直後に即着地判定されるのを防ぐタイマー
+    private float recoveryCooldown = 0f;
 
-    public void SetTarget(Transform player)
-    {
-        targetPlayer = player;
-    }
+    private bool IsAgentActiveAndOnNavMesh => agent != null && agent.enabled && agent.isOnNavMesh;
+
+    public void SetTarget(Transform player) => targetPlayer = player;
+
     void Start()
     {
         currentHp = maxHp;
@@ -68,9 +74,7 @@ public class enemy : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();
 
-        // 初期はNavMeshAgentで移動するため物理(Rigidbody)はオフにしておく
         if (rb != null) rb.isKinematic = true;
-
         startPosition = transform.position;
 
         if (markExclamation != null) markExclamation.SetActive(false);
@@ -101,9 +105,18 @@ public class enemy : MonoBehaviour
         }
     }
 
-    void FixedUpdate() // 物理演算に関する処理はFixedUpdateで行う
+    void FixedUpdate()
     {
-        MagneticInteraction();
+        // 吹っ飛び・落下中の時だけ着地判定を行う
+        if (currentState == EnemyState.MagnetThrown)
+        {
+            HandleMagneticRecovery();
+        }
+        // 激突ダウン中（壁からポトッと落ちて、床で起き上がるまで）の処理
+        else if (currentState == EnemyState.Hit)
+        {
+            HandleHitRecovery();
+        }
     }
 
     void Update()
@@ -115,272 +128,203 @@ public class enemy : MonoBehaviour
 
         if (attackTimer > 0f) attackTimer -= Time.deltaTime;
 
-        // 磁力で飛ばされている間はAIの思考（追跡など）をストップさせる
-        if (isMagnetized) return;
+        // 磁力で操作されている間、または【激突ダウン中】はAI処理を完全にストップ
+        if (currentState == EnemyState.MagnetPulled ||
+            currentState == EnemyState.MagnetThrown ||
+            currentState == EnemyState.Hit) return;
+
+        if (!IsAgentActiveAndOnNavMesh) return;
+        if (targetPlayer == null) return;
 
         float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
 
-        // 現在の状態によって行うことを変える
         switch (currentState)
         {
-            // 待機
             case EnemyState.Wait:
                 if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
                 break;
-            // 発見
             case EnemyState.Notice:
                 noticeTimer -= Time.deltaTime;
                 if (noticeTimer <= 0) ChangeState(EnemyState.Chase);
                 break;
-            // 追跡
             case EnemyState.Chase:
                 if (distanceToPlayer <= attackRange) ChangeState(EnemyState.Attack);
                 else if (distanceToPlayer > found + 5.0f) ChangeState(EnemyState.Search);
                 else agent.SetDestination(targetPlayer.position);
                 break;
-            // 攻撃
             case EnemyState.Attack:
-                // 攻撃範囲から出たら追跡に戻る
-                if (distanceToPlayer > attackRange && !isAttack)
-                {
-                    ChangeState(EnemyState.Chase);
-                }
+                if (distanceToPlayer > attackRange && !isAttack) ChangeState(EnemyState.Chase);
                 else
                 {
                     agent.isStopped = true;
                     anim.SetBool("run", false);
-                    // 常にプレイヤーの方向を向くようにする
                     Vector3 directionToPlayer = targetPlayer.position - transform.position;
-                    directionToPlayer.y = 0; // Y軸無視
-
+                    directionToPlayer.y = 0;
                     if (directionToPlayer != Vector3.zero)
                     {
-                        Quaternion targetRotation = Quaternion.LookRotation(directionToPlayer);
-                        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * lookBackSpeed);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(directionToPlayer), Time.deltaTime * lookBackSpeed);
                     }
-
                     Attack();
                 }
                 break;
-            // 索敵
             case EnemyState.Search:
                 if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
                 else
                 {
                     searchTimer -= Time.deltaTime;
                     if (searchTimer <= 0) ChangeState(EnemyState.Return);
-                    else if (agent.remainingDistance < 0.5f) WanderAround();
+                    else if (IsAgentActiveAndOnNavMesh && agent.remainingDistance < 0.5f) WanderAround();
                 }
                 break;
-            // 帰還
             case EnemyState.Return:
                 if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
-                else if (agent.remainingDistance < 0.5f) ChangeState(EnemyState.Wait);
+                else if (IsAgentActiveAndOnNavMesh && agent.remainingDistance < 0.5f) ChangeState(EnemyState.Wait);
                 break;
         }
     }
 
-    // 磁力の影響を受け、引き合ったり反発したりする処理
-    private void MagneticInteraction()
+    // ==========================================
+    // 磁力システムからの通知受け取り口
+    // ==========================================
+
+    public void OnMagnetGrabbed()
     {
-        // 自身のタグを確認
-        bool isMyN = gameObject.CompareTag("N_Pole");
-        bool isMyS = gameObject.CompareTag("S_Pole");
+        if (agent.enabled) agent.enabled = false;
+        ChangeState(EnemyState.MagnetPulled);
 
-        if (!isMyN && !isMyS) return; // 磁力に対応していなければ処理しない
+        // 吸収中のループアニメーションをON
+        if (anim != null) anim.SetBool("isPulled", true);
+    }
 
-        Collider[] colliders = Physics.OverlapSphere(transform.position, magnetRadius);
-        bool feelingMagnet = false;
-        Vector3 totalForce = Vector3.zero;
+    public void OnMagnetReleased()
+    {
+        ChangeState(EnemyState.MagnetThrown);
+        recoveryCooldown = 0.2f; // そっと離した場合はすぐ着地判定してOK
 
-        // 引っ付いている対象を記録
-        Transform attachedTarget = null;
-        float minDistance = float.MaxValue;
+        // アニメーションフラグをリセット
+        if (anim != null) anim.SetBool("isPulled", false);
+    }
 
-        foreach (Collider col in colliders)
+    public void OnMagnetRepelled()
+    {
+        ChangeState(EnemyState.MagnetThrown);
+        recoveryCooldown = 0.5f; // 吹っ飛んだ直後に着地させないよう0.5秒の猶予
+
+        if (anim != null)
         {
-            if (col.gameObject == gameObject) continue; // 自身は除外
-
-            // 相手が enemy (敵) なら引き合わない（反発のみにしたい場合など）
-            if (col.GetComponent<enemy>() != null) continue;
-
-            bool isOtherN = col.CompareTag("N_Pole");
-            bool isOtherS = col.CompareTag("S_Pole");
-
-            if (isOtherN || isOtherS)
-            {
-                // 自分から相手へのベクトルと距離
-                Vector3 dirToOther = col.transform.position - transform.position;
-                float distance = dirToOther.magnitude;
-
-                // 近すぎる場合は0による除算などを防止
-                float safeDistance = distance < 0.5f ? 0.5f : distance;
-
-                // 距離が近いほど強く、遠いほど弱くなるようにする
-                float force = magnetForce * (1.0f + (magnetRadius - safeDistance) / magnetRadius);
-
-                // 違う極（引き合う）
-                if ((isMyN && isOtherS) || (isMyS && isOtherN))
-                {
-                    feelingMagnet = true;
-
-                    // 一定の距離に近づけば「まとわりつく」状態にするための判定
-                    if (distance < 2.0f)
-                    {
-                        if (distance < minDistance)
-                        {
-                            minDistance = distance;
-                            attachedTarget = col.transform;
-                        }
-                    }
-                    else
-                    {
-                        // まだ遠い場合は通常通り引き合う（ターゲットの方向に力が加わる）
-                        totalForce += dirToOther.normalized * force;
-                    }
-                }
-                // 同じ極（反発する）
-                else if ((isMyN && isOtherN) || (isMyS && isOtherS))
-                {
-                    // ターゲットへの反対方向へ力のみ加える
-                    totalForce -= dirToOther.normalized * force;
-                    feelingMagnet = true;
-                }
-            }
-        }
-
-        // 磁力を受けている際の切り替え (NavMeshAgentからRigidbodyへの切り替え)
-        if (feelingMagnet)
-        {
-            if (agent.enabled)
-            {
-                agent.enabled = false;   // 移動AIを一時停止
-                rb.isKinematic = false;  // 物理演算をオン
-                isMagnetized = true;
-
-                // 吹っ飛んだりしすぎないために、空気抵抗を一時的に上げる
-                rb.linearDamping = 0.5f;
-            }
-
-            // 引っ付く処理
-            if (attachedTarget != null)
-            {
-                // 磁力の親などに影響を与えすぎないように質量(mass)を一時的に極小にして抵抗力をなくす
-                rb.mass = 0.01f;
-
-                // 相手の中心にむかって強制的に力で引っ張り続ける
-                Vector3 stickDir = attachedTarget.position - transform.position;
-
-                // すり抜けなどを防ぐため、速度を制限しつつ強制移動
-                rb.linearVelocity = stickDir.normalized * 5f;
-
-                // 強引に引っ張る(壁などを無視して突き抜けないようにAddForceを使う)
-                rb.AddForce(stickDir.normalized * (magnetForce * 5f), ForceMode.Acceleration);
-            }
-            else
-            {
-                // 特に張り付いていない場合は質量を元に戻す
-                rb.mass = 1.0f;
-
-                if (totalForce.magnitude > 0.1f)
-                {
-                    // ForceMode.VelocityChange (質量無視で即座に加算) を使ってグワッと引き寄せる
-                    rb.AddForce(totalForce * Time.fixedDeltaTime, ForceMode.VelocityChange);
-                }
-            }
-        }
-        else if (isMagnetized)
-        {
-            // 磁力の影響範囲から外れ、かつ速度が落ち着いたらAI(NavMesh)に戻る
-            if (rb.linearVelocity.magnitude < 0.5f)
-            {
-                rb.mass = 1.0f; // 質量を元に戻す
-                rb.isKinematic = true;
-                isMagnetized = false;
-
-                // NavMesh(移動床)の上にちゃんと着地できているか確認してから戻す
-                NavMeshHit hit;
-                if (NavMesh.SamplePosition(transform.position, out hit, 2.0f, NavMesh.AllAreas))
-                {
-                    transform.position = hit.position;
-                    agent.enabled = true;
-                }
-            }
+            anim.SetBool("isPulled", false);
+            anim.SetBool("isThrown", true);
         }
     }
 
-    // ステートの切り替え処理
+    private void HandleMagneticRecovery()
+    {
+        if (recoveryCooldown > 0f)
+        {
+            recoveryCooldown -= Time.fixedDeltaTime;
+            return;
+        }
+
+        // 速度が落ちて静止に近づいたら復帰（※激突しなかった場合の通常着地用）
+        if (rb.linearVelocity.magnitude < 0.5f)
+        {
+            RecoverToNavMesh();
+        }
+    }
+
+    // ★修正：激突ダウン中の処理
+    private void HandleHitRecovery()
+    {
+        hitTimer -= Time.fixedDeltaTime;
+
+        // 壁からずり落ちて床に着き、速度がほぼ静止（0.3未満）した、またはタイマーが切れたら復帰
+        // （激突した瞬間の静止バグを避けるため、激突から0.1秒以上経っていることも条件にします）
+        bool isStoppedOnGround = rb.linearVelocity.magnitude < 0.3f && hitTimer < (hitDuration - 0.1f);
+
+        if (isStoppedOnGround || hitTimer <= 0f)
+        {
+            // ここで初めて足元の床（NavMesh）にカチッとスナップさせて起き上がらせる！
+            RecoverToNavMesh();
+        }
+    }
+
+    // NavMeshに復帰する共通処理（最終的な位置の微調整と起き上がり）
+    private void RecoverToNavMesh()
+    {
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(transform.position, out hit, 5.0f, NavMesh.AllAreas))
+        {
+            rb.isKinematic = true;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            transform.position = hit.position;
+            agent.enabled = true;
+
+            // アニメーションフラグをすべてクリーンにリセット
+            if (anim != null)
+            {
+                anim.SetBool("isThrown", false);
+                anim.SetBool("isHit", false);
+            }
+
+            // 着地したら即座にプレイヤー追跡に戻る
+            ChangeState(EnemyState.Chase);
+        }
+    }
+
+    // ==========================================
+
     private void ChangeState(EnemyState nextState)
     {
         currentState = nextState;
-        if (!agent.enabled) return; // 物理で飛んでいる時はエラー防止
+
+        // 磁力制御中、および【激突ダウン中】はAIや既存のアニメーションを操作しない
+        if (currentState == EnemyState.MagnetPulled ||
+            currentState == EnemyState.MagnetThrown ||
+            currentState == EnemyState.Hit) return;
+
+        if (!IsAgentActiveAndOnNavMesh) return;
 
         agent.isStopped = false;
 
         if (nextState == EnemyState.Wait)
-        {// 待機
+        {
             agent.isStopped = true;
-            if (anim != null)
-            {
-                anim.SetBool("walk", false);
-                anim.SetBool("run",  false);
-                anim.SetBool("idol",  true);
-            }
-            
+            if (anim != null) { anim.SetBool("walk", false); anim.SetBool("run", false); anim.SetBool("idol", true); }
         }
         else if (nextState == EnemyState.Notice)
-        {// 発見
+        {
             agent.isStopped = true;
             noticeTimer = noticeTime;
             if (markExclamation != null) markExclamation.SetActive(true);
             StartCoroutine(HideMark(markExclamation, noticeTime));
-            if (anim != null)
-            {
-                anim.SetBool("walk", false);
-                anim.SetBool("run",  false);
-                anim.SetBool("idol", false);
-            }
+            if (anim != null) { anim.SetBool("walk", false); anim.SetBool("run", false); anim.SetBool("idol", false); }
         }
         else if (nextState == EnemyState.Chase)
-        {// 追跡
+        {
             agent.isStopped = false;
-            if (anim != null)
-            {
-                anim.SetBool("idol", false);
-                anim.SetBool("walk", false);
-                anim.SetBool("run",   true);
-            }
+            if (anim != null) { anim.SetBool("idol", false); anim.SetBool("walk", false); anim.SetBool("run", true); }
         }
         else if (nextState == EnemyState.Search)
-        {// 索敵
-            if (anim != null)
-            {
-                anim.SetBool("run",  false);
-                anim.SetBool("idle", false);
-                anim.SetBool("walk",  true);
-            }
+        {
+            if (anim != null) { anim.SetBool("run", false); anim.SetBool("idle", false); anim.SetBool("walk", true); }
             if (markQuestion != null) markQuestion.SetActive(true);
             StartCoroutine(HideMark(markQuestion, 1.5f));
             searchTimer = searchTime;
             WanderAround();
         }
         else if (nextState == EnemyState.Return)
-        {// 帰還
-            if (anim != null)
-            {
-                anim.SetBool("walk", false);
-                anim.SetBool("run", true);
-            }
+        {
+            if (anim != null) { anim.SetBool("walk", false); anim.SetBool("run", true); }
             agent.SetDestination(startPosition);
         }
     }
 
     private void WanderAround()
     {
-        if (!agent.enabled) return;
+        if (!IsAgentActiveAndOnNavMesh) return;
         Vector3 randomPos = transform.position + Random.insideUnitSphere * searchRadius;
-        NavMeshHit hit;
-        if (NavMesh.SamplePosition(randomPos, out hit, searchRadius, 1))
+        if (NavMesh.SamplePosition(randomPos, out NavMeshHit hit, searchRadius, 1))
         {
             agent.SetDestination(hit.position);
         }
@@ -394,38 +338,22 @@ public class enemy : MonoBehaviour
 
     private void Attack()
     {
-        if (attackTimer <= 0f)
-        {
-            AttackEnemy();
-            attackTimer = attackInterval;
-        }
+        if (attackTimer <= 0f) { AttackEnemy(); attackTimer = attackInterval; }
     }
 
-    //[SerializeField, Range(0.0f, 1.0f)] private float animStartPer = 0.2f;
     [SerializeField, Range(0.0f, 1.0f)] private float damageDelay = 0.3f;
     private void AttackEnemy()
     {
-        if (anim != null)
-        {
-            anim.SetTrigger("Laser");
-            //anim.Play("Attack_v1", 0, animStartPer);
-        }
-
+        if (anim != null) anim.SetTrigger("beam");
         StartCoroutine(DelayDamageCoroutine());
         StartCoroutine(WaitAttackAnimation());
     }
 
     private IEnumerator DelayDamageCoroutine()
     {
-        // 指定した秒数だけ、処理を一時停止する
         yield return new WaitForSeconds(damageDelay);
-
-        // 待っている間に敵が倒されたり、プレイヤーが消えたりしていないかチェック
         if (targetPlayer == null || currentState != EnemyState.Attack) yield break;
-
-        // パンチが振り下ろされた瞬間にまだ射程内にいるか再確認する
-        float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
-        if (distanceToPlayer <= attackRange + 0.5f) // 少しだけ判定に猶予を持たせる
+        if (Vector3.Distance(transform.position, targetPlayer.position) <= attackRange + 0.5f)
         {
             PlayerHealth playerHealth = targetPlayer.GetComponent<PlayerHealth>();
             if (playerHealth != null) playerHealth.TakeDamage(attackDamage, transform.position);
@@ -435,7 +363,6 @@ public class enemy : MonoBehaviour
     private IEnumerator WaitAttackAnimation()
     {
         isAttack = true;
-
         yield return anim.WaitForCurrentAnimationEnd();
         isAttack = false;
     }
@@ -443,8 +370,6 @@ public class enemy : MonoBehaviour
     public void TakeDamage(float damageAmount)
     {
         currentHp -= damageAmount;
-
-        // ダメージを受けたときのエフェクトを再生
         if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
 
         if (currentHp <= 0)
@@ -454,17 +379,71 @@ public class enemy : MonoBehaviour
         }
     }
 
+    // ★修正：衝突判定（地面での激突ダメージを完全シャットアウト！）
     private void OnCollisionEnter(Collision collision)
     {
+        // ① 投げられたオブジェクト（ThrowableObject）が当たった時の既存処理
         ThrowableObject throwable = collision.gameObject.GetComponent<ThrowableObject>();
-
         if (throwable != null && throwable.IsThrown)
         {
             TakeDamage(throwable.Damage);
-
-            // 一度だけダメージを与える
             throwable.ResetThrown();
+            return;
         }
+
+        // ② 自身が「ぶっ飛んでいる最中（MagnetThrown）」に何かに激突した時の判定
+        if (currentState == EnemyState.MagnetThrown)
+        {
+            if (collision.gameObject.CompareTag("Player")) return;
+
+            float impactForce = collision.relativeVelocity.magnitude;
+
+            // ぶつかった面の角度（法線）を取得
+            // normal.y が 0.7 より大きい（＝上を向いている）場合は、なだらかな地面・床とみなす
+            Vector3 normal = collision.contacts[0].normal;
+            bool isFloor = normal.y > 0.7f;
+
+            if (isFloor)
+            {
+                // 【地面に着地した場合】
+                // ダメージは受けず、ワープもせず、安全にその場にスッと着地復帰させる
+                RecoverToNavMesh();
+            }
+            else
+            {
+                // 【壁や障害物（横の壁、柱、傾斜の急な崖など）にぶつかった場合】
+                // 一定以上のスピードであれば、ダメージ付きの壁激突を発生させる
+                if (impactForce >= hitImpactThreshold)
+                {
+                    TriggerHitCollision(impactForce);
+                }
+            }
+        }
+    }
+
+    // ★修正：壁激突時の処理（瞬間移動を無くし、ポトッと物理落下させる）
+    private void TriggerHitCollision(float force)
+    {
+        ChangeState(EnemyState.Hit);
+        hitTimer = hitDuration;
+
+        // 1. 変な大跳ね返りをストップ
+        // 物理(isKinematic = false)は有効にしたまま、勢いだけをカットして、力なくポトッと下に落ちるようにする
+        rb.isKinematic = false;
+        rb.linearVelocity = Vector3.down * 0.5f; // 壁から少し剥がすようにわずかな下向き速度を与える
+        rb.angularVelocity = Vector3.zero;
+
+        // 2. アニメーション再生（痛がる・やられモーション）
+        if (anim != null)
+        {
+            anim.SetBool("isThrown", false);
+            anim.SetBool("isHit", true);
+        }
+
+        // 3. 激突ダメージを与える（★お好みで一律10ダメージなら TakeDamage(10f); に書き換えてください）
+        TakeDamage(maxHp / 3);
+
+        Debug.Log($"{gameObject.name} が壁に激突！ダメージを与えてポトッと床へ自由落下させます。");
     }
 
     private void Die()

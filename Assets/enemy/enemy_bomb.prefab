@@ -106,6 +106,7 @@ GameObject:
   - component: {fileID: 3745872265761723093}
   - component: {fileID: 7077256299754512433}
   - component: {fileID: -2553825910154564083}
+  - component: {fileID: 4020682211335641645}
   m_Layer: 0
   m_Name: enemy_bomb
   m_TagString: Enemy
@@ -291,8 +292,6 @@ MonoBehaviour:
   markQuestion: {fileID: 4390579172012812260}
   explosionEffect: {fileID: 5246989491415050078, guid: d715f68e2b7872f4794c03e35f1a522b, type: 3}
   enemyHitEffect: {fileID: 1395294932367503536, guid: 0018faa59c074154f98dfa1ad3b5f312, type: 3}
-  audioSource: {fileID: -2553825910154564083}
-  explosionSE: {fileID: 0}
 --- !u!82 &-2553825910154564083
 AudioSource:
   m_ObjectHideFlags: 0
@@ -390,6 +389,28 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!95 &4020682211335641645
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1915632301364340301}
+  m_Enabled: 1
+  m_Avatar: {fileID: 9000000, guid: b1646057dcd66174d8e9199bea61c008, type: 3}
+  m_Controller: {fileID: 9100000, guid: 445001726490d1641b523e2207807f78, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &4390579172012812260
 GameObject:
   m_ObjectHideFlags: 0

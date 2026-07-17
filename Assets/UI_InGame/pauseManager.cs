@@ -92,7 +92,12 @@ public class pauseManager : MonoBehaviour
     private bool isPause = false;
     private bool isOpen = false;
 
-    void Start(){ UpdateLighting();}
+    void Start()
+    {
+        LoadSettings();
+        UpdateAllSlider();
+        UpdateLighting();
+    }
 
 
     void Update()
@@ -474,6 +479,9 @@ public class pauseManager : MonoBehaviour
             {
                 UpdateFollow(currentSlider.sliderIndex);
             }
+
+            SaveSettings();
+
             return;
         }
 
@@ -488,6 +496,8 @@ public class pauseManager : MonoBehaviour
         currentSlider.handle.anchoredPosition = pos;
 
         if (cursorIndex == 2) UpdateLighting();
+
+        SaveSettings();
     }
 
     // すべてのスライダーの見た目を現在のインデックス位置に合わせる関数
@@ -572,6 +582,23 @@ public class pauseManager : MonoBehaviour
 
         
 
+    }
+
+    void SaveSettings()
+    {
+        for (int i = 0; i < sliderSetting.Length; i++)
+        {
+            PlayerPrefs.SetInt("ConfigSlider_" + i, sliderSetting[i].sliderIndex);
+        }
+        PlayerPrefs.Save();
+    }
+
+    void LoadSettings()
+    {
+        for (int i = 0; i < sliderSetting.Length; i++)
+        {
+            sliderSetting[i].sliderIndex = PlayerPrefs.GetInt("ConfigSlider_" + i, 0);
+        }
     }
 
 }

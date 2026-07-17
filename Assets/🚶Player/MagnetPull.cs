@@ -1,9 +1,9 @@
 using UnityEngine;
 
 // Catch中(ZRホールド)に、画面中央のRayで「逆極」の対象に作用する。対象の種類で分岐:
-//   ・Grapple 点      → 立体機動(ワイヤーで飛びつく)
-//   ・RopewayMagnet    → ロープウェイに吸着して運ばれる
-//   ・それ以外(物体)  → 手元(handPoint)へ引き寄せる
+//    ・Grapple 点      → 立体機動(ワイヤーで飛びつく)
+//    ・RopewayMagnet    → ロープウェイに吸着して運ばれる
+//    ・それ以外(物体)  → 手元(handPoint)へ引き寄せる
 // 逆極の対応: プレイヤー S極 → "N_Pole" / N極 → "S_Pole"
 // ・ZRを離す(Catch終了)で全て解除。物体は保持中に極を切り替えると反発でぶっ飛ばす。
 [RequireComponent(typeof(PlayerCatch))]
@@ -22,17 +22,17 @@ public class MagnetPull : MonoBehaviour
 	[SerializeField] private float rayRange = 30.0f;
 	[SerializeField] private LayerMask rayMask = ~0;
 
-	[Header("引き寄せ(磁石っぽい浮遊感)")]
-	[Tooltip("小さいほど機敏に吸い寄せ、大きいほどゆっくり漂って近づく")]
-	[SerializeField] private float pullSmoothTime = 0.25f;
-	[SerializeField] private float maxPullSpeed = 40f;
-	[SerializeField] private float attachDistance = 0.3f;
-	[Tooltip("引き寄せ中の上下のゆらぎ(浮遊感)。近づくほど弱まる")]
-	[SerializeField] private float floatAmplitude = 0.15f;
-	[SerializeField] private float floatFrequency = 6f;
+    [Header("引き寄せ(磁石っぽい浮遊感)")]
+    [Tooltip("小さいほど機敏に吸い寄せ、大きいほどゆっくり漂って近づく")]
+    [SerializeField] private float pullSmoothTime = 0.25f;
+    [SerializeField] private float maxPullSpeed = 40f;
+    [SerializeField] private float attachDistance = 0.3f;
+    [Tooltip("引き寄せ中の上下のゆらぎ(浮遊感)。近づくほど弱まる")]
+    [SerializeField] private float floatAmplitude = 0.15f;
+    [SerializeField] private float floatFrequency = 6f;
 
-	[Header("反発(極切替でぶっ飛ばす)")]
-	[SerializeField] private float repelForce = 30f;
+    [Header("反発(極切替でぶっ飛ばす)")]
+    [SerializeField] private float repelForce = 30f;
 
 	private PlayerCatch catchState;
 	private PlayerStateMachine stateMachine;
@@ -55,14 +55,14 @@ public class MagnetPull : MonoBehaviour
     private LineRenderer currentLine;
 
     private Rigidbody held;
-	private Vector3 pullVel;           // SmoothDamp用の速度
-	private Collider[] heldColliders;  // 保持中に無効化するコライダー
-	private bool attached;
-	private MagnetState grabbedPole;
-	private bool savedUseGravity;
-	private bool savedIsKinematic;
-	private AuraRing heldAura;   // 掴んだ物のオーラ(持った通知用)
-	private Bomb heldBomb;       // 掴んだ物が爆弾なら投擲フラグ用
+    private Vector3 pullVel;           // SmoothDamp用の速度
+    private Collider[] heldColliders;  // 保持中に無効化するコライダー
+    private bool attached;
+    private MagnetState grabbedPole;
+    private bool savedUseGravity;
+    private bool savedIsKinematic;
+    private AuraRing heldAura;   // 掴んだ物のオーラ(持った通知用)
+    private Bomb heldBomb;       // 掴んだ物が爆弾なら投擲フラグ用
 
     // --- ギミック相互作用（引き寄せ対象がギミックなら、物体を引くのではなくこちらが作用する） ---
     private Rigidbody playerRb;            // 自分のRigidbody(ジャンプ台で使う)
@@ -75,22 +75,29 @@ public class MagnetPull : MonoBehaviour
 
     private bool Interacting => held != null || currentGrapple != null || currentRopeway != null;
 
-	// エフェクト等が参照する：引き寄せ中/保持中の対象(無ければnull)
-	public Transform HeldObject => held != null ? held.transform : null;
+    // エフェクト等が参照する：引き寄せ中/保持中の対象(無ければnull)
+    public Transform HeldObject => held != null ? held.transform : null;
 
-	// アニメーション側が参照する引き寄せの進行状態
-	public bool IsPulling => held != null && !attached; // 対象がこちらへ飛んでくる途中
-	public bool IsHolding => held != null && attached;  // 引き寄せ完了して手元に保持中
+    // アニメーション側が参照する引き寄せの進行状態
+    public bool IsPulling => held != null && !attached; // 対象がこちらへ飛んでくる途中
+    public bool IsHolding => held != null && attached;  // 引き寄せ完了して手元に保持中
 
-	void Awake()
-	{
-		catchState = GetComponent<PlayerCatch>();
-		stateMachine = GetComponent<PlayerStateMachine>();
-		playerRb = GetComponent<Rigidbody>();
-		aim = GetComponent<PlayerAim>();
+    // エネミー専用の吸着位置微調整用
+    [Header("敵の吸着位置調整")]
+    [Tooltip("X:左右, Y:上下, Z:前後")]
+    [SerializeField] private Vector3 enemyAttachOffset = new Vector3(0.0f, -0.2f, -1.0f);
+    [Tooltip("引き寄せ中の敵の回転速度")]
+    [SerializeField] private float pullRotateSpeed = 4.0f;
+
+    void Awake()
+    {
+        catchState = GetComponent<PlayerCatch>();
+        stateMachine = GetComponent<PlayerStateMachine>();
+        playerRb = GetComponent<Rigidbody>();
+        aim = GetComponent<PlayerAim>();
         health = GetComponent<PlayerHealth>();
         if (aimCamera == null) aimCamera = Camera.main;
-	}
+    }
     void OnEnable()
     {
         if (health != null)
@@ -110,7 +117,7 @@ public class MagnetPull : MonoBehaviour
 
     void Update()
     {
-		// ジャンプの処理
+        // ジャンプの処理
         if (jumpCooldown > 0f) jumpCooldown -= Time.deltaTime;
 
         if (!catchState.IsCatching)
@@ -167,14 +174,28 @@ public class MagnetPull : MonoBehaviour
         if (held != null)
         {
             Debug.Log($"Held : {held.name}");
+
+            // 手元にくっついた後、設定したオフセット座標へ毎フレーム滑らかに移行させる
+            if (attached)
+            {
+                bool isEnemy = held.GetComponentInParent<enemy>() != null || held.GetComponentInParent<enemy_Sky>() != null;
+                Vector3 targetLocalPos = isEnemy ? enemyAttachOffset : Vector3.zero;
+                Quaternion targetLocalRot = isEnemy ? Quaternion.Euler(0f, 180f, 0f) : Quaternion.identity;
+
+                // 位置をじわじわ近づける
+                held.transform.localPosition = Vector3.MoveTowards(held.transform.localPosition, targetLocalPos, Time.deltaTime * 15f);
+
+                // 回転をじわじわ合わせる
+                held.transform.localRotation = Quaternion.Slerp(held.transform.localRotation, targetLocalRot, Time.deltaTime * 15f);
+            }
         }
     }
 
     void FixedUpdate()
-	{
-		// 物体の引き寄せだけ毎物理ステップで動かす（ギミックは各自で動く）
-		if (held != null && !attached) PullHeld();
-	}
+    {
+        // 物体の引き寄せだけ毎物理ステップで動かす（ギミックは各自で動く）
+        if (held != null && !attached) PullHeld();
+    }
 
 	// 相互作用の終了（ZR離し・極切替）
 	private void EndInteraction()
@@ -193,18 +214,18 @@ public class MagnetPull : MonoBehaviour
 		}
 	}
 
-	private Transform HandParent => handPoint != null ? handPoint : transform;
-	private Vector3 HandPos => handPoint != null
-		? handPoint.position
-		: transform.position + transform.forward * 0.8f + Vector3.up * 1f;
+    private Transform HandParent => handPoint != null ? handPoint : transform;
+    private Vector3 HandPos => handPoint != null
+        ? handPoint.position
+        : transform.position + transform.forward * 0.8f + Vector3.up * 1f;
 
-	private string WantedTag()
-		=> stateMachine.CurrentState == MagnetState.S ? "N_Pole" : "S_Pole";
+    private string WantedTag()
+        => stateMachine.CurrentState == MagnetState.S ? "N_Pole" : "S_Pole";
 
-	// 引き寄せ対象を判定して、種類ごとの作用を起動する
-	private void TryInteract()
-	{
-		if (aimCamera == null) return;
+    // 引き寄せ対象を判定して、種類ごとの作用を起動する
+    private void TryInteract()
+    {
+        if (aimCamera == null) return;
 
         if (held != null || attached) return;
 
@@ -222,23 +243,21 @@ public class MagnetPull : MonoBehaviour
 		}
 
         Ray ray = aimCamera.ScreenPointToRay(
-			new Vector3(Screen.width / 2f, Screen.height / 2f, 0f));
+            new Vector3(Screen.width / 2f, Screen.height / 2f, 0f));
 
-		// ギミック(ジャンプ台/ロープウェイ)はトリガーコライダーなので Collide で拾う。
-		// 距離順に見て、自分は無視・非対象のトリガーは透過・非対象のソリッド(壁)で遮断。
-		RaycastHit[] hits = Physics.RaycastAll(ray, rayRange, rayMask, QueryTriggerInteraction.Collide);
-		System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+        RaycastHit[] hits = Physics.RaycastAll(ray, rayRange, rayMask, QueryTriggerInteraction.Collide);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
-		foreach (var hit in hits)
-		{
-			Collider col = hit.collider;
-			if (col.transform.IsChildOf(transform)) continue; // 自分は無視
+        foreach (var hit in hits)
+        {
+            Collider col = hit.collider;
+            if (col.transform.IsChildOf(transform)) continue; // 自分は無視
 
-			if (!col.CompareTag(WantedTag()))
-			{
-				if (col.isTrigger) continue; // 非対象のトリガーは視線を遮らない
-				return;                       // 非対象のソリッド(壁等)で遮られる
-			}
+            if (!col.CompareTag(WantedTag()))
+            {
+                if (col.isTrigger) continue; // 非対象のトリガーは視線を遮らない
+                return;                       // 非対象のソリッド(壁等)で遮られる
+            }
 
 			InteractWith(col.transform);
 			return;
@@ -283,18 +302,35 @@ public class MagnetPull : MonoBehaviour
 		}
 
         held = rb;
+
+        PunchArm arm = rb.GetComponentInParent<PunchArm>();
+        if (arm != null && arm.bossScript != null)
+        {
+            arm.bossScript.CancelArmTimer(arm.isLeft);
+        }
+
+        // 敵だったら「引き寄せられた」ことを通知
+        enemy enemyScript = rb.GetComponentInParent<enemy>();
+        if (enemyScript != null) enemyScript.OnMagnetGrabbed();
+
+        enemy_Sky enemySkyScript = rb.GetComponentInParent<enemy_Sky>();
+        if (enemySkyScript != null) enemySkyScript.OnMagnetGrabbed();
+
+        attached = false;
+        pullVel = Vector3.zero;
+        grabbedPole = stateMachine.CurrentState;
 		attached = false;
 		pullVel = Vector3.zero;
 		grabbedPole = stateMachine.CurrentState;
 		laserTarget = held.transform;
 
-		// 引き寄せ中はキネマティックにして確実に・滑らかに動かす
-		savedUseGravity = rb.useGravity;
-		savedIsKinematic = rb.isKinematic;
-		rb.isKinematic = true;
-		rb.useGravity = false;
-		rb.linearVelocity = Vector3.zero;
-		rb.angularVelocity = Vector3.zero;
+        // 引き寄せ中はキネマティックにして確実に・滑らかに動かす
+        savedUseGravity = rb.useGravity;
+        savedIsKinematic = rb.isKinematic;
+        rb.isKinematic = true;
+        rb.useGravity = false;
+        rb.linearVelocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
 
         // 保持中はコライダーを無効化（プレイヤーや地面を押さない）
         Collider playerCol = GetComponent<Collider>();
@@ -318,7 +354,7 @@ public class MagnetPull : MonoBehaviour
             if (laserPrefab != null)
             {
                 currentLaser = Instantiate(laserPrefab, null);
-				currentLine = currentLaser.GetComponentInChildren<LineRenderer>();
+                currentLine = currentLaser.GetComponentInChildren<LineRenderer>();
 
                 if (currentLine != null)
                 {
@@ -389,12 +425,31 @@ public class MagnetPull : MonoBehaviour
     {
         if (held == null) return;
 
-        Vector3 to = HandPos - held.position;
+        bool isEnemy = held.GetComponentInParent<enemy>() != null || held.GetComponentInParent<enemy_Sky>() != null;
+        Vector3 targetPos = HandPos;
+        Vector3 currentPos = held.transform.position;
+        Vector3 to = targetPos - currentPos;
 
         if (to.magnitude <= attachDistance)
         {
             Attach();
             return;
+        }
+
+        // エネミー引き寄せ中の滑らかな横回転処理
+        if (isEnemy)
+        {
+            Vector3 lookDir = -HandParent.forward;
+            lookDir.y = 0;
+            if (lookDir == Vector3.zero) lookDir = -transform.forward;
+
+            Quaternion targetRot = Quaternion.LookRotation(lookDir, Vector3.up);
+
+            held.transform.rotation = Quaternion.Slerp(
+                held.transform.rotation,
+                targetRot,
+                Time.fixedDeltaTime * pullRotateSpeed
+            );
         }
 
         // 上下のゆらぎ（浮遊感）
@@ -405,28 +460,24 @@ public class MagnetPull : MonoBehaviour
             floatAmplitude *
             distFactor;
 
-        Vector3 target = HandPos + bob;
-
-        Vector3 dir = (target - held.position).normalized;
+        Vector3 target = targetPos + bob;
 
         float speed = maxPullSpeed * Time.fixedDeltaTime;
-
-        held.MovePosition(held.position + dir * speed);
+        held.transform.position = Vector3.MoveTowards(currentPos, target, speed);
     }
 
     private void Attach()
-	{
-		attached = true;
-		held.transform.SetParent(HandParent); // 手に追従
-		held.transform.position = HandPos;
-		if (heldAura != null) heldAura.SetHeld(true);
+    {
+        attached = true;
+        held.transform.SetParent(HandParent); // 手に追従
 
+        if (heldAura != null) heldAura.SetHeld(true);
         DestroyEffect();
     }
 
-	// ZRを離した：物理を元に戻して落とす
-	private void Release()
-	{
+    // ZRを離した：物理を元に戻して落とす
+    private void Release()
+    {
         DestroyEffect();
 
         Collider playerCol = GetComponent<Collider>();
@@ -439,17 +490,41 @@ public class MagnetPull : MonoBehaviour
             }
         }
 
-        if (attached) held.transform.SetParent(null);
-		RestoreColliders();
-		if (heldAura != null) heldAura.SetHeld(false);
-		held.isKinematic = savedIsKinematic;
-		held.useGravity = savedUseGravity;
-		ClearHeld();
-	}
+        if (held != null)
+        {
+            PunchArm arm = held.GetComponentInParent<PunchArm>();
+            if (arm != null && arm.bossScript != null)
+            {
+                arm.bossScript.RestartArmTimer(arm.isLeft);
+            }
+        }
 
-	// 極切替：自分の向いている方向へぶっ飛ばす
-	private void Repel()
-	{
+        if (attached) held.transform.SetParent(null);
+        RestoreColliders();
+        if (heldAura != null) heldAura.SetHeld(false);
+        held.isKinematic = savedIsKinematic;
+        held.useGravity = savedUseGravity;
+
+        // ★【大バウンド対策】そっと離すときも、親子関係解除時の予期せぬ初速を完全にクリア
+        if (!held.isKinematic)
+        {
+            held.linearVelocity = Vector3.zero;
+            held.angularVelocity = Vector3.zero;
+        }
+
+        // 敵だったら「そっと離された」ことを通知
+        enemy enemyScript = held.GetComponentInParent<enemy>();
+        if (enemyScript != null) enemyScript.OnMagnetReleased();
+
+        enemy_Sky enemySkyScript = held.GetComponentInParent<enemy_Sky>();
+        if (enemySkyScript != null) enemySkyScript.OnMagnetReleased();
+
+        ClearHeld();
+    }
+
+    // 極切替：自分の向いている方向へぶっ飛ばす
+    private void Repel()
+    {
         DestroyEffect();
 
         // 発射エフェクトを再生
@@ -465,38 +540,61 @@ public class MagnetPull : MonoBehaviour
             }
         }
 
+        if (held != null)
+        {
+            PunchArm arm = held.GetComponentInParent<PunchArm>();
+            if (arm != null && arm.bossScript != null)
+            {
+                arm.bossScript.RestartArmTimer(arm.isLeft);
+            }
+        }
+
         // もし掴んでいる物が ThrowableObject なら Throw() を呼ぶ
         ThrowableObject throwable = held.GetComponent<ThrowableObject>();
-
-        if (throwable != null)	throwable.Throw();
+        if (throwable != null) throwable.Throw();
 
         Vector3 dir = transform.forward;
-		if (attached) held.transform.SetParent(null);
-		RestoreColliders();
-		if (heldAura != null) heldAura.SetHeld(false);
-		if (heldBomb != null) heldBomb.isThrown = true;
-		held.isKinematic = false;
-		held.useGravity = true;
-		held.AddForce(dir * repelForce, ForceMode.Impulse);
-		ClearHeld();
-	}
+        if (attached) held.transform.SetParent(null);
+        RestoreColliders();
+        if (heldAura != null) heldAura.SetHeld(false);
+        if (heldBomb != null) heldBomb.isThrown = true;
+        held.isKinematic = false;
+        held.useGravity = true;
 
-	private void RestoreColliders()
-	{
-		if (heldColliders == null) return;
-		foreach (var c in heldColliders)
-			if (c != null) c.enabled = true;
-	}
+        // ★【大バウンド・吹っ飛ぶバグの決定打】
+        // 親子関係を解除した瞬間、プレイヤーの移動速度やカメラ回転の慣性が
+        // Rigidbodyに「異常な初期速度」として勝手に引き継がれる現象を100%遮断します。
+        held.linearVelocity = Vector3.zero;
+        held.angularVelocity = Vector3.zero;
 
-	private void ClearHeld()
-	{
-		held = null;
-		heldColliders = null;
-		heldAura = null;
-		heldBomb = null;
-		attached = false;
-		pullVel = Vector3.zero;
-	}
+        held.AddForce(dir * repelForce, ForceMode.Impulse);
+
+        // 敵だったら「吹っ飛ばされた」ことを通知
+        enemy enemyScript = held.GetComponentInParent<enemy>();
+        if (enemyScript != null) enemyScript.OnMagnetRepelled();
+
+        enemy_Sky enemySkyScript = held.GetComponentInParent<enemy_Sky>();
+        if (enemySkyScript != null) enemySkyScript.OnMagnetRepelled();
+
+        ClearHeld();
+    }
+
+    private void RestoreColliders()
+    {
+        if (heldColliders == null) return;
+        foreach (var c in heldColliders)
+            if (c != null) c.enabled = true;
+    }
+
+    private void ClearHeld()
+    {
+        held = null;
+        heldColliders = null;
+        heldAura = null;
+        heldBomb = null;
+        attached = false;
+        pullVel = Vector3.zero;
+    }
 
     public void SetCurrentJumpStand(jump stand)
     {
