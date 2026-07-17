@@ -17,18 +17,26 @@ public class BossDmgToParts : MonoBehaviour
     // 物理衝突（Rigidbody等）で判定する場合
     private void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.CompareTag(attackTagN) || collision.gameObject.CompareTag(attackTagS))
+        if (collision.gameObject.GetComponent<ThrowableObject>() != null)
         {
+            ThrowableObject throwable = collision.gameObject.GetComponent<ThrowableObject>();
+
             SendDamageToBoss(collision.gameObject);
+
+            throwable.ResetThrown();
         }
     }
 
     // トリガー侵入（IsTrigger）で判定する場合
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag(attackTagN) || other.CompareTag(attackTagS))
+        if (other.GetComponent<ThrowableObject>() != null)
         {
+            ThrowableObject throwable = other.gameObject.GetComponent<ThrowableObject>();
+
             SendDamageToBoss(other.gameObject);
+
+            throwable.ResetThrown();
         }
     }
 

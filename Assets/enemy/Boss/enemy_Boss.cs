@@ -1,6 +1,7 @@
-using UnityEngine;
 using System.Collections;
+using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.Android;
 using UnityEngine.UIElements;
 
 public class enemy_Boss : MonoBehaviour
@@ -31,10 +32,12 @@ public class enemy_Boss : MonoBehaviour
   
     [Header("ボス全体に関する参照設定")]
     [SerializeField] private Transform bossMesh;     // ボス全体のメッシュ
+    [SerializeField] private Transform bossMain;     // ボス全体のメッシュ
     [SerializeField] private Transform targetPlayer; // プレイヤーのTransformをInspectorで設定
     [SerializeField] private Transform target;　 // プレイヤーのTransformをInspectorで設定
     [SerializeField] private Animator anim;
     [SerializeField] private enemy_HPBer hpBarScript;
+    [SerializeField] private Transform barrier;
 
     [Header("ボスパラメータ")]
     public float moveSpeed = 10.0f;      // ボスの移動速度
@@ -55,6 +58,7 @@ public class enemy_Boss : MonoBehaviour
     private bool startAttack = false; // 攻撃開始フラグ
     private bool isDown = false;      // ダウン中かどうかのフラグ
     private bool isInvincible = false;// 無敵状態かどうかのフラグ
+    private bool isWaitRevive = false;
 
     [Header("腕の設定")]
     public Transform armBone_R;
@@ -71,9 +75,12 @@ public class enemy_Boss : MonoBehaviour
     private Vector3 currentOffset = Vector3.zero;
     private Vector3 lockedOffset = Vector3.zero;
 
-    private Vector3 punchPos;
-    private Quaternion punchRot;
-    private Vector3 nowPunchPos;
+    private bool isHitR = false;
+    private bool isFirstFrameHitR = false;
+    private Vector3 baseAnimPos_R;
+    private Quaternion baseAnimRot_R;
+    private Vector3 nowSmashPosR;
+    private Quaternion nowSmashRotR;
 
     [Header("衝撃波のエフェクト設定")]
     [SerializeField] private GameObject waveEffect;
@@ -107,9 +114,21 @@ public class enemy_Boss : MonoBehaviour
     private Vector3 baseAnimPos_L;
     private Quaternion baseAnimRot_L;
     private bool isFirstFrameHit = false;
+    private Vector3 punchPos;
+    private Quaternion punchRot;
+    private Vector3 nowPunchPos;
     
     private Vector3 fallPoint;
     private bool hasFallPoint;
+
+    [Header("分離した腕用")]
+    [SerializeField] private float autoReviveTime = 8.0f; // 分離してから消えるまでの合計時間
+    [SerializeField] private float blinkDuration = 2.0f;  // 消える何秒前から点滅を開始するか
+    [SerializeField] private float blinkInterval = 0.1f;  // 点滅のチカチカする間隔
+
+    // 途中で吸収された時に止めるための変数
+    private Coroutine leftArmTimerCoroutine = null;
+    private Coroutine rightArmTimerCoroutine = null;
 
     [Header("行動パターン")]
     public bool isStartAction = false;  // ボスの行動開始
@@ -180,6 +199,13 @@ public class enemy_Boss : MonoBehaviour
             isFirstFrameHit = false;
         }
 
+        if (isFirstFrameHitR)
+        {
+            baseAnimPos_R = rawAnimPos_R;
+            baseAnimRot_R = rawAnimRot_R;
+            isFirstFrameHitR = false;
+        }
+
         if (bossState == BossState.SmashNormal)
         {
             // 叩きつけ(右腕)
@@ -205,11 +231,22 @@ public class enemy_Boss : MonoBehaviour
 
             if (!isRightArmDetached)
             {
-                armBone_R.position = rawAnimPos_R + currentOffset;
-                CheckSmashHit(true); // 分離中はダメージ判定とエフェクトも出さない
+                if(isHitR)
+                {
+                    Vector3 animPosDeltaR = rawAnimPos_R - baseAnimPos_R;
+                    Quaternion animRotDeltaR = rawAnimRot_R * Quaternion.Inverse(baseAnimRot_R);
+
+                    armBone_R.position = nowSmashPosR + animPosDeltaR;
+                    armBone_R.rotation = animRotDeltaR * nowSmashRotR;
+                }
+                else
+                {
+                    armBone_R.position = rawAnimPos_R + currentOffset;
+                    CheckSmashHit(true); // 分離中はダメージ判定とエフェクトも出さない
+                }
             }
         }
-        if (bossState == BossState.SmashBig)
+        else if (bossState == BossState.SmashBig)
         {
             // 叩きつけ(右腕)
             if (isTracking)
@@ -239,8 +276,20 @@ public class enemy_Boss : MonoBehaviour
             // 右腕には計算したズレを適用
             if (!isRightArmDetached)
             {
-                armBone_R.position = rawAnimPos_R + currentOffset;
-                CheckSmashHit(false);
+                if (isHitR)
+                {
+                    // Hit中はアニメーションの差分を計算して適用
+                    Vector3 animPosDeltaR = rawAnimPos_R - baseAnimPos_R;
+                    Quaternion animRotDeltaR = rawAnimRot_R * Quaternion.Inverse(baseAnimRot_R);
+
+                    armBone_R.position = nowSmashPosR + animPosDeltaR;
+                    armBone_R.rotation = animRotDeltaR * nowSmashRotR;
+                }
+                else
+                {
+                    armBone_R.position = rawAnimPos_R + currentOffset;
+                    CheckSmashHit(false);
+                }
             }
         }
         else if (bossState == BossState.Punch)
@@ -374,6 +423,9 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
+    [SerializeField] private GameOverTransition gameOverTransition;
+    [SerializeField] private Mission mission;
+
     // =========================================
     // 更新処理
     // =========================================
@@ -428,6 +480,42 @@ public class enemy_Boss : MonoBehaviour
             {
                 bossState = BossState.Summon;
             }
+
+            if (Input.GetKeyDown(KeyCode.Keypad6) || Input.GetKeyDown(KeyCode.Alpha6))
+            {
+                bossState = BossState.Rush;
+            }
+
+            if (Input.GetKeyDown(KeyCode.H))
+            {
+                SceneLoad.LoadDirect("ResultScene", FadeType.White);
+            }
+
+            if (Input.GetKeyDown(KeyCode.J))
+            {
+                gameOverTransition.GoToGameOver();
+            }
+
+            if (Input.GetKeyDown(KeyCode.G))
+            {
+                mission.SetMission(0);
+            }
+
+            if (Input.GetKeyDown(KeyCode.F))
+            {
+                mission.ClearMission(0);
+            }
+
+            if (Input.GetKeyDown(KeyCode.V))
+            {
+                mission.SetMission(1);
+            }
+
+            if (Input.GetKeyDown(KeyCode.B))
+            {
+                mission.ClearMission(1);
+            }
+
 
             if (Input.GetKeyDown(KeyCode.M))
             {
@@ -510,6 +598,7 @@ public class enemy_Boss : MonoBehaviour
                     anim.SetTrigger("Smash_N");
                     startAttack = true;
 
+                    smashEffectCnt = 0;
                     hasSmashHit = false;
                 }
 
@@ -629,6 +718,8 @@ public class enemy_Boss : MonoBehaviour
                     anim.SetTrigger("Down");
                     anim.SetBool("isDown", true);
 
+                    barrier.gameObject.SetActive(false);
+
                     isLookPlayer = false;
                     isDown = true;
 
@@ -642,6 +733,9 @@ public class enemy_Boss : MonoBehaviour
                     anim.SetBool("isDown", false);
                     anim.SetTrigger("Reviv");
                     bossState = BossState.Idle;
+
+                    isWaitRevive = true;
+
                     attackTimer = 0.0f;
                     isDown = false;
                     startAttack = false;
@@ -684,6 +778,11 @@ public class enemy_Boss : MonoBehaviour
     public void eventLookPlayer()
     {
         isLookPlayer = true;
+        if (isWaitRevive)
+        {
+            barrier.gameObject.SetActive(true);
+            isWaitRevive = false;
+        }
     }
 
     // ==============================
@@ -772,12 +871,16 @@ public class enemy_Boss : MonoBehaviour
                 armState = ArmState.Returning;
                 attackTimer = retrunFrame;
 
+                isInvincible = true; // 無敵状態にする
+
                 // アニメーションを「引き戻し開始フレーム」へ強制ジャンプ
                 anim.PlayInFixedTime(punchStateName, 0, punchAnimReturnTime);
 
                 break;
             }
         }
+
+        StartCoroutine(InvincibleCooltime());
     }
 
     // =========================================
@@ -847,8 +950,6 @@ public class enemy_Boss : MonoBehaviour
     // ============================
     private void NextAction()
     {
-        
-
         if (isStartAction)
         {
             if (!isSecond && currentHP <= 50.0f)
@@ -900,6 +1001,9 @@ public class enemy_Boss : MonoBehaviour
         }
     }
 
+    public string attackTagN = "N_Pole";
+    public string attackTagS = "S_Pole";
+
     // ============================
     // 左腕にヒットして分離する処理
     // ============================
@@ -929,6 +1033,11 @@ public class enemy_Boss : MonoBehaviour
         {
             anim.SetTrigger("Hit_R");
 
+            isHitR = true;
+            isFirstFrameHitR = true;
+            nowSmashPosR = armBone_R.position;
+            nowSmashRotR = armBone_R.rotation;
+
             // 分離待機フラグをオン
             isWaitForDetachR = true;
             detachTimerR = 0.0f;
@@ -952,9 +1061,16 @@ public class enemy_Boss : MonoBehaviour
 
             // 位置を合わせる
             sepaArm.transform.position = armBone_L.position;
+            sepaArm.transform.localScale = bossMain.localScale;
+
+            sepaArm.bossScript = this;
+            sepaArm.isLeft = true;
 
             // PunchArm側の分離処理
             sepaArm.DetachArm();
+
+            if (leftArmTimerCoroutine != null) StopCoroutine(leftArmTimerCoroutine);
+            leftArmTimerCoroutine = StartCoroutine(ArmAutoReviveCoroutine(sepaArm.gameObject, true));
         }
     }
 
@@ -963,6 +1079,7 @@ public class enemy_Boss : MonoBehaviour
     // ====================
     private void ExecuteDetachArmR()
     {
+        isHitR = false;
         isRightArmDetached = true;
 
         // 本体の左腕ボーンのスケールを0にして「見えなくする」
@@ -975,9 +1092,16 @@ public class enemy_Boss : MonoBehaviour
 
             // 位置を合わせる
             sepaArmR.transform.position = armBone_R.position;
+            sepaArmR.transform.localScale = bossMain.localScale;
+
+            sepaArmR.bossScript = this;
+            sepaArmR.isLeft = false;
 
             // PunchArm側の分離処理
             sepaArmR.DetachArm();
+
+            if (rightArmTimerCoroutine != null) StopCoroutine(rightArmTimerCoroutine);
+            rightArmTimerCoroutine = StartCoroutine(ArmAutoReviveCoroutine(sepaArmR.gameObject, false));
         }
     }
 
@@ -988,6 +1112,19 @@ public class enemy_Boss : MonoBehaviour
     {
         if (!isLeftArmDetached) return;
 
+        // 吸収などで復活したらタイマーを停止する
+        if (leftArmTimerCoroutine != null)
+        {
+            StopCoroutine(leftArmTimerCoroutine);
+            leftArmTimerCoroutine = null;
+        }
+
+        // 途中で点滅がストップして非表示になってた時用の保険
+        if (sepaArm != null)
+        {
+            foreach (var r in sepaArm.GetComponentsInChildren<Renderer>()) r.enabled = true;
+        }
+
         isLeftArmDetached = false;
 
         // 本体の左腕ボーンのスケールを戻して見えるようにする
@@ -997,6 +1134,9 @@ public class enemy_Boss : MonoBehaviour
         if (sepaArm != null)
         {
             sepaArm.gameObject.SetActive(false);
+
+            sepaArm.ResetArm();
+
         }
 
         armState = ArmState.Idle;
@@ -1011,6 +1151,19 @@ public class enemy_Boss : MonoBehaviour
     {
         if (!isRightArmDetached) return;
 
+        // 吸収などで復活したらタイマーを停止する
+        if (rightArmTimerCoroutine != null)
+        {
+            StopCoroutine(rightArmTimerCoroutine);
+            rightArmTimerCoroutine = null;
+        }
+
+        // 途中で点滅がストップして非表示になってた時用の保険
+        if (sepaArmR != null)
+        {
+            foreach (var r in sepaArmR.GetComponentsInChildren<Renderer>()) r.enabled = true;
+        }
+
         isRightArmDetached = false;
 
         // 本体の右腕ボーンのスケールを戻して見えるようにする
@@ -1020,11 +1173,122 @@ public class enemy_Boss : MonoBehaviour
         if (sepaArmR != null)
         {
             sepaArmR.gameObject.SetActive(false);
+
+            sepaArmR.ResetArm();
         }
 
         armState = ArmState.Idle;
 
         StartCoroutine(ScaleUpAnimCoroutine(armBone_R, reviveArmTime));
+    }
+
+    // =========================================
+    // 分離した腕の自動復活＆点滅コルーチン
+    // =========================================
+    private IEnumerator ArmAutoReviveCoroutine(GameObject armObj, bool isLeft)
+    {
+        // 点滅が始まるまでの時間を計算して待つ
+        float waitTime = Mathf.Max(0, autoReviveTime - blinkDuration);
+        yield return new WaitForSeconds(waitTime);
+
+        // 腕オブジェクトに含まれるすべてのRendererを取得すゆ
+        Renderer[] renderers = armObj.GetComponentsInChildren<Renderer>();
+
+        float elapsed = 0f;
+        bool isVisible = true;
+
+        // 指定した点滅時間が経過するまでチカチカさせる
+        while (elapsed < blinkDuration)
+        {
+            isVisible = !isVisible; // ON-OFFを反転
+            foreach (var r in renderers)
+            {
+                r.enabled = isVisible;
+            }
+
+            yield return new WaitForSeconds(blinkInterval);
+            elapsed += blinkInterval;
+        }
+
+        // 見えなくなったRendererを戻す
+        foreach (var r in renderers)
+        {
+            r.enabled = true;
+        }
+
+        // 時間切れになったら腕を復活
+        if (isLeft)
+        {
+            ReviveArm();
+        }
+        else
+        {
+            ReviveArmR();
+        }
+    }
+
+    // ==========================================
+    // プレイヤーが腕を吸収した時にタイマーを止める処理
+    // ==========================================
+    public void CancelArmTimer(bool isLeft)
+    {
+        if (isLeft)
+        {
+            if (leftArmTimerCoroutine != null)
+            {
+                StopCoroutine(leftArmTimerCoroutine);
+                leftArmTimerCoroutine = null;
+            }
+
+            // 点滅途中で吸収された場合、透明のままになるのを防ぐ
+            if (sepaArm != null)
+            {
+                foreach (var r in sepaArm.GetComponentsInChildren<Renderer>()) r.enabled = true;
+            }
+        }
+        else
+        {
+            if (rightArmTimerCoroutine != null)
+            {
+                StopCoroutine(rightArmTimerCoroutine);
+                rightArmTimerCoroutine = null;
+            }
+
+            // 点滅途中で吸収された場合、透明のままになるのを防ぐ
+            if (sepaArmR != null)
+            {
+                foreach (var r in sepaArmR.GetComponentsInChildren<Renderer>()) r.enabled = true;
+            }
+        }
+    }
+
+    // ==========================================
+    // プレイヤーが腕を発射（または着弾）した後にタイマーを再開する処理
+    // ==========================================
+    public void RestartArmTimer(bool isLeft)
+    {
+        if (isLeft)
+        {
+            // 念のため古いタイマーが残っていたら止める
+            if (leftArmTimerCoroutine != null) StopCoroutine(leftArmTimerCoroutine);
+
+            if (sepaArm != null)
+            {
+                // 左腕のタイマーを0秒から再スタート
+                leftArmTimerCoroutine = StartCoroutine(ArmAutoReviveCoroutine(sepaArm.gameObject, true));
+            }
+        }
+        else
+        {
+            // 念のため古いタイマーが残っていたら止める
+            if (rightArmTimerCoroutine != null) StopCoroutine(rightArmTimerCoroutine);
+
+            if (sepaArmR != null)
+            {
+                // 右腕のタイマーを0秒から再スタート
+                rightArmTimerCoroutine = StartCoroutine(ArmAutoReviveCoroutine(sepaArmR.gameObject, false));
+            }
+        }
     }
 
     // ====================
