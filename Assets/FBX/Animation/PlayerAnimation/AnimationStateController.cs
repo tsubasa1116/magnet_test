@@ -23,11 +23,18 @@ public class AnimationStateController : MonoBehaviour
 
 	[Header("引き寄せ(MagnetPull連携)")]
 	[Tooltip("引き寄せ中(対象が飛んでくる間)の足アニメの再生速度倍率")]
-	[SerializeField] private float pullFootSpeed = 1.5f;
+	[SerializeField] private float pullFootSpeed = 2.2f;
+
+	[Header("被弾")]
+	[Tooltip("被弾アニメ(HitLittle)を優先する時間。この間はAim/Holdへ引き戻さない")]
+	[SerializeField] private float hitAnimTime = 0.45f;
 
 	private Animator animator;
 	private PlayerMovement movement;
 	private MagnetPull magnetPull;
+	private PlayerHealth health;
+	private float hitAnimUntil; // 被弾アニメを優先している間の終了時刻
+	private float lastGroundedTime; // 接地Rayの瞬断でアニメがバタつかないための猶予用
 
 	private float velocityZ; // 0=Walk, 1=Run
 	private float moveSpeed;  // 0〜1 スティックの倒し具合
@@ -41,20 +48,31 @@ public class AnimationStateController : MonoBehaviour
 	private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
 	private static readonly int IsAimingHash = Animator.StringToHash("IsAiming");
 	private static readonly int IsHoldingHash = Animator.StringToHash("IsHolding");
+	private static readonly int HitHash = Animator.StringToHash("Hit");
 
 	void Start()
 	{
 		animator = GetComponent<Animator>();
 		movement = GetComponent<PlayerMovement>();
 		magnetPull = GetComponent<MagnetPull>();
+		health = GetComponent<PlayerHealth>();
 
 		// ジャンプした瞬間にトリガーを立てる
 		movement.Jumped += OnJumped;
+		// 被弾した瞬間にHitLittleを再生する
+		if (health != null) health.OnHit += OnHitAnim;
 	}
 
 	void OnDestroy()
 	{
 		if (movement != null) movement.Jumped -= OnJumped;
+		if (health != null) health.OnHit -= OnHitAnim;
+	}
+
+	private void OnHitAnim()
+	{
+		animator.SetTrigger(HitHash);
+		hitAnimUntil = Time.time + hitAnimTime;
 	}
 
 	void Update()
@@ -66,10 +84,17 @@ public class AnimationStateController : MonoBehaviour
 		bool catching = movement.IsCatching;
 		bool pulling = magnetPull != null && magnetPull.IsPulling;
 		bool holding = magnetPull != null && magnetPull.IsHolding;
-		bool grounded = movement.IsGrounded;
-		bool strafing = catching && !holding && grounded;
-		bool holdingMove = holding && grounded;
-		bool armPose = catching && !grounded;
+
+		// 接地Rayが歩行中に一瞬切れてもステートが行き来しないよう、0.15秒の猶予を持たせる
+		// (これが無いと Hold/Aim と通常移動が細かく行き来してアニメが混ざって見える)
+		if (movement.IsGrounded) lastGroundedTime = Time.time;
+		bool grounded = movement.IsGrounded || Time.time - lastGroundedTime < 0.15f;
+		// 被弾アニメ再生中は Aim/Hold のAnyState遷移に引き戻されないよう一時的にオフにする
+		bool inHitAnim = Time.time < hitAnimUntil;
+		bool strafing = catching && !holding && grounded && !inHitAnim;
+		bool holdingMove = holding && grounded && !inHitAnim;
+		// 腕レイヤー(前ならえ姿勢): 空中キャッチ中と、保持中(足はHoldの移動アニメ、上半身は前ならえ)
+		bool armPose = catching && (!grounded || holding);
 		animator.SetBool(IsAimingHash, strafing);
 		animator.SetBool(IsHoldingHash, holdingMove);
 
@@ -109,8 +134,28 @@ public class AnimationStateController : MonoBehaviour
 			aimX = aimZ = 0f;
 		}
 
-		// 接地状態を渡す（着地でJumpEnd→Idleへ戻すのに使う）
-		animator.SetBool(IsGroundedHash, movement.IsGrounded);
+		// 接地状態を渡す（着地でJumpEnd→Idleへ戻すのに使う）。
+		// 生の接地Rayは歩行中に瞬断するため、猶予付きの値を渡す
+		// (瞬断すると Hold/Aim→空中ステートへ一瞬飛んでアニメが混ざって見える)
+		animator.SetBool(IsGroundedHash, grounded);
+
+#if UNITY_EDITOR
+		// ホールド中のアニメ診断: 実際に再生中のステートとクリップ(重み付き)を1秒ごとに出力
+		if (holding && Time.frameCount % 60 == 0)
+		{
+			var st = animator.GetCurrentAnimatorStateInfo(0);
+			string stateName =
+				st.IsName("Hold") ? "Hold" :
+				st.IsName("Aim") ? "Aim" :
+				st.IsName("HitLittle_v1") ? "HitLittle" : $"その他({st.shortNameHash})";
+			var clipInfos = animator.GetCurrentAnimatorClipInfo(0);
+			string clips = string.Join(", ", System.Array.ConvertAll(
+				clipInfos, c => $"{c.clip.name}:{c.weight:F2}"));
+			float layer1 = animator.layerCount > 1 ? animator.GetLayerWeight(1) : -1f;
+			Debug.Log($"[AnimDebug] state={stateName} 遷移中={animator.IsInTransition(0)} "
+				+ $"clips=[{clips}] VelX={aimX:F2} VelZ={aimZ:F2} 腕レイヤーweight={layer1:F2}");
+		}
+#endif
 	}
 
 	private void OnJumped()

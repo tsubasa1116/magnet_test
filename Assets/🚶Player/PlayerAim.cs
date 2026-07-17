@@ -250,6 +250,13 @@ public class PlayerAim : MonoBehaviour
 	{
 		if (!locked) return;
 
+		// オブジェクトを保持(ホールド)したらロックオンは解除する
+		if (magnetPull != null && magnetPull.IsHolding)
+		{
+			Unlock();
+			return;
+		}
+
 		// 対象が消えた(Destroy含む)・掴んだ・離れすぎた → 近くの別対象へ乗り換え(いなければ解除)
 		bool gone = lockTarget == null || !lockTarget.gameObject.activeInHierarchy;
 		bool invalid = gone
