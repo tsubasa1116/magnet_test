@@ -24,6 +24,8 @@ public class AnimationStateController : MonoBehaviour
 	[Header("引き寄せ(MagnetPull連携)")]
 	[Tooltip("引き寄せ中(対象が飛んでくる間)の足アニメの再生速度倍率")]
 	[SerializeField] private float pullFootSpeed = 2.2f;
+	[Tooltip("ホールド(保持)中の移動アニメの再生速度倍率")]
+	[SerializeField] private float holdFootSpeed = 1.3f;
 
 	[Header("被弾")]
 	[Tooltip("被弾アニメ(HitLittle)を優先する時間。この間はAim/Holdへ引き戻さない")]
@@ -114,8 +116,10 @@ public class AnimationStateController : MonoBehaviour
 
 			animator.SetFloat(VelocityXHash, aimX);
 			animator.SetFloat(VelocityZHash, aimZ);
-			// 引き寄せ中は足の運びを速める(catch移動ステートの再生速度に反映)
-			animator.SetFloat(MoveSpeedHash, strafing && pulling ? pullFootSpeed : 1f);
+			// 再生速度倍率: 引き寄せ中=pullFootSpeed / 保持中=holdFootSpeed
+			animator.SetFloat(MoveSpeedHash,
+				strafing && pulling ? pullFootSpeed :
+				holdingMove ? holdFootSpeed : 1f);
 		}
 		else
 		{
@@ -140,8 +144,8 @@ public class AnimationStateController : MonoBehaviour
 		animator.SetBool(IsGroundedHash, grounded);
 
 #if UNITY_EDITOR
-		// ホールド中のアニメ診断: 実際に再生中のステートとクリップ(重み付き)を1秒ごとに出力
-		if (holding && Time.frameCount % 60 == 0)
+		// ホールド/引き寄せ中のアニメ診断: 再生中のステート・クリップ・速度倍率を1秒ごとに出力
+		if ((holding || pulling) && Time.frameCount % 60 == 0)
 		{
 			var st = animator.GetCurrentAnimatorStateInfo(0);
 			string stateName =
@@ -152,8 +156,9 @@ public class AnimationStateController : MonoBehaviour
 			string clips = string.Join(", ", System.Array.ConvertAll(
 				clipInfos, c => $"{c.clip.name}:{c.weight:F2}"));
 			float layer1 = animator.layerCount > 1 ? animator.GetLayerWeight(1) : -1f;
-			Debug.Log($"[AnimDebug] state={stateName} 遷移中={animator.IsInTransition(0)} "
-				+ $"clips=[{clips}] VelX={aimX:F2} VelZ={aimZ:F2} 腕レイヤーweight={layer1:F2}");
+			Debug.Log($"[AnimDebug] state={stateName} pulling={pulling} holding={holding} "
+				+ $"MoveSpeedパラメータ={animator.GetFloat(MoveSpeedHash):F1} (設定値pullFootSpeed={pullFootSpeed:F1}) "
+				+ $"clips=[{clips}] 腕レイヤーweight={layer1:F2}");
 		}
 #endif
 	}

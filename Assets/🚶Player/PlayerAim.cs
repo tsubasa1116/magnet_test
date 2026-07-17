@@ -49,6 +49,12 @@ public class PlayerAim : MonoBehaviour
 	[Tooltip("ロックオン中のズーム。通常FOVに掛ける倍率(1=変化なし、小さいほどアップ)")]
 	[SerializeField] private float lockOnFOVScale = 0.85f;
 
+	[Header("遮蔽物の半透明化")]
+	[Tooltip("カメラとプレイヤーの間に入った静的な物(壁・柱など)を半透明にする。カメラが寄る挙動(Cinemachine Collider)は無効化される")]
+	[SerializeField] private bool fadeObstacles = true;
+	[Tooltip("遮蔽物の透明度(0=完全に透明)")]
+	[SerializeField, Range(0f, 1f)] private float obstacleAlpha = 0.25f;
+
 	[Header("ロックオンマーカー")]
 	[Tooltip("独自デザインを使う場合に指定。未指定ならコードが四隅カギカッコ枠を自動生成する")]
 	[SerializeField] private GameObject markerPrefab;
@@ -72,6 +78,10 @@ public class PlayerAim : MonoBehaviour
 	private PlayerCatch catchState;
 	private MagnetPull magnetPull;
 	private CinemachineInputProvider inputProvider;
+
+	// 遮蔽物フェードの状態(元マテリアルの退避先)
+	private readonly Dictionary<Renderer, Material[]> fadedRenderers = new Dictionary<Renderer, Material[]>();
+	private readonly HashSet<Renderer> blockedThisFrame = new HashSet<Renderer>();
 
 	// ロックオン状態
 	private bool locked;               // 対象がDestroyされてもロック中と分かるよう明示フラグで持つ
@@ -111,6 +121,14 @@ public class PlayerAim : MonoBehaviour
 		freeLook.m_Lens.FieldOfView = baseFOV;
 		normalYMaxSpeed = baseYAxisSpeed;
 		freeLook.m_YAxis.m_MaxSpeed = baseYAxisSpeed;
+
+		// 遮蔽物フェードを使う場合、Cinemachineの「障害物回避でカメラが寄る」機能は止める
+		// (ドアップになる代わりに、遮蔽物側を半透明にして見せる)
+		if (fadeObstacles)
+		{
+			var cinemachineCollider = freeLook.GetComponent<CinemachineCollider>();
+			if (cinemachineCollider != null) cinemachineCollider.enabled = false;
+		}
 		for (int i = 0; i < 3; i++)
 		{
 			normalRadii[i] = freeLook.m_Orbits[i].m_Radius;
@@ -142,6 +160,88 @@ public class PlayerAim : MonoBehaviour
 	{
 		// 死亡等でこのコンポーネントが切られたら、カメラ操作を必ずプレイヤーに返す
 		Unlock();
+		RestoreAllFaded();
+	}
+
+	// --- 遮蔽物の半透明化 ---
+
+	// カメラとプレイヤーの間にある静的な物(RigidbodyなしのCollider)を半透明にし、
+	// どいたら元のマテリアルに戻す
+	private void UpdateObstacleFade()
+	{
+		if (!fadeObstacles || mainCamera == null) return;
+
+		blockedThisFrame.Clear();
+
+		Vector3 origin = mainCamera.transform.position;
+		Vector3 target = transform.position + Vector3.up * 1f;
+		Vector3 diff = target - origin;
+
+		foreach (RaycastHit hit in Physics.RaycastAll(
+			origin, diff.normalized, diff.magnitude, ~0, QueryTriggerInteraction.Ignore))
+		{
+			Transform ht = hit.collider.transform;
+			if (ht.IsChildOf(transform)) continue;                  // 自分は対象外
+			if (hit.collider.attachedRigidbody != null) continue;   // 動く物(敵・箱等)は対象外
+
+			foreach (Renderer r in hit.collider.GetComponentsInChildren<Renderer>())
+			{
+				if (r == null) continue;
+				FadeRenderer(r);
+				blockedThisFrame.Add(r);
+			}
+		}
+
+		// 遮らなくなったものを元に戻す
+		var restore = new List<Renderer>();
+		foreach (var kv in fadedRenderers)
+			if (kv.Key == null || !blockedThisFrame.Contains(kv.Key)) restore.Add(kv.Key);
+		foreach (Renderer r in restore)
+		{
+			if (r != null) r.sharedMaterials = fadedRenderers[r];
+			fadedRenderers.Remove(r);
+		}
+	}
+
+	private void FadeRenderer(Renderer r)
+	{
+		if (fadedRenderers.ContainsKey(r)) return;
+
+		fadedRenderers[r] = r.sharedMaterials; // 元マテリアルを退避(戻す時はこれを再代入)
+		foreach (Material m in r.materials)    // インスタンス化してから透明化
+			MakeTransparent(m, obstacleAlpha);
+	}
+
+	private void RestoreAllFaded()
+	{
+		foreach (var kv in fadedRenderers)
+			if (kv.Key != null) kv.Key.sharedMaterials = kv.Value;
+		fadedRenderers.Clear();
+	}
+
+	// URP/Litマテリアルを実行時に半透明へ切り替える定石レシピ
+	private static void MakeTransparent(Material m, float alpha)
+	{
+		m.SetFloat("_Surface", 1f);
+		m.SetOverrideTag("RenderType", "Transparent");
+		m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+		m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+		m.SetInt("_ZWrite", 0);
+		m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+		m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+
+		if (m.HasProperty("_BaseColor"))
+		{
+			Color c = m.GetColor("_BaseColor");
+			c.a = alpha;
+			m.SetColor("_BaseColor", c);
+		}
+		if (m.HasProperty("_Color"))
+		{
+			Color c = m.GetColor("_Color");
+			c.a = alpha;
+			m.SetColor("_Color", c);
+		}
 	}
 
 	void Update()
@@ -398,6 +498,8 @@ public class PlayerAim : MonoBehaviour
 	// カメラ確定後の位置に合わせたいので LateUpdate で更新
 	void LateUpdate()
 	{
+		UpdateObstacleFade();
+
 		if (!locked || lockTarget == null)
 		{
 			if (marker != null) marker.gameObject.SetActive(false);

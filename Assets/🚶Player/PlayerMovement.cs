@@ -18,6 +18,8 @@ public class PlayerMovement : MonoBehaviour
 	[SerializeField] private float airAcceleration = 8f;
 	[Tooltip("被弾後(無敵時間中)の空中操作の効き倍率。吹き飛び軌道を守るため小さめに")]
 	[SerializeField, Range(0f, 1f)] private float knockbackAirControlScale = 0.25f;
+	[Tooltip("被弾後(無敵時間中)の地上の加速度(m/s²)。小さいほど吹き飛びの慣性が残る")]
+	[SerializeField] private float knockbackGroundAcceleration = 12f;
 
 	[Header("ジャンプ設定")]
 	[SerializeField] private float jumpForce = 7f;
@@ -224,7 +226,19 @@ public class PlayerMovement : MonoBehaviour
 			// 入力が無いときは地上でのみ水平速度を止める(摩擦ゼロなので必須。空中は勢いを残す)
 			if (!isExternalForce && isGrounded)
 			{
-				rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+				if (health != null && health.IsInvincible)
+				{
+					// 被弾直後は慣性を残す(即停止せず徐々に減速)
+					Vector3 v2 = rb.linearVelocity;
+					Vector3 horiz2 = Vector3.MoveTowards(
+						new Vector3(v2.x, 0f, v2.z), Vector3.zero,
+						knockbackGroundAcceleration * Time.fixedDeltaTime);
+					rb.linearVelocity = new Vector3(horiz2.x, v2.y, horiz2.z);
+				}
+				else
+				{
+					rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+				}
 			}
             currentMoveSpeed = moveSpeed; // 停止中は基準速度に戻す(再開時に最高速から始まらない)
 			return;
@@ -248,11 +262,24 @@ public class PlayerMovement : MonoBehaviour
 					vy = 0f;
 				}
 
-				rb.linearVelocity = new Vector3(
-					moveDir.x * currentMoveSpeed,
-					vy,
-					moveDir.z * currentMoveSpeed
-				);
+				if (health != null && health.IsInvincible)
+				{
+					// 被弾直後(無敵中)は速度を直接書き換えず加速度で寄せる。
+					// 吹き飛びの慣性が残り、入力方向へカクンと即転換しない
+					Vector3 v = rb.linearVelocity;
+					Vector3 horiz = Vector3.MoveTowards(
+						new Vector3(v.x, 0f, v.z), moveDir * currentMoveSpeed,
+						knockbackGroundAcceleration * Time.fixedDeltaTime);
+					rb.linearVelocity = new Vector3(horiz.x, vy, horiz.z);
+				}
+				else
+				{
+					rb.linearVelocity = new Vector3(
+						moveDir.x * currentMoveSpeed,
+						vy,
+						moveDir.z * currentMoveSpeed
+					);
+				}
 
 				// 小さな段差はジャンプ不要で乗り越える
 				StepClimb(moveDir);
