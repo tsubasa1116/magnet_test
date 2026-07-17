@@ -67,6 +67,7 @@ public class MagnetPull : MonoBehaviour
     // --- ギミック相互作用（引き寄せ対象がギミックなら、物体を引くのではなくこちらが作用する） ---
     private Rigidbody playerRb;            // 自分のRigidbody(ジャンプ台で使う)
 	private Grapple currentGrapple;        // 立体機動中の対象
+	private bool grappleReleaseAwaitingInputRelease;
 	private RopewayMagnet currentRopeway;  // ロープウェイ吸着中の対象
     private jump currentJumpStand;
     [SerializeField] private float jumpCooldown;
@@ -114,8 +115,17 @@ public class MagnetPull : MonoBehaviour
         if (!catchState.IsCatching)
         {
             EndInteraction();
+			grappleReleaseAwaitingInputRelease = false;
             return;
         }
+
+		// 時間切れの解除後は、磁力を一度OFFにするまで再接続を防ぐ。
+		if (currentGrapple != null && !currentGrapple.IsGrappling)
+		if (currentGrapple != null && !currentGrapple.IsGrappling)
+		{
+			currentGrapple = null;
+			grappleReleaseAwaitingInputRelease = true;
+		}
 
         if (currentJumpStand != null && jumpCooldown <= 0f && currentJumpStand.CanLaunch(stateMachine))
         {
@@ -124,7 +134,7 @@ public class MagnetPull : MonoBehaviour
             return;
         }
 
-        if (!Interacting)
+		if (!Interacting && !grappleReleaseAwaitingInputRelease)
         {
             TryInteract();
         }

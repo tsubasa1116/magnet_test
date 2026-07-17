@@ -50,6 +50,8 @@ public class PlayerMovement : MonoBehaviour
 	public bool IsGrounded => isGrounded;
 	// 入力はあるが壁などで実際に進めていない状態（アニメをIdleにするのに使う）
 	public bool IsBlocked => isBlocked;
+	// 立体機動中（外部ギミックが制御するので移動を止める）
+	public bool IsOnGrapple { get; set; }
 	// ロープウェイ等に吸着中（外部ギミックが制御するので移動を止める）
 	public bool IsOnRopeway { get; set; }
 
@@ -95,9 +97,8 @@ public class PlayerMovement : MonoBehaviour
 		}
 
 		// ロープウェイ等に吸着中はギミック側が位置を制御するので、こちらは動かさない
-		if (IsOnRopeway)
+		if (IsOnRopeway || IsOnGrapple)
 		{
-			rb.linearVelocity = Vector3.zero;
 			isDashing = false;
 			isBlocked = false;
 			return;
@@ -119,7 +120,7 @@ public class PlayerMovement : MonoBehaviour
 		float desired = (isDashing ? dashSpeed : moveSpeed) * Mathf.Clamp01(moveInput.magnitude);
 		isBlocked = IsMoving && desired > 0.01f && v.magnitude < desired * blockedRatio;
 
-        if (!IsOnRopeway)
+        if (!IsOnRopeway && !IsOnGrapple)
         {
             Move();
         }
@@ -157,6 +158,12 @@ public class PlayerMovement : MonoBehaviour
 
     private void Move()
     {
+        // ロープウェイ・GrapplePhysicsが全て移動を管理する
+        if (IsOnRopeway || IsOnGrapple)
+        {
+            return;
+        }
+
         // カメラ基準の移動方向（水平面）
         Vector3 forward = cameraTransform.forward;
         Vector3 right = cameraTransform.right;
@@ -231,7 +238,8 @@ public class PlayerMovement : MonoBehaviour
             finalVelocity.y = rb.linearVelocity.y;
 
             rb.linearVelocity = finalVelocity;
-        }        // ===== 通常移動 =====
+        }
+		// ===== 通常移動 =====
         else
         {
             rb.linearVelocity = new Vector3(

@@ -264,12 +264,16 @@ public class enemy_Sky : MonoBehaviour
 
     private GameObject SpawnOrigin()
     {
-        if (originPrefab == null || firePoint == null) return null;
+        if (originPrefab == null || firePoint == null || targetPlayer == null) return null;
+
+        // FirePoint からプレイヤーへ向けて生成し、予告エフェクトが常にプレイヤー側を向くようにする。
+        Vector3 directionToPlayer = effectPoint.position - firePoint.position;
+        if (directionToPlayer.sqrMagnitude < Mathf.Epsilon) return null;
 
         GameObject origin = Instantiate(
             originPrefab,
             firePoint.position,
-            originPrefab.transform.rotation,
+            Quaternion.FromToRotation(Vector3.up, directionToPlayer.normalized),
             firePoint
         );
 
