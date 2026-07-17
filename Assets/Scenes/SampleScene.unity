@@ -11510,3 +11510,66 @@ SceneRoots:
   - {fileID: 2049386031}
   - {fileID: 843772620}
   - {fileID: 1652935562}
+  - {fileID: 900000000000000002}
+--- !u!1 &900000000000000001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 900000000000000002}
+  - component: {fileID: 900000000000000003}
+  m_Layer: 0
+  m_Name: CutsceneTest
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &900000000000000002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900000000000000001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &900000000000000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 900000000000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7e4a9c2d5f0413aa8e6c1b3d2f49071, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cutscenes:
+  - name: GameStart
+    actorPrefab: {fileID: 919132149155446097, guid: 922865af1c2d3f44cbfd98c2b53ab788, type: 3}
+    actorClip: {fileID: 1827226128182048838, guid: 922865af1c2d3f44cbfd98c2b53ab788, type: 3}
+    cameraPrefab: {fileID: 919132149155446097, guid: 81224a7eb8719b840ab07c285c690aa0, type: 3}
+    cameraClip: {fileID: 1827226128182048838, guid: 81224a7eb8719b840ab07c285c690aa0, type: 3}
+  - name: BossStart
+    actorPrefab: {fileID: 919132149155446097, guid: e065d0d28fa4bca4d93d39a81bb0822b, type: 3}
+    actorClip: {fileID: 1827226128182048838, guid: e065d0d28fa4bca4d93d39a81bb0822b, type: 3}
+    cameraPrefab: {fileID: 919132149155446097, guid: 3eae1454c67924345ad31149d7c6dc12, type: 3}
+    cameraClip: {fileID: 1827226128182048838, guid: 3eae1454c67924345ad31149d7c6dc12, type: 3}
+  - name: BossEnd
+    actorPrefab: {fileID: 919132149155446097, guid: 19aefbc502d328f4297169494c26dc88, type: 3}
+    actorClip: {fileID: 1827226128182048838, guid: 19aefbc502d328f4297169494c26dc88, type: 3}
+    cameraPrefab: {fileID: 919132149155446097, guid: a30fa507ebe6a50409c8a5a94c8b504c, type: 3}
+    cameraClip: {fileID: 1827226128182048838, guid: a30fa507ebe6a50409c8a5a94c8b504c, type: 3}
+  spawnPoint: {fileID: 0}
+  playbackTemplate: {fileID: 9100000, guid: c9f1e2d3a4b5687090a1b2c3d4e5f607, type: 2}
