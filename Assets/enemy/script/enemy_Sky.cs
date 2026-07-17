@@ -3,47 +3,63 @@ using UnityEngine;
 using UnityEngine.AI;
 
 [RequireComponent(typeof(NavMeshAgent))]
-[RequireComponent(typeof(Rigidbody))] // 磁力などの物理演算で制御するために必要
-
+[RequireComponent(typeof(Rigidbody))]
 public class enemy_Sky : MonoBehaviour
 {
-    private enum EnemyState
+    public enum EnemyState
     {
-        Wait,   // 待機（初期位置にいる）
-        Notice, // 発見（立ち止まって驚いている）
-        Chase,  // 追跡（今回は原則使用せず、Attack内で距離調整を行います）
+        Wait,   // 待機
+        Notice, // 発見
+        Chase,  // 追跡
         Attack, // 攻撃・距離保持
-        Search, // 探索（見失って周囲を探している）
-        Return  // 帰還（初期位置に戻っている）}
+        Search, // 探索
+        Return, // 帰還
+        MagnetPulled, // 吸い寄せ・保持状態
+        MagnetThrown, // 発射・落下状態
+        Hit           // 壁激突ダウン状態
     }
 
     [Header("パラメータ")]
     [SerializeField] private float maxHp = 100.0f;
     [SerializeField] private float found = 10.0f;
-    [SerializeField] private float attackRange = 8.0f;  // 遠距離攻撃が届く距離
-    [SerializeField] private float distance = 5.0f; // 近づかれたら逃げる距離 (attackRange以下に設定)
-    [SerializeField] private float searchTime = 3.0f;   // プレイヤーを見失った後に探す時間
-    [SerializeField] private float searchRadius = 5.0f; // 探索する範囲
+    [SerializeField] private float attackRange = 8.0f;
+    [SerializeField] private float distance = 5.0f;
+    [SerializeField] private float searchTime = 3.0f;
+    [SerializeField] private float searchRadius = 5.0f;
     [SerializeField] private float noticeTime = 1.0f;
 
     [Header("攻撃")]
-    [SerializeField] private float attackInterval = 2.0f; // ビームを撃つ間隔
-    [SerializeField] private float beamSpeed = 10.0f;     // ビームの飛ぶ速度
+    [SerializeField] private float attackInterval = 2.0f;
+    [SerializeField] private float beamSpeed = 10.0f;
+    private bool isAttack = false;
 
-    [Header("浮遊")]
+    [Header("浮遊高度")]
     [SerializeField] private float hoverHeight = 2.0f;     // 地面からの基本の高さ
-    [SerializeField] private float hoverRange = 0.5f;  // ふわふわの揺れ幅
-    [SerializeField] private float hoverSpeed = 2.0f;  // ふわふわの揺れる速度
+    [SerializeField] private float hoverRange = 0.5f;
+    [SerializeField] private float hoverSpeed = 2.0f;
 
-    [Header("磁力")] // 磁力(引力・斥力)の設定
-    [SerializeField] private float magnetRadius = 8.0f;  // 磁力などを感知する距離
-    [SerializeField] private float magnetForce = 50.0f;  // 引き寄せる・反発する力
+    [Header("環境磁力（ステージ用）")]
+    [SerializeField] private float magnetRadius = 8.0f;
+    [SerializeField] private float magnetForce = 50.0f;
+
+    [Header("激突ヒット")]
+    [Tooltip("壁や地面に激突したとみなす最小の衝撃（速度）")]
+    [SerializeField] private float hitImpactThreshold = 5.0f;
+    [Tooltip("壁に激突してから復帰するまでの時間")]
+    [SerializeField] private float hitDuration = 1.5f;
+    private float hitTimer;
+    private float recoveryCooldown = 0f;
+
+    [Header("ビジュアル（吸収時の高さバグ対策用）")]
+    [Tooltip("敵の3Dモデル（グラフィック）のトランスフォーム。空中で浮いているモデルを、吸収時に親（コライダー）の中心に引き戻すために使用します。未指定の場合はAnimatorがあるオブジェクトを自動で対象にします")]
+    [SerializeField] private Transform modelTransform;
+    private Vector3 originalModelLocalPosition; // 元の浮遊高度を記録
 
     [Header("参照")]
     [SerializeField] private Transform targetPlayer;
-    [SerializeField] private GameObject markExclamation; // ！マーク
-    [SerializeField] private GameObject markQuestion;    // ？マーク
-    [SerializeField] private GameObject beam;    // ビーム
+    [SerializeField] private GameObject markExclamation;
+    [SerializeField] private GameObject markQuestion;
+    [SerializeField] private GameObject beam;
 
     [Header("エフェクト")]
     [SerializeField] private GameObject enemyHitEffect;
@@ -52,23 +68,30 @@ public class enemy_Sky : MonoBehaviour
 
     private float currentHp;
     private NavMeshAgent agent;
-    private Rigidbody rb; // 物理演算用
+    private Rigidbody rb;
     private Animator anim;
 
     private Vector3 startPosition;
 
     private EnemyState currentState = EnemyState.Wait;
-    private float searchTimer; // 探索の残り時間を計るタイマー
+    private float searchTimer;
     private float noticeTimer;
-    private float attackTimer; // 攻撃間隔を管理するタイマー
+    private float attackTimer;
 
-    private bool isMagnetized = false; // 磁力の影響(吹っ飛んでいる最中など)を受けているかどうか
-    private float timeOffset;          // 個体ごとにフワフワのタイミングをずらすための乱数
+    private bool isMagnetized = false;
+    private float timeOffset;
+
+    // 投げられてから強制復帰するまでのセーフティタイマー（無限に飛んでいくのを防ぐ）
+    private float thrownSafetyTimer = 0f;
+    private const float ThrownSafetyDuration = 3.0f; // 3秒経ったらどこにいても強制着地
+
+    private bool IsAgentActiveAndOnNavMesh => agent != null && agent.enabled && agent.isOnNavMesh;
 
     public void SetTarget(Transform player)
     {
         targetPlayer = player;
     }
+
     void Start()
     {
         currentHp = maxHp;
@@ -76,28 +99,34 @@ public class enemy_Sky : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();
 
-        // 通常時はNavMeshAgentで移動するため物理演算(Rigidbody)はオフにしておく
         if (rb != null)
         {
             rb.isKinematic = true;
-            rb.useGravity = false; // 飛行型なので重力の影響をなくす
+            rb.useGravity = false;
         }
 
-        // 初期高さをセット
+        // 浮遊高度初期設定
         if (agent != null) agent.baseOffset = hoverHeight;
 
+        // モデル（ビジュアル）位置の自動取得と初期位置の記録
+        if (modelTransform == null && anim != null)
+        {
+            modelTransform = anim.transform;
+        }
+        if (modelTransform != null)
+        {
+            originalModelLocalPosition = modelTransform.localPosition;
+        }
+
         startPosition = transform.position;
-        timeOffset = Random.Range(0f, 100f); // 複数の敵がいても動きが揃わないようにする
+        timeOffset = Random.Range(0f, 100f);
 
         if (markExclamation != null) markExclamation.SetActive(false);
         if (markQuestion != null) markQuestion.SetActive(false);
 
-        // 浮遊エフェクトを生成
         if (enemyFloatingEffect != null)
         {
             GameObject effect = Instantiate(enemyFloatingEffect, transform.position, Quaternion.identity, transform);
-
-            // 少し下に表示する
             effect.transform.localPosition = new Vector3(0, -0.3f, 0);
         }
     }
@@ -127,25 +156,58 @@ public class enemy_Sky : MonoBehaviour
 
     void FixedUpdate()
     {
-        MagneticInteraction();
+        if (currentState == EnemyState.MagnetThrown)
+        {
+            HandleMagneticRecovery();
+
+            // 投げられ中の無限飛散を防ぐセーフティタイマー
+            thrownSafetyTimer -= Time.fixedDeltaTime;
+            if (thrownSafetyTimer <= 0f)
+            {
+                Debug.LogWarning($"{gameObject.name} が着地しないため、セーフティが作動し、強制的にNavMeshへ復帰させます。");
+                RecoverToNavMesh();
+            }
+        }
+        else if (currentState == EnemyState.Hit)
+        {
+            HandleHitRecovery();
+        }
+
+        if (currentState != EnemyState.MagnetPulled &&
+            currentState != EnemyState.MagnetThrown &&
+            currentState != EnemyState.Hit)
+        {
+            MagneticInteraction();
+        }
     }
 
     void Update()
     {
         if (targetPlayer == null) return;
 
+        if (attackTimer > 0f) attackTimer -= Time.deltaTime;
+
         PlayerHealth health = targetPlayer.GetComponent<PlayerHealth>();
         if (health != null && health.IsDead) return;
 
-        // NavMeshAgentが有効な間のみふわふわ浮かせる
-        if (agent.enabled)
-            agent.baseOffset = hoverHeight + Mathf.Sin((Time.time + timeOffset) * hoverSpeed) * hoverRange;
+        // プレイヤーの磁力操作中、または激突ダウン中はAIや通常の浮遊処理を完全ストップ
+        if (currentState == EnemyState.MagnetPulled ||
+            currentState == EnemyState.MagnetThrown ||
+            currentState == EnemyState.Hit) return;
 
-        // 攻撃タイマーの更新
-        if (attackTimer > 0f) attackTimer -= Time.deltaTime;
+        if (IsAgentActiveAndOnNavMesh)
+        {
+            agent.baseOffset = hoverHeight + Mathf.Sin((Time.time + timeOffset) * hoverSpeed) * hoverRange;
+        }
+
 
         // 磁力で飛ばされている間はAIの思考（追跡など）をストップする
         if (isMagnetized) return;
+        if (targetPlayer == null) return;
+
+        // 磁力で飛ばされている間はAIの思考（追跡など）をストップする
+        if (isMagnetized) return;
+        if (targetPlayer == null) return;
 
         float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
 
@@ -157,39 +219,41 @@ public class enemy_Sky : MonoBehaviour
 
             case EnemyState.Notice:
                 noticeTimer -= Time.deltaTime;
-                if (noticeTimer <= 0) ChangeState(EnemyState.Attack); // Noticeの後は直接Attack（距離調整）へ
+                if (noticeTimer <= 0) ChangeState(EnemyState.Attack);
                 break;
 
             case EnemyState.Attack:
-                // 見失った（探索へ）
                 if (distanceToPlayer > found + 5.0f)
                 {
                     ChangeState(EnemyState.Search);
                 }
                 else
                 {
-                    // プレイヤーに近すぎる場合は距離を取る（遠ざかる）
                     if (distanceToPlayer < distance)
                     {
-                        agent.isStopped = false;
-                        Vector3 dirAway = (transform.position - targetPlayer.position).normalized;
-                        // プレイヤーの反対方向の少し先に目的地を設定
-                        Vector3 retreatPos = transform.position + dirAway * 2.0f;
-                        agent.SetDestination(retreatPos);
-
-                        // 逃げながらも攻撃はする
+                        if (IsAgentActiveAndOnNavMesh)
+                        {
+                            agent.isStopped = false;
+                            Vector3 dirAway = (transform.position - targetPlayer.position).normalized;
+                            Vector3 retreatPos = transform.position + dirAway * 2.0f;
+                            agent.SetDestination(retreatPos);
+                        }
                         AimAndAttack();
                     }
-                    // 攻撃範囲より外の場合は近づく
                     else if (distanceToPlayer > attackRange)
                     {
-                        agent.isStopped = false;
-                        agent.SetDestination(targetPlayer.position);
+                        if (IsAgentActiveAndOnNavMesh)
+                        {
+                            agent.isStopped = false;
+                            agent.SetDestination(targetPlayer.position);
+                        }
                     }
-                    // ちょうどよい距離（distanceとattackRangeの間）
                     else
                     {
-                        agent.isStopped = true;
+                        if (IsAgentActiveAndOnNavMesh)
+                        {
+                            agent.isStopped = true;
+                        }
                         AimAndAttack();
                     }
                 }
@@ -197,27 +261,162 @@ public class enemy_Sky : MonoBehaviour
 
             case EnemyState.Search:
                 if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
-                else
-                {
-                    searchTimer -= Time.deltaTime;
-                    if (searchTimer <= 0) ChangeState(EnemyState.Return);
-                    else if (agent.remainingDistance < 0.5f) WanderAround();
-                }
                 break;
+        }
 
-            case EnemyState.Return:
-                if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
-                else if (agent.remainingDistance < 0.5f) ChangeState(EnemyState.Wait);
-                break;
+        // ★通常時（プレイヤーに掴まれていない・吹っ飛ばされていない）のみ元の浮遊高度に戻る補間を行う
+        if (modelTransform != null && modelTransform != transform)
+        {
+            modelTransform.localPosition = Vector3.MoveTowards(
+                modelTransform.localPosition,
+                originalModelLocalPosition,
+                Time.deltaTime * 3f
+            );
         }
     }
 
-    // プレイヤーの方向を向いて攻撃を行う
+    // ==========================================
+    // 磁力システムインターフェース
+    // ==========================================
+
+    public void OnMagnetGrabbed()
+    {
+        isMagnetized = false;
+
+        // ★【ガクッ対策】吸収された瞬間、見た目の位置が変わらないように「現在のワールド座標」を一時保存
+        Vector3 visualWorldPos = modelTransform != null ? modelTransform.position : transform.position;
+
+        if (agent.enabled)
+        {
+            // agent.baseOffset = 0f; // ←【削除】ここでリセットするとパッと位置が落ちるので廃止
+            agent.enabled = false;
+        }
+
+        ChangeState(EnemyState.MagnetPulled);
+
+        // ★【ガクッ対策】親（transform）を元の位置に維持しつつ、modelTransformもワールド位置をキープしたままローカル座標のみ0へ滑らかに移行させる準備
+        // 一瞬でのリセット（modelTransform.localPosition = Vector3.zero;）を廃止し、手元のスクリプト側の補間に完全に任せます。
+        if (modelTransform != null && modelTransform != transform)
+        {
+            // 親オブジェクトが手元に近づくのに合わせて、モデル位置も自然に中心（Zero）へ吸いつくようになります
+            modelTransform.position = visualWorldPos;
+        }
+
+        // 実行中のすべての攻撃コルーチンを強制停止
+        StopAllCoroutines();
+        isAttack = false;
+
+        // 攻撃アニメキャンセル
+        if (anim != null)
+        {
+            anim.ResetTrigger("attack");
+            anim.Play("Idle", 0, 0.0f);
+            anim.SetBool("isPulled", true);
+        }
+    }
+
+    public void OnMagnetReleased()
+    {
+        ChangeState(EnemyState.MagnetThrown);
+        recoveryCooldown = 0.2f;
+        thrownSafetyTimer = ThrownSafetyDuration;
+
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.useGravity = true;
+            rb.linearDamping = 1.0f; // 空気抵抗
+        }
+
+        if (anim != null) anim.SetBool("isPulled", false);
+    }
+
+    public void OnMagnetRepelled()
+    {
+        ChangeState(EnemyState.MagnetThrown);
+        recoveryCooldown = 0.5f;
+        thrownSafetyTimer = ThrownSafetyDuration;
+
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.useGravity = true;
+            rb.linearDamping = 1.0f; // 空気抵抗
+        }
+
+        if (anim != null)
+        {
+            anim.SetBool("isPulled", false);
+            anim.SetBool("isThrown", true);
+        }
+    }
+
+    private void HandleMagneticRecovery()
+    {
+        if (recoveryCooldown > 0f)
+        {
+            recoveryCooldown -= Time.fixedDeltaTime;
+            return;
+        }
+
+        // 失速してゆっくりになったら地面に復帰
+        if (rb.linearVelocity.magnitude < 0.5f)
+        {
+            RecoverToNavMesh();
+        }
+    }
+
+    private void HandleHitRecovery()
+    {
+        hitTimer -= Time.fixedDeltaTime;
+
+        bool isStoppedOnGround = rb.linearVelocity.magnitude < 0.3f && hitTimer < (hitDuration - 0.1f);
+
+        if (isStoppedOnGround || hitTimer <= 0f)
+        {
+            RecoverToNavMesh();
+        }
+    }
+
+    private void RecoverToNavMesh()
+    {
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(transform.position, out hit, 10.0f, NavMesh.AllAreas))
+        {
+            if (rb != null)
+            {
+                rb.isKinematic = true;
+                rb.useGravity = false;
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                rb.linearDamping = 0f; // 空気抵抗をゼロに戻す
+            }
+
+            transform.position = hit.position;
+
+            // ★【高度復帰対策】NavMesh復帰時に、AgentのbaseOffsetを初期値にリセット
+            if (agent != null)
+            {
+                agent.baseOffset = hoverHeight;
+            }
+            agent.enabled = true;
+
+            if (anim != null)
+            {
+                anim.SetBool("isThrown", false);
+                anim.SetBool("isHit", false);
+            }
+
+            ChangeState(EnemyState.Attack);
+        }
+    }
+
+    // ==========================================
+
     private void AimAndAttack()
     {
-        // 常にプレイヤーの方向を向かせる
         Vector3 lookDir = targetPlayer.position - transform.position;
-        lookDir.y = 0; // 水平のみ回転
+        lookDir.y = 0;
         if (lookDir != Vector3.zero)
         {
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5.0f);
@@ -226,28 +425,23 @@ public class enemy_Sky : MonoBehaviour
         Attack();
     }
 
-    // 磁力をN極・S極として感知して力を受ける処理
     private void MagneticInteraction()
     {
-        // 自身のタグを確認
         bool isMyN = gameObject.CompareTag("N_Pole");
         bool isMyS = gameObject.CompareTag("S_Pole");
 
-        if (!isMyN && !isMyS) return; // 磁石に対応していなければ無視
+        if (!isMyN && !isMyS) return;
 
         Collider[] colliders = Physics.OverlapSphere(transform.position, magnetRadius);
         bool feelingMagnet = false;
         Vector3 totalForce = Vector3.zero;
 
-        // くっついている対象を記録
         Transform attachedTarget = null;
         float minDistance = float.MaxValue;
 
         foreach (Collider col in colliders)
         {
-            if (col.gameObject == gameObject) continue; // 自身は除外
-
-            // 相手が enemy (敵) なら干渉しない（お好みで変更可能）
+            if (col.gameObject == gameObject) continue;
             if (col.GetComponent<enemy>() != null || col.GetComponent<enemy_Sky>() != null) continue;
 
             bool isOtherN = col.CompareTag("N_Pole");
@@ -255,22 +449,14 @@ public class enemy_Sky : MonoBehaviour
 
             if (isOtherN || isOtherS)
             {
-                // 相手への方向と距離
                 Vector3 dirToOther = col.transform.position - transform.position;
                 float distance = dirToOther.magnitude;
-
-                // 距離が近すぎる場合は0を防止
                 float safeDistance = distance < 0.5f ? 0.5f : distance;
-
-                // 距離が近いほど強く引っ張られるようにする
                 float force = magnetForce * (1.0f + (magnetRadius - safeDistance) / magnetRadius);
 
-                // 違う極（引き寄せる・くっつく）
                 if ((isMyN && isOtherS) || (isMyS && isOtherN))
                 {
                     feelingMagnet = true;
-
-                    // 十分に近ければ「まとわりつく」状態にするための判定
                     if (distance < 2.0f)
                     {
                         if (distance < minDistance)
@@ -281,86 +467,71 @@ public class enemy_Sky : MonoBehaviour
                     }
                     else
                     {
-                        // 離れていれば通常通り引っ張られる（エージェントのみに加算）
                         totalForce += dirToOther.normalized * force;
                     }
                 }
-                // 同じ極（反発する）
                 else if ((isMyN && isOtherN) || (isMyS && isOtherS))
                 {
-                    // エージェントへの反発力のみ加算
                     totalForce -= dirToOther.normalized * force;
                     feelingMagnet = true;
                 }
             }
         }
 
-        // 力を受けている際の切り替え (NavMeshAgentとRigidbodyの切り替え)
         if (feelingMagnet)
         {
             if (agent.enabled)
             {
-                agent.enabled = false;   // 移動AIを一時停止
-                rb.isKinematic = false;  // 物理演算をオン
+                agent.enabled = false;
+                rb.isKinematic = false;
                 isMagnetized = true;
-
-                // 吹っ飛んでいきすぎないように、空気抵抗を一時的に追加
                 rb.linearDamping = 0.5f;
             }
 
-            // くっつく（まとわりつく）処理
             if (attachedTarget != null)
             {
-                // 磁力で親などに引っ張られる際には質量(mass)を一時的に極小にして極端な反発を防ぐ
                 rb.mass = 0.01f;
-
-                // 目標の中心に向けて常に強力な引力で引き寄せる（くっつく）
                 Vector3 stickDir = attachedTarget.position - transform.position;
-
-                // オーバーシュート（突き抜け）を防ぐため、速度を制限しつつ引き寄せる
                 rb.linearVelocity = stickDir.normalized * 5f;
-
-                // 強制的にスナップ（重力などを無視して吸い付く）させる。VelocityChangeを使って継続的に適用。
                 rb.AddForce(stickDir.normalized * (magnetForce * 5f), ForceMode.Acceleration);
             }
             else
             {
-                // 磁力でくっついていない場合は元の質量に戻す（デフォルトが1の場合）
                 rb.mass = 1.0f;
-
                 if (totalForce.magnitude > 0.1f)
                 {
-                    // ForceMode.VelocityChange (質量無視で即座に変更) を使ってグッと引き寄せる
                     rb.AddForce(totalForce * Time.fixedDeltaTime, ForceMode.VelocityChange);
                 }
             }
         }
         else if (isMagnetized)
         {
-            // 磁力の影響範囲から外れ、速度が落ち着いたら通常のAI(NavMesh)に戻す
             if (rb.linearVelocity.magnitude < 0.5f)
             {
-                rb.mass = 1.0f; // 質量を元の値に戻す
+                rb.mass = 1.0f;
                 rb.isKinematic = true;
                 isMagnetized = false;
 
-                // NavMesh(歩ける床)の上にちゃんと着地できているか確認してから
-                // 飛行型は少し上空にいてもNavMeshを探せるよう検索半径を広めに取る(2.0f -> +hoverHeight)
                 NavMeshHit hit;
                 if (NavMesh.SamplePosition(transform.position, out hit, 2.0f + hoverHeight, NavMesh.AllAreas))
                 {
-                    transform.position = hit.position; // x, z が正しい位置に戻り、y だけ NavMesh の高さになるが、直後の Update で baseOffset が適用されて再び浮く
+                    transform.position = hit.position;
+                    if (agent != null) agent.baseOffset = hoverHeight;
                     agent.enabled = true;
                 }
             }
         }
     }
 
-    // ステート切り替え処理
     private void ChangeState(EnemyState nextState)
     {
         currentState = nextState;
-        if (!agent.enabled) return; // 磁力で飛んでいる時はエラー防止
+
+        if (currentState == EnemyState.MagnetPulled ||
+            currentState == EnemyState.MagnetThrown ||
+            currentState == EnemyState.Hit) return;
+
+        if (!IsAgentActiveAndOnNavMesh) return;
 
         agent.isStopped = false;
 
@@ -377,7 +548,7 @@ public class enemy_Sky : MonoBehaviour
         }
         else if (nextState == EnemyState.Attack)
         {
-            // 距離による移動をUpdateで制御するため、ここでは特に止めない
+            // Update側
         }
         else if (nextState == EnemyState.Search)
         {
@@ -392,21 +563,18 @@ public class enemy_Sky : MonoBehaviour
         }
     }
 
-    // 探索中にランダムな位置を目的地に設定する処理
     private void WanderAround()
     {
-        if (!agent.enabled) return;
+        if (!IsAgentActiveAndOnNavMesh) return;
         Vector3 randomPos = transform.position + Random.insideUnitSphere * searchRadius;
         NavMeshHit hit;
 
-        // 飛行型は上下の判定範囲が広い可能性があるので、少し広めに NavMesh を探す
         if (NavMesh.SamplePosition(randomPos, out hit, searchRadius, NavMesh.AllAreas))
         {
             agent.SetDestination(hit.position);
         }
     }
 
-    // マークを一定時間後に消す処理
     private IEnumerator HideMark(GameObject mark, float delay)
     {
         yield return new WaitForSeconds(delay);
@@ -432,20 +600,18 @@ public class enemy_Sky : MonoBehaviour
         }
     }
 
-    //アニメーションイベントで特定のフレームから呼び出すようの関数
     public void SpawnBeam()
     {
+        if (currentState == EnemyState.MagnetPulled ||
+            currentState == EnemyState.MagnetThrown ||
+            currentState == EnemyState.Hit) return;
+
         if (beam == null || targetPlayer == null) return;
-        // プレイヤーの方向を計算[]
+
         Vector3 direction = (targetPlayer.position - transform.position).normalized;
-
-        // キャラクターの少し前方にビームを生成
         Vector3 spawnPos = transform.position + direction * 0.8f;
-
-        // ビームの生成
         GameObject firedBeam = Instantiate(beam, spawnPos, Quaternion.LookRotation(direction));
 
-        // ビームを飛ばす処理（ビームにRigidbodyがついている前提）
         Rigidbody beamRb = firedBeam.GetComponent<Rigidbody>();
         if (beamRb != null)
         {
@@ -460,17 +626,66 @@ public class enemy_Sky : MonoBehaviour
         if (throwable != null && throwable.IsThrown)
         {
             TakeDamage(throwable.Damage);
-
-            // 一度だけダメージを与える
             throwable.ResetThrown();
+            return;
         }
+
+        if (currentState == EnemyState.MagnetThrown)
+        {
+            if (collision.gameObject.CompareTag("Player")) return;
+
+            float impactForce = collision.relativeVelocity.magnitude;
+
+            Vector3 normal = collision.contacts[0].normal;
+            bool isFloor = normal.y > 0.7f;
+
+            if (isFloor)
+            {
+                RecoverToNavMesh();
+            }
+            else
+            {
+                if (impactForce >= hitImpactThreshold)
+                {
+                    TriggerHitCollision(impactForce);
+                }
+            }
+        }
+    }
+
+    private void TriggerHitCollision(float force)
+    {
+        ChangeState(EnemyState.Hit);
+        hitTimer = hitDuration;
+
+        if (rb != null)
+        {
+            // ★【大吹っ飛び対策①】壁衝突した瞬間の大バウンドを抑制するため、一度物理計算による速度・回転を完全に殺す
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.linearDamping = 0f; // 跳ね返り中に空気抵抗が邪魔をして異常加速するのを防ぐためにリセット
+
+            rb.isKinematic = false;
+            rb.useGravity = true;
+
+            // ★【大吹っ飛び対策②】壁にぶつかった位置から、ポトッと真下に落とすための微弱な下向きの力を加える
+            rb.linearVelocity = Vector3.down * 1.5f;
+        }
+
+        if (anim != null)
+        {
+            anim.SetBool("isThrown", false);
+            anim.SetBool("isHit", true);
+        }
+
+        TakeDamage(maxHp / 3);
+
+        Debug.Log($"{gameObject.name} (飛行) が壁に激突！ポトッと床へ自由落下させます。");
     }
 
     public void TakeDamage(float damageAmount)
     {
         currentHp -= damageAmount;
-
-        // ダメージを受けたときのエフェクトを再生
         if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
 
         if (currentHp <= 0)

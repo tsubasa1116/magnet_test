@@ -231,6 +231,7 @@ public class magnet : MonoBehaviour
             Vector3 shootDirection = Camera.main.transform.forward;
             targetRb.AddForce(shootDirection * throwForce, ForceMode.Impulse);
 
+
             AuraRing aura = targetRb.GetComponentInChildren<AuraRing>();
             if (aura != null)
                 aura.SetHeld(false);
@@ -261,6 +262,7 @@ public class magnet : MonoBehaviour
             }
         }
 
+
         targetRb = null;
         isAttached = false;
 
@@ -283,6 +285,7 @@ public class magnet : MonoBehaviour
 
             if (!isCorrectTarget)
             {
+
                 targetRb = null;
 
                 DestroyEffect();
@@ -308,6 +311,7 @@ public class magnet : MonoBehaviour
                 if ((magnetMode == 1 && isS) || (magnetMode == 2 && isN))
                 {
                     targetRb = hit.collider.GetComponentInParent<Rigidbody>();
+
 
                     // レーザー生成
                     if (currentLaser == null)
@@ -389,4 +393,5 @@ public class magnet : MonoBehaviour
             currentAttractEffect = null;
         }
     }
+
 }

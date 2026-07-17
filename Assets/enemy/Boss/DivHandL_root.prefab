@@ -102,9 +102,10 @@ GameObject:
   - component: {fileID: 6435840197675947950}
   - component: {fileID: 2549865202531650390}
   - component: {fileID: 5224426238319890295}
+  - component: {fileID: 7045062494413079798}
   m_Layer: 0
   m_Name: DivHandL_root
-  m_TagString: N_Hand
+  m_TagString: N_Pole
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -118,7 +119,7 @@ Transform:
   m_GameObject: {fileID: 1556018225667247542}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.041460644, z: -0, w: 0.99914014}
-  m_LocalPosition: {x: 900.58234, y: 2.3716657, z: -19.572308}
+  m_LocalPosition: {x: 589.364, y: -52.555298, z: 153.50854}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -189,3 +190,18 @@ MonoBehaviour:
   boneRoot: {fileID: 0}
   ArmMesh: {fileID: 0}
   attackDamage: 1
+  bossScript: {fileID: 0}
+--- !u!114 &7045062494413079798
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1556018225667247542}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25e6fe930b009fb4b839e279fa1e03ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ThrowableObject
+  damage: 100
+  IsThrown: 0
