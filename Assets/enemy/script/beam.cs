@@ -34,7 +34,7 @@ public class beam : MonoBehaviour
             PlayerHealth playerHealth = collision.gameObject.GetComponent<PlayerHealth>();
             Debug.Log(playerHealth);
 
-            if (playerHealth != null) playerHealth.TakeDamage(attackDamage);
+            if (playerHealth != null) playerHealth.TakeDamage(attackDamage, transform.position);
 
             Destroy(gameObject);
         }

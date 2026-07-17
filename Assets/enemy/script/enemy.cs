@@ -21,7 +21,7 @@ public class enemy : MonoBehaviour
 
     [Header("基本パラメータ")]
     [SerializeField] private float maxHp = 100.0f;
-    [SerializeField] private float found = 10.0f;
+    [SerializeField] private float found = 7.5f;
     [SerializeField] private float attackRange = 2.0f;
     [SerializeField] private float searchTime = 3.0f;
     [SerializeField] private float searchRadius = 5.0f;
@@ -81,6 +81,30 @@ public class enemy : MonoBehaviour
         if (markQuestion != null) markQuestion.SetActive(false);
     }
 
+    private void OnEnable()
+    {
+        PlayerHealth.OnPlayerDied += OnPlayerDied;
+    }
+
+    private void OnDisable()
+    {
+        PlayerHealth.OnPlayerDied -= OnPlayerDied;
+    }
+
+    private void OnPlayerDied()
+    {
+        attackTimer = 0f;
+        isAttack = false;
+
+        StopAllCoroutines();
+
+        if (agent != null && agent.enabled)
+        {
+            agent.ResetPath();
+            ChangeState(EnemyState.Wait);
+        }
+    }
+
     void FixedUpdate()
     {
         // 吹っ飛び・落下中の時だけ着地判定を行う
@@ -97,6 +121,11 @@ public class enemy : MonoBehaviour
 
     void Update()
     {
+        if (targetPlayer == null) return;
+
+        PlayerHealth health = targetPlayer.GetComponent<PlayerHealth>();
+        if (health != null && health.IsDead) return;
+
         if (attackTimer > 0f) attackTimer -= Time.deltaTime;
 
         // 磁力で操作されている間、または【激突ダウン中】はAI処理を完全にストップ
@@ -327,7 +356,7 @@ public class enemy : MonoBehaviour
         if (Vector3.Distance(transform.position, targetPlayer.position) <= attackRange + 0.5f)
         {
             PlayerHealth playerHealth = targetPlayer.GetComponent<PlayerHealth>();
-            if (playerHealth != null) playerHealth.TakeDamage(attackDamage);
+            if (playerHealth != null) playerHealth.TakeDamage(attackDamage, transform.position);
         }
     }
 
@@ -342,7 +371,12 @@ public class enemy : MonoBehaviour
     {
         currentHp -= damageAmount;
         if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
-        if (currentHp <= 0) Die();
+
+        if (currentHp <= 0)
+        {
+            HitStop.Play(0.12f); // 倒した手応えのヒットストップ
+            Die();
+        }
     }
 
     // ★修正：衝突判定（地面での激突ダメージを完全シャットアウト！）

@@ -61,7 +61,7 @@ public class WaveColloder : MonoBehaviour
                 // ドーナツ状の輪っかの中にいるかチェック（プレイヤーが波の 先端---後端 の間にいるか）
                 if (distance <= currentRadius && distance >= currentRadius - waveThickness)
                 {
-                    player.TakeDamage(damage);
+                    player.TakeDamage(damage, transform.position);
                     hasHit = true;
                     break;
                 }

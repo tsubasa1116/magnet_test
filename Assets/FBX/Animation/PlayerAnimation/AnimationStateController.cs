@@ -17,12 +17,17 @@ public class AnimationStateController : MonoBehaviour
 	[SerializeField] private float speedDamping = 0.08f; // 倒し具合の変化
 
 	[Header("エイム(ストレイフ)設定")]
-	[SerializeField] private int aimLayerIndex = 1;   // 上半身エイムレイヤーの番号
+	[SerializeField] private int aimLayerIndex = 1;   // 腕キャッチレイヤー(CatchHold)の番号
 	[SerializeField] private float aimDamping = 6f;   // 前後左右ブレンドの追従
-	[SerializeField] private float aimWeightSpeed = 6f; // 上半身レイヤーの出入り
+	[SerializeField] private float aimWeightSpeed = 6f; // 腕レイヤーの出入り
+
+	[Header("引き寄せ(MagnetPull連携)")]
+	[Tooltip("引き寄せ中(対象が飛んでくる間)の足アニメの再生速度倍率")]
+	[SerializeField] private float pullFootSpeed = 1.5f;
 
 	private Animator animator;
 	private PlayerMovement movement;
+	private MagnetPull magnetPull;
 
 	private float velocityZ; // 0=Walk, 1=Run
 	private float moveSpeed;  // 0〜1 スティックの倒し具合
@@ -35,11 +40,13 @@ public class AnimationStateController : MonoBehaviour
 	private static readonly int JumpHash = Animator.StringToHash("Jump");
 	private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
 	private static readonly int IsAimingHash = Animator.StringToHash("IsAiming");
+	private static readonly int IsHoldingHash = Animator.StringToHash("IsHolding");
 
 	void Start()
 	{
 		animator = GetComponent<Animator>();
 		movement = GetComponent<PlayerMovement>();
+		magnetPull = GetComponent<MagnetPull>();
 
 		// ジャンプした瞬間にトリガーを立てる
 		movement.Jumped += OnJumped;
@@ -52,27 +59,38 @@ public class AnimationStateController : MonoBehaviour
 
 	void Update()
 	{
-		// Catch中(ZRホールド)に、体がカメラを向くストレイフ＋上半身catch姿勢にする
+		// Catch中(ZRホールド)は体がカメラを向くストレイフ＋catch姿勢(Aimステート)。
+		// 引き寄せ完了(保持中)の地上は専用の保持移動(Holdステート: CatchRun系ブレンド)。
+		// 空中でのキャッチだけは体を空中アニメのままにして、
+		// 腕だけ CatchHold レイヤー(アバターマスク)でキャッチ姿勢を出す(交互切り替わりのチラつき防止)。
 		bool catching = movement.IsCatching;
-		animator.SetBool(IsAimingHash, catching);
+		bool pulling = magnetPull != null && magnetPull.IsPulling;
+		bool holding = magnetPull != null && magnetPull.IsHolding;
+		bool grounded = movement.IsGrounded;
+		bool strafing = catching && !holding && grounded;
+		bool holdingMove = holding && grounded;
+		bool armPose = catching && !grounded;
+		animator.SetBool(IsAimingHash, strafing);
+		animator.SetBool(IsHoldingHash, holdingMove);
 
-		// 上半身catchレイヤーのウェイトをなめらかに出し入れ
+		// 腕キャッチレイヤー(空中キャッチ時のみ)のウェイトをなめらかに出し入れ
 		// (レイヤー未作成でもエラーにならないようガード)
-		aimWeight = Mathf.MoveTowards(aimWeight, catching ? 1f : 0f, aimWeightSpeed * Time.deltaTime);
+		aimWeight = Mathf.MoveTowards(aimWeight, armPose ? 1f : 0f, aimWeightSpeed * Time.deltaTime);
 		if (aimLayerIndex > 0 && aimLayerIndex < animator.layerCount)
 			animator.SetLayerWeight(aimLayerIndex, aimWeight);
 
-		if (catching)
+		if (strafing || holdingMove)
 		{
 			// 体はカメラを向いている＝入力がそのままローカルのストレイフ方向
-			// 壁で止められている時は入力ゼロ扱い→中央(IdolCatch)になる
+			// 壁で止められている時は入力ゼロ扱い→中央(IdolCatch/CatchMiddle)になる
 			Vector2 mv = movement.IsBlocked ? Vector2.zero : movement.MoveInput;
 			aimX = Mathf.MoveTowards(aimX, mv.x, aimDamping * Time.deltaTime);
 			aimZ = Mathf.MoveTowards(aimZ, mv.y, aimDamping * Time.deltaTime);
 
 			animator.SetFloat(VelocityXHash, aimX);
 			animator.SetFloat(VelocityZHash, aimZ);
-			animator.SetFloat(MoveSpeedHash, 1f); // エイム時は等速再生
+			// 引き寄せ中は足の運びを速める(catch移動ステートの再生速度に反映)
+			animator.SetFloat(MoveSpeedHash, strafing && pulling ? pullFootSpeed : 1f);
 		}
 		else
 		{

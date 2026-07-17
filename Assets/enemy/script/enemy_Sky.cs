@@ -131,6 +131,29 @@ public class enemy_Sky : MonoBehaviour
         }
     }
 
+    private void OnEnable()
+    {
+        PlayerHealth.OnPlayerDied += OnPlayerDied;
+    }
+
+    private void OnDisable()
+    {
+        PlayerHealth.OnPlayerDied -= OnPlayerDied;
+    }
+
+    private void OnPlayerDied()
+    {
+        attackTimer = 0f;
+
+        StopAllCoroutines();
+
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        {
+            agent.ResetPath();
+            ChangeState(EnemyState.Wait);
+        }
+    }
+
     void FixedUpdate()
     {
         if (currentState == EnemyState.MagnetThrown)
@@ -160,7 +183,12 @@ public class enemy_Sky : MonoBehaviour
 
     void Update()
     {
+        if (targetPlayer == null) return;
+
         if (attackTimer > 0f) attackTimer -= Time.deltaTime;
+
+        PlayerHealth health = targetPlayer.GetComponent<PlayerHealth>();
+        if (health != null && health.IsDead) return;
 
         // プレイヤーの磁力操作中、または激突ダウン中はAIや通常の浮遊処理を完全ストップ
         if (currentState == EnemyState.MagnetPulled ||
@@ -172,6 +200,13 @@ public class enemy_Sky : MonoBehaviour
             agent.baseOffset = hoverHeight + Mathf.Sin((Time.time + timeOffset) * hoverSpeed) * hoverRange;
         }
 
+
+        // 磁力で飛ばされている間はAIの思考（追跡など）をストップする
+        if (isMagnetized) return;
+        if (targetPlayer == null) return;
+
+        // 磁力で飛ばされている間はAIの思考（追跡など）をストップする
+        if (isMagnetized) return;
         if (targetPlayer == null) return;
 
         float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
@@ -502,11 +537,11 @@ public class enemy_Sky : MonoBehaviour
 
         if (nextState == EnemyState.Wait)
         {
-            agent.isStopped = true;
+            if (agent.isOnNavMesh) agent.isStopped = true;
         }
         else if (nextState == EnemyState.Notice)
         {
-            agent.isStopped = true;
+            if (agent.isOnNavMesh) agent.isStopped = true;
             noticeTimer = noticeTime;
             if (markExclamation != null) markExclamation.SetActive(true);
             StartCoroutine(HideMark(markExclamation, noticeTime));
@@ -652,7 +687,12 @@ public class enemy_Sky : MonoBehaviour
     {
         currentHp -= damageAmount;
         if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
-        if (currentHp <= 0) Die();
+
+        if (currentHp <= 0)
+        {
+            HitStop.Play(0.12f); // 倒した手応えのヒットストップ
+            Die();
+        }
     }
 
     private void Die()

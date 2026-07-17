@@ -1,81 +1,82 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class dash : MonoBehaviour
 {
-    public AudioClip dashSound;
+    [Header("効果音")]
+    [SerializeField] private AudioClip dashSound;
 
-    // ガウス加速器のような強い力で吹き飛ばす
-    [SerializeField] private float dashForce = 30.0f;
+    [Header("ダッシュ設定")]
+    // 吹き飛ばす力
+    [SerializeField] private float dashForce = 2000.0f;
 
-    // Y軸（上方向）に少し力を持たせる（地面に擦らずに飛ぶため）
+    // 少し上方向へ飛ばす力
     [SerializeField] private float liftForce = 2.0f;
 
     /// <summary>
-    /// Colliderのトリガー領域に侵入した時に呼び出される関数
+    /// トリガーに入った瞬間
     /// </summary>
     private void OnTriggerEnter(Collider other)
     {
-        // 衝突したオブジェクトのタグが"Player"である場合
-        if (other.gameObject.CompareTag("Player"))
+        // プレイヤー以外は無視
+        if (!other.CompareTag("Player"))
+            return;
+
+        // プレイヤーの状態取得
+        PlayerStateMachine playerState = other.GetComponent<PlayerStateMachine>();
+        if (playerState == null)
+            return;
+
+        // プレイヤーの磁力状態取得
+        PlayerCatch playerCatch = other.GetComponent<PlayerCatch>();
+        if (playerCatch == null || !playerCatch.IsCatching)
+            return;
+
+        // このオブジェクトの極性
+        bool isThisN = CompareTag("N_Pole");
+        bool isThisS = CompareTag("S_Pole");
+
+        // 同極なら反発
+        bool samePole =
+            (playerState.CurrentState == MagnetState.N && isThisN) ||
+            (playerState.CurrentState == MagnetState.S && isThisS);
+
+        if (!samePole)
+            return;
+
+        // 効果音
+        if (dashSound != null)
         {
-            // プレイヤーにアタッチされている磁力スクリプトを取得
-            magnet playerMagnet = other.GetComponentInChildren<magnet>();
+            AudioSource.PlayClipAtPoint(dashSound, transform.position);
+        }
 
-            if (playerMagnet != null)
-            {
-				if (!playerMagnet.isActive)
-				{
-					return;
-				}
+        // Rigidbody取得
+        Rigidbody playerRb = other.GetComponent<Rigidbody>();
+        if (playerRb == null)
+            return;
 
-				// 電極ポールの極性をタグで判定
-				bool isThisN = gameObject.CompareTag("N_Pole");
-                bool isThisS = gameObject.CompareTag("S_Pole");
+        // 現在の速度をリセット
+        playerRb.linearVelocity = Vector3.zero;
 
-                // プレイヤーの現在の磁力モード
-                int mode = playerMagnet.magnetMode;
+        // オブジェクト正面に飛ばす
+        Vector3 launchDirection =
+            -transform.forward * dashForce +
+            Vector3.up * liftForce;
 
-                // 【同極に接触した場合】同じ極性なら反発して強く弾く（ダッシュ）
-                if ((mode == 1 && isThisN) || (mode == 2 && isThisS))
-                {
-                    // 再生音が設定されていれば鳴らす
-                    if (dashSound != null)
-                    {
-                        AudioSource.PlayClipAtPoint(dashSound, transform.position);
-                    }
+        playerRb.AddForce(launchDirection, ForceMode.VelocityChange);
 
-                    Rigidbody playerRb = other.GetComponent<Rigidbody>();
-                    if (playerRb != null)
-                    {
-                        // 落下などの現在の速度を一度リセットする（安定して飛ばすため）
-                        playerRb.linearVelocity = Vector3.zero;
+        PlayerMovement movement = other.GetComponent<PlayerMovement>();
 
-                        // 変更：プレイヤーが向いている前方のベクトルの「逆（後ろ向き）」を取得
-                        Vector3 backwardDir = -other.transform.forward;
-
-                        // 後方への力に、上方向の力(liftForce)を加えて斜め後ろに飛び出す
-                        Vector3 launchDirection = (backwardDir * dashForce) + (Vector3.up * liftForce);
-
-                        // プレイヤーに力を加える
-                        playerRb.AddForce(launchDirection, ForceMode.Impulse);
-                    }
-
-                    // プレイヤーのControllerに「ジャンプ（空中）」状態であることを伝える
-                    Controller playerCtrl = other.GetComponent<Controller>();
-                    if (playerCtrl != null)
-                    {
-                        playerCtrl.isJumping = true;
-                    }
-                }
-            }
+        if (movement != null)
+        {
+            movement.StartExternalForce(0.3f);
         }
     }
 
-    // 触れたままでモードが切り替わった場合にも飛ぶように Stay イベントを追加
-    private void OnTriggerStay(Collider other)
-    {
-        OnTriggerEnter(other);
-    }
+    /// <summary>
+    /// 接触中に極性が切り替わった場合も反応させる
+    /// </summary>
+    //private void OnTriggerStay(Collider other)
+    //{
+    //    OnTriggerEnter(other);
+    //}
 }

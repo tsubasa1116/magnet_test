@@ -10,15 +10,17 @@ using UnityEngine;
 [RequireComponent(typeof(PlayerStateMachine))]
 public class MagnetPull : MonoBehaviour
 {
-    [Header("参照")]
-    [Tooltip("引き寄せた物体がくっつく位置(手のボーンなど)。未指定なら体の前方")]
-    [SerializeField] private Transform handPoint;
-    [Tooltip("中央Ray用カメラ。未指定なら Camera.main")]
-    [SerializeField] private Camera aimCamera;
+    private PlayerHealth health;
 
-    [Header("Ray")]
-    [SerializeField] private float rayRange = 30f;
-    [SerializeField] private LayerMask rayMask = ~0;
+    [Header("参照")]
+	[Tooltip("引き寄せた物体がくっつく位置(手のボーンなど)。未指定なら体の前方")]
+	[SerializeField] private Transform handPoint;
+	[Tooltip("中央Ray用カメラ。未指定なら Camera.main")]
+	[SerializeField] private Camera aimCamera;
+
+	[Header("Ray")]
+	[SerializeField] private float rayRange = 30.0f;
+	[SerializeField] private LayerMask rayMask = ~0;
 
     [Header("引き寄せ(磁石っぽい浮遊感)")]
     [Tooltip("小さいほど機敏に吸い寄せ、大きいほどゆっくり漂って近づく")]
@@ -32,8 +34,9 @@ public class MagnetPull : MonoBehaviour
     [Header("反発(極切替でぶっ飛ばす)")]
     [SerializeField] private float repelForce = 30f;
 
-    private PlayerCatch catchState;
-    private PlayerStateMachine stateMachine;
+	private PlayerCatch catchState;
+	private PlayerStateMachine stateMachine;
+	private PlayerAim aim;
 
     [Header("引き寄せエフェクト")]
     [SerializeField] private GameObject nPoleAttractEffect;
@@ -63,8 +66,8 @@ public class MagnetPull : MonoBehaviour
 
     // --- ギミック相互作用（引き寄せ対象がギミックなら、物体を引くのではなくこちらが作用する） ---
     private Rigidbody playerRb;            // 自分のRigidbody(ジャンプ台で使う)
-    private Grapple currentGrapple;        // 立体機動中の対象
-    private RopewayMagnet currentRopeway;  // ロープウェイ吸着中の対象
+	private Grapple currentGrapple;        // 立体機動中の対象
+	private RopewayMagnet currentRopeway;  // ロープウェイ吸着中の対象
     private jump currentJumpStand;
     [SerializeField] private float jumpCooldown;
 
@@ -72,6 +75,10 @@ public class MagnetPull : MonoBehaviour
 
     // エフェクト等が参照する：引き寄せ中/保持中の対象(無ければnull)
     public Transform HeldObject => held != null ? held.transform : null;
+
+    // アニメーション側が参照する引き寄せの進行状態
+    public bool IsPulling => held != null && !attached; // 対象がこちらへ飛んでくる途中
+    public bool IsHolding => held != null && attached;  // 引き寄せ完了して手元に保持中
 
     // エネミー専用の吸着位置微調整用
     [Header("敵の吸着位置調整")]
@@ -85,7 +92,32 @@ public class MagnetPull : MonoBehaviour
         catchState = GetComponent<PlayerCatch>();
         stateMachine = GetComponent<PlayerStateMachine>();
         playerRb = GetComponent<Rigidbody>();
+        aim = GetComponent<PlayerAim>();
+        health = GetComponent<PlayerHealth>();
         if (aimCamera == null) aimCamera = Camera.main;
+    }
+    void OnEnable()
+    {
+        if (health != null)
+            health.OnDied += OnDied;
+    }
+    void Awake()
+	{
+		catchState = GetComponent<PlayerCatch>();
+		stateMachine = GetComponent<PlayerStateMachine>();
+		playerRb = GetComponent<Rigidbody>();
+		if (aimCamera == null) aimCamera = Camera.main;
+	}
+
+    void OnDisable()
+    {
+        if (health != null)
+            health.OnDied -= OnDied;
+    }
+
+    private void OnDied()
+    {
+        DestroyEffect();
     }
 
     void Update()
@@ -190,6 +222,19 @@ public class MagnetPull : MonoBehaviour
 
         if (held != null || attached) return;
 
+		// ロックオン(注目)中は、注目している対象を直接引き寄せる。
+		// 逆極タグでない対象(敵など)に注目中は、誤って別の物を掴まないよう何もしない
+		if (aim != null && aim.IsLockedOn && aim.LockOnTarget != null)
+		{
+			Transform target = aim.LockOnTarget;
+			if (target.CompareTag(WantedTag())
+				&& Vector3.Distance(transform.position, target.position) <= rayRange)
+			{
+				InteractWith(target);
+			}
+			return;
+		}
+
         Ray ray = aimCamera.ScreenPointToRay(
             new Vector3(Screen.width / 2f, Screen.height / 2f, 0f));
 
@@ -207,40 +252,46 @@ public class MagnetPull : MonoBehaviour
                 return;                       // 非対象のソリッド(壁等)で遮られる
             }
 
-            // ① 立体機動：Grapple 点
-            Grapple grapple = col.GetComponentInParent<Grapple>();
-            if (grapple != null)
-            {
-                grabbedPole = stateMachine.CurrentState;
-                grapple.StartGrapple(gameObject);
-                currentGrapple = grapple;
-                return;
-            }
+			InteractWith(col.transform);
+			return;
+		}
+	}
 
-            // ③ ロープウェイ吸着
-            RopewayMagnet ropeway = col.GetComponentInParent<RopewayMagnet>();
-            if (ropeway != null)
-            {
-                grabbedPole = stateMachine.CurrentState;
-                ropeway.AttachPlayer(gameObject);
-                currentRopeway = ropeway;
-                return;
-            }
+	// 対象の種類ごとの作用(グラップル/ロープウェイ/通常の引き寄せ)を起動する
+	private void InteractWith(Transform target)
+	{
+		// ① 立体機動：Grapple 点
+		Grapple grapple = target.GetComponentInParent<Grapple>();
+		if (grapple != null)
+		{
+			grabbedPole = stateMachine.CurrentState;
+			grapple.StartGrapple(gameObject); // 内部で StartGrappleEffect も呼ばれる
+			currentGrapple = grapple;
+			return;
+		}
 
-            // ④ それ以外：通常の物体引き寄せ
-            Rigidbody rb = col.attachedRigidbody;
-            if (rb != null) Grab(rb);
-            return;
-        }
-    }
+		// ③ ロープウェイ吸着
+		RopewayMagnet ropeway = target.GetComponentInParent<RopewayMagnet>();
+		if (ropeway != null)
+		{
+			grabbedPole = stateMachine.CurrentState;
+			ropeway.AttachPlayer(gameObject);
+			currentRopeway = ropeway;
+			return;
+		}
 
-    private void Grab(Rigidbody rb)
-    {
-        if (held != null)
-        {
-            Debug.Log("Grabキャンセル");
-            return;
-        }
+		// ④ それ以外：通常の物体引き寄せ
+		Rigidbody rb = target.GetComponentInParent<Rigidbody>();
+		if (rb != null) Grab(rb);
+	}
+
+	private void Grab(Rigidbody rb)
+	{
+		if (held != null)
+		{
+		    Debug.Log("Grabキャンセル");
+		    return;
+		}
 
         held = rb;
 
@@ -270,16 +321,19 @@ public class MagnetPull : MonoBehaviour
         rb.angularVelocity = Vector3.zero;
 
         // 保持中はコライダーを無効化（プレイヤーや地面を押さない）
+        Collider playerCol = GetComponent<Collider>();
+
         heldColliders = rb.GetComponentsInChildren<Collider>();
-        foreach (var c in heldColliders) c.enabled = false;
+
+        foreach (var c in heldColliders) Physics.IgnoreCollision(playerCol, c, true);
 
         // オーラ/爆弾との連携
         heldAura = rb.GetComponentInChildren<AuraRing>();
-        heldBomb = rb.GetComponent<Bomb>();
-        if (heldBomb != null) heldBomb.isThrown = false;
+		heldBomb = rb.GetComponent<Bomb>();
+		if (heldBomb != null) heldBomb.isThrown = false;
 
         // レーザー生成
-        if (currentLaser == null)
+        if ((health == null || !health.IsDead) && currentLaser == null)
         {
             Debug.Log("レーザー生成");
 
@@ -304,7 +358,7 @@ public class MagnetPull : MonoBehaviour
         }
 
         // プレイヤー側エフェクト
-        if (currentAttractEffect == null)
+        if ((health == null || !health.IsDead) && currentAttractEffect == null)
         {
             Debug.Log("吸引エフェクト生成");
 
@@ -379,6 +433,16 @@ public class MagnetPull : MonoBehaviour
     {
         DestroyEffect();
 
+        Collider playerCol = GetComponent<Collider>();
+
+        if (heldColliders != null)
+        {
+            foreach (var c in heldColliders)
+            {
+                if (c != null) Physics.IgnoreCollision(playerCol, c, false);
+            }
+        }
+
         if (held != null)
         {
             PunchArm arm = held.GetComponentInParent<PunchArm>();
@@ -418,6 +482,16 @@ public class MagnetPull : MonoBehaviour
 
         // 発射エフェクトを再生
         PlayReleaseEffect();
+
+        Collider playerCol = GetComponent<Collider>();
+
+        if (heldColliders != null)
+        {
+            foreach (var c in heldColliders)
+            {
+                if (c != null) Physics.IgnoreCollision(playerCol, c, false);
+            }
+        }
 
         if (held != null)
         {
@@ -482,14 +556,20 @@ public class MagnetPull : MonoBehaviour
 
     private void PlayReleaseEffect()
     {
+        if (health != null && health.IsDead)
+            return;
+
         if (HandParent == null) return;
 
-        GameObject effectPrefab = stateMachine.CurrentState == MagnetState.N ? nPoleReleaseEffect : sPoleReleaseEffect;
+        GameObject effectPrefab =
+            stateMachine.CurrentState == MagnetState.N ?
+            nPoleReleaseEffect : sPoleReleaseEffect;
 
         if (effectPrefab != null)
         {
-            GameObject effect = Instantiate(effectPrefab, HandParent.position, HandParent.rotation);
-            Destroy(effect, 2f);   // 2秒後に削除
+            GameObject effect =
+                Instantiate(effectPrefab, HandParent.position, HandParent.rotation);
+            Destroy(effect, 2f);
         }
     }
 

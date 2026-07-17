@@ -298,7 +298,11 @@ public class Boss : MonoBehaviour
 	public void TakeDamage(float damageAmount)
 	{
 		currentHp -= damageAmount;
-		if (currentHp <= 0) Die();
+		if (currentHp <= 0)
+		{
+			HitStop.Play(0.3f); // ボス撃破は少し長めのヒットストップ
+			Die();
+		}
 	}
 
 	private void Die()

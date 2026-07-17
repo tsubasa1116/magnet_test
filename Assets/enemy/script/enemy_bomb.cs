@@ -29,7 +29,7 @@ public class enemy_bomb : MonoBehaviour
     [SerializeField] private int attackDamage = 10;
 
     [Header("浮遊")]
-    [SerializeField] private float hoverHeight = 2.0f;     // 地面からの基本の高さ
+    [SerializeField] private float hoverHeight = 2.0f;  // 地面からの基本の高さ
     [SerializeField] private float hoverRange  = 0.5f;  // ふわふわの揺れ幅
     [SerializeField] private float hoverSpeed  = 2.0f;  // ふわふわの揺れる速度
     [SerializeField] private bool  isHover     = true;
@@ -92,6 +92,27 @@ public class enemy_bomb : MonoBehaviour
         anim.SetBool("Idol", true);
     }
 
+    private void OnEnable()
+    {
+        PlayerHealth.OnPlayerDied += OnPlayerDied;
+    }
+
+    private void OnDisable()
+    {
+        PlayerHealth.OnPlayerDied -= OnPlayerDied;
+    }
+
+    private void OnPlayerDied()
+    {
+        StopAllCoroutines();
+
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        {
+            agent.ResetPath();
+            ChangeState(EnemyState.Wait);
+        }
+    }
+
     void FixedUpdate()
     {
         MagneticInteraction();
@@ -99,15 +120,17 @@ public class enemy_bomb : MonoBehaviour
 
     void Update()
     {
+        if (targetPlayer == null) return;
+
+        PlayerHealth health = targetPlayer.GetComponent<PlayerHealth>();
+        if (health != null && health.IsDead) return;
+
         // NavMeshAgentが有効な間のみふわふわ浮かせる
         if (agent.enabled)
-        {
             if(isHover) agent.baseOffset = hoverHeight + Mathf.Sin((Time.time + timeOffset) * hoverSpeed) * hoverRange;
-        }
 
         // 磁力で飛ばされている間はAIをストップする
         if (isMagnetized) return;
-        if (targetPlayer == null) return;
 
         float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
 
@@ -346,11 +369,11 @@ public class enemy_bomb : MonoBehaviour
 
         if (nextState == EnemyState.Wait)
         {
-            agent.isStopped = true;
+            if (agent.isOnNavMesh) agent.isStopped = true;
         }
         else if (nextState == EnemyState.Notice)
         {
-            agent.isStopped = true;
+            if (agent.isOnNavMesh) agent.isStopped = true;
             noticeTimer = noticeTime;
             if (markExclamation != null) markExclamation.SetActive(true);
             StartCoroutine(HideMark(markExclamation, noticeTime));
@@ -392,8 +415,8 @@ public class enemy_bomb : MonoBehaviour
     private void Attack()
     {
         PlayerHealth playerHealth = targetPlayer.GetComponent<PlayerHealth>();
-        if (playerHealth != null) playerHealth.TakeDamage(attackDamage);
-        anim.SetTrigger("Attack");
+        if (playerHealth != null) playerHealth.TakeDamage(attackDamage, transform.position);
+
         Die();  // 自爆
     }
 
@@ -429,7 +452,11 @@ public class enemy_bomb : MonoBehaviour
         // ダメージを受けたときのエフェクトを再生
         //if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
 
-        if (currentHp <= 0) Die();
+        if (currentHp <= 0)
+        {
+            HitStop.Play(0.12f); // 倒した手応えのヒットストップ(自爆時は入らない)
+            Die();
+        }
     }
 
     private void Die()
