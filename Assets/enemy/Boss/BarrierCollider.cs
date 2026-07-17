@@ -26,8 +26,18 @@ public class BarrierCollider : MonoBehaviour
             {
                 isInvincible = true;
 
+                float finalDamage = setting.damage;
+                if (collision.gameObject.GetComponent<PunchArm>())
+                {
+                    finalDamage *= 2;
+                }
+
+                ThrowableObject throwable = collision.gameObject.GetComponent<ThrowableObject>();
+
                 // ボス本体にバリアダメージを送る
-                bossScript.TakeBarrierDamage(setting.damage);
+                bossScript.TakeBarrierDamage(finalDamage);
+
+                throwable.ResetThrown();
 
                 break;
             }
@@ -41,7 +51,7 @@ public class BarrierCollider : MonoBehaviour
     // ==========================
     private IEnumerator InvincibleCooltime()
     {
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitForSeconds(1.0f);
         isInvincible = false;
     }
 
