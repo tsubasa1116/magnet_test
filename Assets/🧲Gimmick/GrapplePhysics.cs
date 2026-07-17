@@ -51,7 +51,6 @@ public class GrapplePhysics
         ropeLength =Vector3.Distance(player.position, anchor.position);
 
         Vector3 dir = (anchor.position - player.position).normalized;
-
         rb.AddForce(dir * initialPullForce, ForceMode.VelocityChange);
     }
 
@@ -103,7 +102,6 @@ public class GrapplePhysics
         if (distance > ropeLength)
         {
             playerPos = anchorPos + ropeDir * ropeLength;
-
             rb.position = playerPos;
         }
 
@@ -126,9 +124,7 @@ public class GrapplePhysics
         //------------------------------------------------
 
         if (radialSpeed > 0f)
-        {
             velocity -= ropeDir * radialSpeed;
-        }
 
         //------------------------------------------------
         // 接線速度
@@ -158,9 +154,7 @@ public class GrapplePhysics
         Vector3 tangent = Vector3.ProjectOnPlane(reference.forward, ropeDir).normalized;
 
         if (tangent.sqrMagnitude < 0.01f)
-        {
             tangent = Vector3.Cross(ropeDir, Vector3.up).normalized;
-        }
 
         //--------------------------------------------------
         // 前後入力
@@ -168,9 +162,7 @@ public class GrapplePhysics
         float forward = moveInput.y;
 
         if (Mathf.Abs(forward) > 0.01f)
-        {
             rb.AddForce(tangent * forward * inputAcceleration, ForceMode.Acceleration);
-        }
 
         //--------------------------------------------------
         // 左右入力
