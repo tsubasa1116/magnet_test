@@ -101,13 +101,6 @@ public class MagnetPull : MonoBehaviour
         if (health != null)
             health.OnDied += OnDied;
     }
-    void Awake()
-	{
-		catchState = GetComponent<PlayerCatch>();
-		stateMachine = GetComponent<PlayerStateMachine>();
-		playerRb = GetComponent<Rigidbody>();
-		if (aimCamera == null) aimCamera = Camera.main;
-	}
 
     void OnDisable()
     {

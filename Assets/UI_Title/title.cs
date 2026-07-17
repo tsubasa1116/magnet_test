@@ -170,7 +170,7 @@ public class title : MonoBehaviour
                 {
                     if (cursorIndex == 0)
                     {
-                        SceneLoad.LoadWithLoadingScreen("TakeTakeScene", FadeType.Black);
+                        SceneLoad.LoadWithLoadingScreen("SampleScene", FadeType.Black);
                     }
                     else if (cursorIndex == 1)
                     {

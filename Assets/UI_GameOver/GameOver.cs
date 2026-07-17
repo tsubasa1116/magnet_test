@@ -75,7 +75,7 @@ public class GameOver : MonoBehaviour
         {
             if (cursorIndex == 0)
             {
-                Debug.Log("チェックポイントからやり直す");
+                SceneLoad.LoadWithLoadingScreen("SampleScene", FadeType.Black);
             }
             else if (cursorIndex == 1)
             {
