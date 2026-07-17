@@ -22,6 +22,8 @@ public class AnimationStateController : MonoBehaviour
 	[SerializeField] private float aimWeightSpeed = 6f; // 腕レイヤーの出入り
 
 	[Header("引き寄せ(MagnetPull連携)")]
+	[Tooltip("エイム(キャッチ構え)中の移動アニメの再生速度倍率")]
+	[SerializeField] private float aimFootSpeed = 1.6f;
 	[Tooltip("引き寄せ中(対象が飛んでくる間)の足アニメの再生速度倍率")]
 	[SerializeField] private float pullFootSpeed = 2.2f;
 	[Tooltip("ホールド(保持)中の移動アニメの再生速度倍率")]
@@ -116,9 +118,10 @@ public class AnimationStateController : MonoBehaviour
 
 			animator.SetFloat(VelocityXHash, aimX);
 			animator.SetFloat(VelocityZHash, aimZ);
-			// 再生速度倍率: 引き寄せ中=pullFootSpeed / 保持中=holdFootSpeed
+			// 再生速度倍率: 引き寄せ中=pullFootSpeed / エイム中=aimFootSpeed / 保持中=holdFootSpeed
 			animator.SetFloat(MoveSpeedHash,
 				strafing && pulling ? pullFootSpeed :
+				strafing ? aimFootSpeed :
 				holdingMove ? holdFootSpeed : 1f);
 		}
 		else
