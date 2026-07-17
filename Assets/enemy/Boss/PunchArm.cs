@@ -11,7 +11,8 @@ public class PunchArm : MonoBehaviour
     [SerializeField] private Transform ArmMesh;
     [SerializeField] private int attackDamage = 1;
 
-    [SerializeField] private enemy_Boss bossScript;
+    [SerializeField] public enemy_Boss bossScript;
+    [HideInInspector] public bool isLeft;
 
     private bool isDetached = false;
     private bool isHitL = false;

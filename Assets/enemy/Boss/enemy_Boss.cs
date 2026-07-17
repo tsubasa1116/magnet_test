@@ -32,6 +32,7 @@ public class enemy_Boss : MonoBehaviour
   
     [Header("ボス全体に関する参照設定")]
     [SerializeField] private Transform bossMesh;     // ボス全体のメッシュ
+    [SerializeField] private Transform bossMain;     // ボス全体のメッシュ
     [SerializeField] private Transform targetPlayer; // プレイヤーのTransformをInspectorで設定
     [SerializeField] private Transform target;　 // プレイヤーのTransformをInspectorで設定
     [SerializeField] private Animator anim;
@@ -119,6 +120,15 @@ public class enemy_Boss : MonoBehaviour
     
     private Vector3 fallPoint;
     private bool hasFallPoint;
+
+    [Header("分離した腕用")]
+    [SerializeField] private float autoReviveTime = 8.0f; // 分離してから消えるまでの合計時間
+    [SerializeField] private float blinkDuration = 2.0f;  // 消える何秒前から点滅を開始するか
+    [SerializeField] private float blinkInterval = 0.1f;  // 点滅のチカチカする間隔
+
+    // 途中で吸収された時に止めるための変数
+    private Coroutine leftArmTimerCoroutine = null;
+    private Coroutine rightArmTimerCoroutine = null;
 
     [Header("行動パターン")]
     public bool isStartAction = false;  // ボスの行動開始
@@ -1051,9 +1061,16 @@ public class enemy_Boss : MonoBehaviour
 
             // 位置を合わせる
             sepaArm.transform.position = armBone_L.position;
+            sepaArm.transform.localScale = bossMain.localScale;
+
+            sepaArm.bossScript = this;
+            sepaArm.isLeft = true;
 
             // PunchArm側の分離処理
             sepaArm.DetachArm();
+
+            if (leftArmTimerCoroutine != null) StopCoroutine(leftArmTimerCoroutine);
+            leftArmTimerCoroutine = StartCoroutine(ArmAutoReviveCoroutine(sepaArm.gameObject, true));
         }
     }
 
@@ -1075,9 +1092,16 @@ public class enemy_Boss : MonoBehaviour
 
             // 位置を合わせる
             sepaArmR.transform.position = armBone_R.position;
+            sepaArmR.transform.localScale = bossMain.localScale;
+
+            sepaArmR.bossScript = this;
+            sepaArmR.isLeft = false;
 
             // PunchArm側の分離処理
             sepaArmR.DetachArm();
+
+            if (rightArmTimerCoroutine != null) StopCoroutine(rightArmTimerCoroutine);
+            rightArmTimerCoroutine = StartCoroutine(ArmAutoReviveCoroutine(sepaArmR.gameObject, false));
         }
     }
 
@@ -1087,6 +1111,19 @@ public class enemy_Boss : MonoBehaviour
     public void ReviveArm()
     {
         if (!isLeftArmDetached) return;
+
+        // 吸収などで復活したらタイマーを停止する
+        if (leftArmTimerCoroutine != null)
+        {
+            StopCoroutine(leftArmTimerCoroutine);
+            leftArmTimerCoroutine = null;
+        }
+
+        // 途中で点滅がストップして非表示になってた時用の保険
+        if (sepaArm != null)
+        {
+            foreach (var r in sepaArm.GetComponentsInChildren<Renderer>()) r.enabled = true;
+        }
 
         isLeftArmDetached = false;
 
@@ -1114,6 +1151,19 @@ public class enemy_Boss : MonoBehaviour
     {
         if (!isRightArmDetached) return;
 
+        // 吸収などで復活したらタイマーを停止する
+        if (rightArmTimerCoroutine != null)
+        {
+            StopCoroutine(rightArmTimerCoroutine);
+            rightArmTimerCoroutine = null;
+        }
+
+        // 途中で点滅がストップして非表示になってた時用の保険
+        if (sepaArmR != null)
+        {
+            foreach (var r in sepaArmR.GetComponentsInChildren<Renderer>()) r.enabled = true;
+        }
+
         isRightArmDetached = false;
 
         // 本体の右腕ボーンのスケールを戻して見えるようにする
@@ -1130,6 +1180,115 @@ public class enemy_Boss : MonoBehaviour
         armState = ArmState.Idle;
 
         StartCoroutine(ScaleUpAnimCoroutine(armBone_R, reviveArmTime));
+    }
+
+    // =========================================
+    // 分離した腕の自動復活＆点滅コルーチン
+    // =========================================
+    private IEnumerator ArmAutoReviveCoroutine(GameObject armObj, bool isLeft)
+    {
+        // 点滅が始まるまでの時間を計算して待つ
+        float waitTime = Mathf.Max(0, autoReviveTime - blinkDuration);
+        yield return new WaitForSeconds(waitTime);
+
+        // 腕オブジェクトに含まれるすべてのRendererを取得すゆ
+        Renderer[] renderers = armObj.GetComponentsInChildren<Renderer>();
+
+        float elapsed = 0f;
+        bool isVisible = true;
+
+        // 指定した点滅時間が経過するまでチカチカさせる
+        while (elapsed < blinkDuration)
+        {
+            isVisible = !isVisible; // ON-OFFを反転
+            foreach (var r in renderers)
+            {
+                r.enabled = isVisible;
+            }
+
+            yield return new WaitForSeconds(blinkInterval);
+            elapsed += blinkInterval;
+        }
+
+        // 見えなくなったRendererを戻す
+        foreach (var r in renderers)
+        {
+            r.enabled = true;
+        }
+
+        // 時間切れになったら腕を復活
+        if (isLeft)
+        {
+            ReviveArm();
+        }
+        else
+        {
+            ReviveArmR();
+        }
+    }
+
+    // ==========================================
+    // プレイヤーが腕を吸収した時にタイマーを止める処理
+    // ==========================================
+    public void CancelArmTimer(bool isLeft)
+    {
+        if (isLeft)
+        {
+            if (leftArmTimerCoroutine != null)
+            {
+                StopCoroutine(leftArmTimerCoroutine);
+                leftArmTimerCoroutine = null;
+            }
+
+            // 点滅途中で吸収された場合、透明のままになるのを防ぐ
+            if (sepaArm != null)
+            {
+                foreach (var r in sepaArm.GetComponentsInChildren<Renderer>()) r.enabled = true;
+            }
+        }
+        else
+        {
+            if (rightArmTimerCoroutine != null)
+            {
+                StopCoroutine(rightArmTimerCoroutine);
+                rightArmTimerCoroutine = null;
+            }
+
+            // 点滅途中で吸収された場合、透明のままになるのを防ぐ
+            if (sepaArmR != null)
+            {
+                foreach (var r in sepaArmR.GetComponentsInChildren<Renderer>()) r.enabled = true;
+            }
+        }
+    }
+
+    // ==========================================
+    // プレイヤーが腕を発射（または着弾）した後にタイマーを再開する処理
+    // ==========================================
+    public void RestartArmTimer(bool isLeft)
+    {
+        if (isLeft)
+        {
+            // 念のため古いタイマーが残っていたら止める
+            if (leftArmTimerCoroutine != null) StopCoroutine(leftArmTimerCoroutine);
+
+            if (sepaArm != null)
+            {
+                // 左腕のタイマーを0秒から再スタート
+                leftArmTimerCoroutine = StartCoroutine(ArmAutoReviveCoroutine(sepaArm.gameObject, true));
+            }
+        }
+        else
+        {
+            // 念のため古いタイマーが残っていたら止める
+            if (rightArmTimerCoroutine != null) StopCoroutine(rightArmTimerCoroutine);
+
+            if (sepaArmR != null)
+            {
+                // 右腕のタイマーを0秒から再スタート
+                rightArmTimerCoroutine = StartCoroutine(ArmAutoReviveCoroutine(sepaArmR.gameObject, false));
+            }
+        }
     }
 
     // ====================

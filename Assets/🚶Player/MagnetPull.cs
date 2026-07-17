@@ -244,6 +244,12 @@ public class MagnetPull : MonoBehaviour
 
         held = rb;
 
+        PunchArm arm = rb.GetComponentInParent<PunchArm>();
+        if (arm != null && arm.bossScript != null)
+        {
+            arm.bossScript.CancelArmTimer(arm.isLeft);
+        }
+
         // 敵だったら「引き寄せられた」ことを通知
         enemy enemyScript = rb.GetComponentInParent<enemy>();
         if (enemyScript != null) enemyScript.OnMagnetGrabbed();
@@ -373,6 +379,15 @@ public class MagnetPull : MonoBehaviour
     {
         DestroyEffect();
 
+        if (held != null)
+        {
+            PunchArm arm = held.GetComponentInParent<PunchArm>();
+            if (arm != null && arm.bossScript != null)
+            {
+                arm.bossScript.RestartArmTimer(arm.isLeft);
+            }
+        }
+
         if (attached) held.transform.SetParent(null);
         RestoreColliders();
         if (heldAura != null) heldAura.SetHeld(false);
@@ -403,6 +418,15 @@ public class MagnetPull : MonoBehaviour
 
         // 発射エフェクトを再生
         PlayReleaseEffect();
+
+        if (held != null)
+        {
+            PunchArm arm = held.GetComponentInParent<PunchArm>();
+            if (arm != null && arm.bossScript != null)
+            {
+                arm.bossScript.RestartArmTimer(arm.isLeft);
+            }
+        }
 
         // もし掴んでいる物が ThrowableObject なら Throw() を呼ぶ
         ThrowableObject throwable = held.GetComponent<ThrowableObject>();
