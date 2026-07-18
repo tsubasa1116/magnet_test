@@ -437,7 +437,10 @@ public class GameStartCutscene : MonoBehaviour
 
 		Debug.Log("[GameStartCutscene] 終了(操作可能)");
 		enabled = false;
-	}
+
+        //// 最後に GameManager を呼び出す
+        //GameManager.Instance.EndGame();
+}
 
 	// カットシーン最終カメラ位置に一時的な仮想カメラを立て、
 	// そこからFreeLookへCinemachineのブレンドで滑らかに返す
