@@ -219,8 +219,22 @@ public class MagnetPull : MonoBehaviour
         ? handPoint.position
         : transform.position + transform.forward * 0.8f + Vector3.up * 1f;
 
-    private string WantedTag()
-        => stateMachine.CurrentState == MagnetState.S ? "N_Pole" : "S_Pole";
+    // 変更後：物体用・敵用の両方を返す
+    private static readonly string[] NPoleTags = { "N_Pole", "N_Enemy" };
+    private static readonly string[] SPoleTags = { "S_Pole", "S_Enemy" };
+
+    private string[] WantedTags()
+        => stateMachine.CurrentState == MagnetState.S ? NPoleTags : SPoleTags;
+
+    private bool IsWantedTag(Component c)
+    {
+        var tags = WantedTags();
+        for (int i = 0; i < tags.Length; i++)
+        {
+            if (c.CompareTag(tags[i])) return true;
+        }
+        return false;
+    }
 
     // 引き寄せ対象を判定して、種類ごとの作用を起動する
     private void TryInteract()
@@ -234,8 +248,8 @@ public class MagnetPull : MonoBehaviour
 		if (aim != null && aim.IsLockedOn && aim.LockOnTarget != null)
 		{
 			Transform target = aim.LockOnTarget;
-			if (target.CompareTag(WantedTag())
-				&& Vector3.Distance(transform.position, target.position) <= rayRange)
+			if (IsWantedTag(target)
+            && Vector3.Distance(transform.position, target.position) <= rayRange)
 			{
 				InteractWith(target);
 			}
@@ -253,13 +267,13 @@ public class MagnetPull : MonoBehaviour
             Collider col = hit.collider;
             if (col.transform.IsChildOf(transform)) continue; // 自分は無視
 
-            if (!col.CompareTag(WantedTag()))
+            if (!IsWantedTag(col))
             {
-                if (col.isTrigger) continue; // 非対象のトリガーは視線を遮らない
-                return;                       // 非対象のソリッド(壁等)で遮られる
+                if (col.isTrigger) continue;
+                return;
             }
 
-			InteractWith(col.transform);
+            InteractWith(col.transform);
 			return;
 		}
 	}

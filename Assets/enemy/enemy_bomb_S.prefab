@@ -108,7 +108,7 @@ GameObject:
   - component: {fileID: -2553825910154564083}
   - component: {fileID: 4020682211335641645}
   m_Layer: 0
-  m_Name: enemy_bomb
+  m_Name: enemy_bomb_S
   m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -166,7 +166,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -876546973899608171, guid: a262d94db17dc4248870a8710bd1db61, type: 3}
+  - {fileID: 2100000, guid: 69d0cd3bd92a28448bf5af3d51d73a1c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -674,7 +674,7 @@ PrefabInstance:
     - target: {fileID: 5030372374883904346, guid: b1646057dcd66174d8e9199bea61c008, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: -876546973899608171, guid: a262d94db17dc4248870a8710bd1db61, type: 3}
+      objectReference: {fileID: 2100000, guid: 202f51a6553718a4b9391f4e64cdcec7, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

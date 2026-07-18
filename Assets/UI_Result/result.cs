@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using UnityEngine.SceneManagement;
+using UnityEngine.InputSystem;
 
 public class result : MonoBehaviour
 {
@@ -92,7 +93,7 @@ public class result : MonoBehaviour
 
         if (!isInputOk) return;
 
-        if (Input.GetKeyDown(KeyCode.Return))
+        if (Input.GetKeyDown(KeyCode.Return) || (Gamepad.current?.buttonEast.wasPressedThisFrame == true))
         {
             GameManager.Instance.ResetGame();
             SceneLoad.LoadWithLoadingScreen("TitleScene", FadeType.White);

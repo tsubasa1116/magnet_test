@@ -514,12 +514,12 @@ public class enemy_Boss : MonoBehaviour
 
             if (Input.GetKeyDown(KeyCode.V))
             {
-                mission.SetMission(1);
+                Nyuxtu3.Instance.ShowUI();
             }
 
             if (Input.GetKeyDown(KeyCode.B))
             {
-                mission.ClearMission(1);
+                Nyuxtu3.Instance.HideUI();
             }
 
 
