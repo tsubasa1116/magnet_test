@@ -29,7 +29,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 2773102369612578574}
   - {fileID: 6164400688279377823}
   - {fileID: 7524714474064864545}
   m_Father: {fileID: 0}
@@ -60,11 +59,11 @@ Transform:
   m_GameObject: {fileID: 7452836388381934019}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 9.218872, y: 3.4368896, z: -5.724203}
+  m_LocalPosition: {x: 0.015136719, y: -0.06311035, z: 0.024999619}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8465401394874793711}
+  m_Father: {fileID: 4621280260933495586}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!64 &3112123723077563125
 MeshCollider:
@@ -158,8 +157,14 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: -7915932490314114218, guid: 46e3409fd0da8e642997f0e0eba014b4, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2773102369612578574}
     m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 7449068433467418699, guid: 46e3409fd0da8e642997f0e0eba014b4, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8556943863593483724}
     - targetCorrespondingSourceObject: {fileID: -1641430838757014566, guid: 46e3409fd0da8e642997f0e0eba014b4, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2389637957365256327}
@@ -193,6 +198,33 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 4, y: 5.95, z: 0.55}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &3847913545346521151 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7449068433467418699, guid: 46e3409fd0da8e642997f0e0eba014b4, type: 3}
+  m_PrefabInstance: {fileID: 5910658669777629300}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &8556943863593483724
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3847913545346521151}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 291974349691542451, guid: 46e3409fd0da8e642997f0e0eba014b4, type: 3}
 --- !u!1 &4269016518612349870 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -1641430838757014566, guid: 46e3409fd0da8e642997f0e0eba014b4, type: 3}
@@ -219,6 +251,11 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 4, y: 5.95, z: 0.55}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!4 &4621280260933495586 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -7915932490314114218, guid: 46e3409fd0da8e642997f0e0eba014b4, type: 3}
+  m_PrefabInstance: {fileID: 5910658669777629300}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &6164400688279377823 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 46e3409fd0da8e642997f0e0eba014b4, type: 3}
@@ -272,10 +309,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -5068822794409609116, guid: b3e146eaa2a8d704a8c855e66d700fac, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: c86abd50d105ef44ab91452120b28f24, type: 2}
     - target: {fileID: 919132149155446097, guid: b3e146eaa2a8d704a8c855e66d700fac, type: 3}
       propertyPath: m_Name
       value: modelSwitch_v1 (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 3392746477112468092, guid: b3e146eaa2a8d704a8c855e66d700fac, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: c86abd50d105ef44ab91452120b28f24, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
