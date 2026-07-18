@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using UnityEngine.SceneManagement;
+using UnityEngine.InputSystem;
 
 public class GameOver : MonoBehaviour
 {
@@ -68,10 +69,12 @@ public class GameOver : MonoBehaviour
         if (!isInputOk) return;
 
         // カーソル移動
-        if (Input.GetKeyDown(KeyCode.UpArrow)) MoveCursor(-1);
+        if (Gamepad.current?.dpad.up.wasPressedThisFrame == true)   MoveCursor(-1);
+        if (Gamepad.current?.dpad.down.wasPressedThisFrame == true) MoveCursor(1);
+        if (Input.GetKeyDown(KeyCode.UpArrow))   MoveCursor(-1);
         if (Input.GetKeyDown(KeyCode.DownArrow)) MoveCursor(1);
 
-        if (Input.GetKeyDown(KeyCode.Return))
+        if (Input.GetKeyDown(KeyCode.Return) || (Gamepad.current?.buttonEast.wasPressedThisFrame == true))
         {
             if (cursorIndex == 0)
             {

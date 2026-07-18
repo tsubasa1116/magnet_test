@@ -28,7 +28,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 338824774482850943}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -40.747303, y: 0.63061386, z: -11.793838}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -68,7 +68,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a08b512124da4294b8ba72e96d46cf51, type: 2}
+  - {fileID: 2100000, guid: fd4aa5ee78dc9a046ba1a000b91fa73e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -127,6 +127,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::jump
   jumpSound: {fileID: 0}
   jumpForceX: 0
-  jumpForceY: 9
+  jumpForceY: 12
   jumpForceZ: 0
   jumpEffect: {fileID: 6901805557296395496, guid: 4083385cfa16c3642ba70ebb0bfbc741, type: 3}
