@@ -30,6 +30,8 @@ public class FollowUI : MonoBehaviour
 
     public bool followON = false;
 
+    public bool isPaused = false;
+
     void Awake()
     {
         rectTransform = GetComponent<RectTransform>();
@@ -56,6 +58,7 @@ public class FollowUI : MonoBehaviour
 
     void Update()
     {
+        if (isPaused) return;
         if (cameraTransform == null) return;
 
         Vector2 anchoredPos = rectTransform.anchoredPosition;
@@ -117,5 +120,15 @@ public class FollowUI : MonoBehaviour
         // 実際にUIの座標（X軸のみ）に適用
         anchoredPos.x = originalX + currentOffset;
         rectTransform.anchoredPosition = anchoredPos;
+    }
+
+    public void ResumeFollow()
+    {
+        // 今の位置を新しい基準にしてから再開する
+        originalX = rectTransform.anchoredPosition.x;
+        currentOffset = 0f;
+        velocity = 0f;
+        lastYaw = cameraTransform != null ? cameraTransform.eulerAngles.y : lastYaw;
+        isPaused = false;
     }
 }
