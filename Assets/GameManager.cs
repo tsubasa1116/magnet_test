@@ -59,21 +59,21 @@ public class GameManager : MonoBehaviour
         isPlaying = false;
     }
 
-    // デバッグ表示
-    private void OnGUI()
-    {
-        GUIStyle style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 24;
-        style.normal.textColor = Color.white;
+    //// デバッグ表示
+    //private void OnGUI()
+    //{
+    //    GUIStyle style = new GUIStyle(GUI.skin.label);
+    //    style.fontSize = 24;
+    //    style.normal.textColor = Color.white;
 
-        GUI.Label(
-            new Rect(20, 20, 400, 30),
-            $"Time : {ElapsedTime:F1} sec",
-            style);
+    //    GUI.Label(
+    //        new Rect(20, 20, 400, 30),
+    //        $"Time : {ElapsedTime:F1} sec",
+    //        style);
 
-        GUI.Label(
-            new Rect(20, 50, 400, 30),
-            $"Kills : {TotalKillCount}",
-            style);
-    }
+    //    GUI.Label(
+    //        new Rect(20, 50, 400, 30),
+    //        $"Kills : {TotalKillCount}",
+    //        style);
+    //}
 }

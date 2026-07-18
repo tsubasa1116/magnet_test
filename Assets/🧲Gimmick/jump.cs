@@ -21,7 +21,7 @@ public class jump : MonoBehaviour
         if (playerRb == null) return;
 
         if (jumpSound != null)
-            AudioSource.PlayClipAtPoint(jumpSound, transform.position);
+            AudioSource.PlayClipAtPoint(jumpSound, transform.position, 300f);
 
         // 落下速度をリセット
         Vector3 vel = playerRb.linearVelocity;

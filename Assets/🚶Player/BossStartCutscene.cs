@@ -27,6 +27,31 @@ public class BossStartCutscene : MonoBehaviour
 	[Header("再生用テンプレート(CutscenePlayback.controller)")]
 	[SerializeField] private RuntimeAnimatorController playbackTemplate;
 
+	[Header("演出: 咆哮(手を開くタイミングで発動)")]
+	[Tooltip("咆哮するクリップのフレーム番号(30FPS)。Animationウィンドウで確認した値を入れる")]
+	[SerializeField] private float roarFrame = 120f;
+	[Tooltip("カメラの揺れの長さ(秒)")]
+	[SerializeField] private float roarShakeDuration = 0.9f;
+	[Tooltip("カメラの揺れの強さ(m)。0で揺れなし")]
+	[SerializeField] private float roarShakeStrength = 0.2f;
+	[Tooltip("咆哮の瞬間からリップルが始まるまでの遅れ(秒)")]
+	[SerializeField] private float roarRippleDelay = 0.25f;
+	[Tooltip("波を繰り返す回数")]
+	[SerializeField] private int roarRippleCount = 5;
+	[Tooltip("波と波の間隔(秒)。Durationより短くすると波が重なって連続的に見える")]
+	[SerializeField] private float roarRippleInterval = 0.22f;
+	[Tooltip("1つの波が画面外へ抜けるまでの長さ(秒)")]
+	[SerializeField] private float roarRippleDuration = 0.7f;
+	[Tooltip("画面リップルの歪みの強さ(0で無効)")]
+	[SerializeField] private float roarRippleStrength = 0.035f;
+	[Tooltip("(任意)咆哮の瞬間にボス中心へ出すエフェクト。リップルだけで良ければ空のまま")]
+	[SerializeField] private GameObject roarEffectPrefab;
+	[Tooltip("エフェクトを自動で消すまでの秒数")]
+	[SerializeField] private float roarEffectLifetime = 3f;
+	[Tooltip("咆哮SE(任意。未指定なら音なし)")]
+	[SerializeField] private AudioClip roarSound;
+	[SerializeField, Range(0f, 1f)] private float roarVolume = 1f;
+
 	[Header("動かすボス(未指定ならシーンの enemy_Boss を自動検索)")]
 	[SerializeField] private enemy_Boss boss;
 
@@ -50,6 +75,12 @@ public class BossStartCutscene : MonoBehaviour
 	private bool hasPlayed;
 	private bool playing;
 	private float endTime;
+	private float cutsceneStartTime;
+	private float clipFPS = 30f;
+
+	// 咆哮演出の状態
+	private bool roarTriggered;
+	private float shakeRemaining;
 
 	// カメラFBX
 	private GameObject cameraInstance;
@@ -166,14 +197,109 @@ public class BossStartCutscene : MonoBehaviour
 		BeginCameraTakeover();
 
 		endTime = Time.time + (length > 0f ? length : 5f);
+		cutsceneStartTime = Time.time;
+		clipFPS = actorClip != null && actorClip.frameRate > 0f ? actorClip.frameRate : 30f;
+		roarTriggered = false;
 		playing = true;
 		Debug.Log($"[BossStartCutscene] 再生開始 ({length:F1}秒)");
 	}
 
 	void Update()
 	{
+		if (!playing) return;
+
+		// 咆哮: 指定フレームに達したら一回だけ発動
+		float elapsedFrames = (Time.time - cutsceneStartTime) * clipFPS;
+		if (!roarTriggered && elapsedFrames >= roarFrame)
+		{
+			roarTriggered = true;
+			TriggerRoar();
+		}
+
 		// スキップ入力は「受け付けない」。尺が来たら終わるだけ
-		if (playing && Time.time >= endTime) Finish();
+		if (Time.time >= endTime) Finish();
+	}
+
+	// 咆哮: 画面リップル + カメラシェイク + SE (+ 任意でエフェクト)
+	private void TriggerRoar()
+	{
+		if (roarRippleStrength > 0f) StartCoroutine(ScreenRippleBurst());
+
+		if (roarEffectPrefab != null)
+		{
+			GameObject fx = Instantiate(roarEffectPrefab, GetBossCenter(), Quaternion.identity);
+			Destroy(fx, roarEffectLifetime);
+		}
+
+		if (roarSound != null && mainCam != null)
+			AudioSource.PlayClipAtPoint(roarSound, mainCam.transform.position, roarVolume);
+
+		shakeRemaining = roarShakeDuration;
+	}
+
+	// 少し遅れて開始し、波を roarRippleCount 回連続で発生させる
+	// (各波は独立したQuadなので、間隔<波の長さ なら同心円状に重なって走る)
+	private IEnumerator ScreenRippleBurst()
+	{
+		if (roarRippleDelay > 0f) yield return new WaitForSeconds(roarRippleDelay);
+
+		for (int i = 0; i < roarRippleCount; i++)
+		{
+			StartCoroutine(ScreenRippleRoutine());
+			if (i < roarRippleCount - 1)
+				yield return new WaitForSeconds(Mathf.Max(roarRippleInterval, 0.02f));
+		}
+	}
+
+	// 画面中心から外側へ波打つスクリーンリップル(1波分)。
+	// カメラ前のQuadに Magnet/ScreenRipple を貼り、_Progress を 0→1 へ流す
+	private IEnumerator ScreenRippleRoutine()
+	{
+		Shader rippleShader = Shader.Find("Magnet/ScreenRipple");
+		if (rippleShader == null || mainCam == null)
+		{
+			Debug.LogWarning("[BossStartCutscene] ScreenRipple シェーダーが見つかりません(Resources配下にあるか確認)");
+			yield break;
+		}
+
+		GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+		quad.name = "RoarScreenRipple";
+		Destroy(quad.GetComponent<Collider>());
+		// 描画は頂点シェーダーで画面全体に引き伸ばすため、位置はカリング回避用
+		quad.transform.SetParent(mainCam.transform, false);
+		quad.transform.localPosition = new Vector3(0f, 0f, 0.5f);
+
+		Material m = new Material(rippleShader);
+		m.SetFloat("_Amplitude", roarRippleStrength);
+		MeshRenderer mr = quad.GetComponent<MeshRenderer>();
+		mr.sharedMaterial = m;
+		mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+		mr.receiveShadows = false;
+
+		float t = 0f;
+		while (t < roarRippleDuration)
+		{
+			t += Time.deltaTime;
+			m.SetFloat("_Progress", Mathf.Clamp01(t / Mathf.Max(roarRippleDuration, 0.01f)));
+			yield return null;
+		}
+
+		Destroy(quad);
+		Destroy(m);
+	}
+
+	// ボスのレンダラー境界の中心(咆哮エフェクトの発生位置)
+	private Vector3 GetBossCenter()
+	{
+		if (boss == null) return transform.position;
+		Bounds b = new Bounds(boss.transform.position, Vector3.zero);
+		bool has = false;
+		foreach (Renderer r in boss.GetComponentsInChildren<Renderer>())
+		{
+			if (!has) { b = r.bounds; has = true; }
+			else b.Encapsulate(r.bounds);
+		}
+		return has ? b.center : boss.transform.position;
 	}
 
 	void LateUpdate()
@@ -184,10 +310,24 @@ public class BossStartCutscene : MonoBehaviour
 
 		if (!playing) return;
 
+		// 咆哮のカメラシェイク量(残り時間で減衰。カメラのローカルXY方向に揺らす)
+		Vector3 shakeOffset = Vector3.zero;
+		if (shakeRemaining > 0f)
+		{
+			shakeRemaining -= Time.deltaTime;
+			float k = Mathf.Clamp01(shakeRemaining / Mathf.Max(roarShakeDuration, 0.01f));
+			shakeOffset = new Vector3(
+				Mathf.PerlinNoise(Time.time * 30f, 0.37f) - 0.5f,
+				Mathf.PerlinNoise(0.71f, Time.time * 30f) - 0.5f,
+				0f) * (2f * roarShakeStrength * k);
+		}
+
 		if (puppetVcam != null && cameraNode != null)
 		{
 			// 一時vcamをカメラノードへ同期(FreeLook↔vcam のブレンドはCinemachineが担当)
 			puppetVcam.transform.SetPositionAndRotation(cameraNode.position, cameraNode.rotation);
+			if (shakeOffset != Vector3.zero)
+				puppetVcam.transform.position += puppetVcam.transform.rotation * shakeOffset;
 			if (rigCamera != null)
 			{
 				LensSettings lens = puppetVcam.m_Lens;
@@ -199,6 +339,8 @@ public class BossStartCutscene : MonoBehaviour
 		{
 			// Brainが無い環境向けフォールバック: メインカメラを直接重ねる(ブレンド無し)
 			mainCam.transform.SetPositionAndRotation(cameraNode.position, cameraNode.rotation);
+			if (shakeOffset != Vector3.zero)
+				mainCam.transform.position += mainCam.transform.rotation * shakeOffset;
 			if (rigCamera != null) mainCam.fieldOfView = rigCamera.fieldOfView;
 		}
 	}

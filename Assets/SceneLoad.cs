@@ -3,6 +3,9 @@ using UnityEngine.SceneManagement;
 
 public static class SceneLoad
 {
+    // 追加：ロード画面を経由しない直接遷移中かどうかを判定するフラグ
+    public static bool isDirectTransition = false;
+
     // ロード画面あり：従来の呼び出しは黒フェードになる
     public static void LoadWithLoadingScreen(string nextSceneName)
     {
@@ -26,6 +29,12 @@ public static class SceneLoad
         bool useLoadingScene,
         FadeType fadeType)
     {
+        // ロード画面を使わない場合、フラグを立てる
+        if (!useLoadingScene)
+        {
+            isDirectTransition = true;
+        }
+
         SceneFadeOut fadeOut = Object.FindFirstObjectByType<SceneFadeOut>();
 
         if (fadeOut != null)
@@ -35,15 +44,17 @@ public static class SceneLoad
         }
 
         // フェードUIがないシーン向けの保険
+        PlayerPrefs.SetInt("FadeType", (int)fadeType); // 直接遷移時でも色を引き継げるように外に出す
+
         if (useLoadingScene)
         {
             PlayerPrefs.SetString("NextScene", nextSceneName);
-            PlayerPrefs.SetInt("FadeType", (int)fadeType);
             PlayerPrefs.Save();
             SceneManager.LoadSceneAsync("LoadingScene");
         }
         else
         {
+            PlayerPrefs.Save();
             SceneManager.LoadSceneAsync(nextSceneName);
         }
     }
