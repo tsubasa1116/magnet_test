@@ -189,7 +189,7 @@ public class title : MonoBehaviour
                     if (cursorIndex == 0)
                     {
                         UISE.Instance.StartUI();
-                        SceneLoad.LoadWithLoadingScreen("YokoyamaScene", FadeType.Black);
+                        SceneLoad.LoadWithLoadingScreen("SampleScene", FadeType.Black);
                     }
                     else if (cursorIndex == 1)
                     {
@@ -208,8 +208,7 @@ public class title : MonoBehaviour
                     else if (cursorIndex == 2)
                     {
                         UISE.Instance.EnterUI();
-                        UnityEditor.EditorApplication.isPlaying = false; // エディタ上で停止
-                        Application.Quit();
+                        Application.Quit(); // 製品版（ビルド後）でゲームを終了させる場合はこれを書く
                     }
                 }
             }
