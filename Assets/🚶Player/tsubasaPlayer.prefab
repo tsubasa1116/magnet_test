@@ -56,7 +56,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 965112741557725852}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.00006132462, y: 0.907334, z: -0.42041042, w: -0.00013235142}
+  m_LocalRotation: {x: -0.000014240205, y: 0.99518406, z: -0.09802416, w: -0.00014457281}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -138,8 +138,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1531361150050238851}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.00006132365, y: 0.907334, z: -0.42041045, w: -0.00013234932}
-  m_LocalPosition: {x: -99.40947, y: 12.029224, z: -34.759354}
+  m_LocalRotation: {x: -0.000014240209, y: 0.99518406, z: -0.09802416, w: -0.00014457284}
+  m_LocalPosition: {x: -99.40878, y: 10.909998, z: -32.39}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -178,7 +178,7 @@ Camera:
     height: 1
   near clip plane: 0.1
   far clip plane: 5000
-  field of view: 44.99986
+  field of view: 50
   orthographic: 0
   orthographic size: 10
   m_Depth: -1
@@ -406,7 +406,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Cinemachine::Cinemachine.CinemachineOrbitalTransposer
   m_BindingMode: 5
-  m_FollowOffset: {x: 0, y: 4, z: -2.624999}
+  m_FollowOffset: {x: 0, y: 1.8, z: -4.2}
   m_XDamping: 0.8
   m_YDamping: 1
   m_ZDamping: 1.2
@@ -602,7 +602,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Cinemachine::Cinemachine.CinemachineOrbitalTransposer
   m_BindingMode: 5
-  m_FollowOffset: {x: 0, y: 4, z: -2.624999}
+  m_FollowOffset: {x: 0, y: 1.8, z: -4.2}
   m_XDamping: 0.8
   m_YDamping: 1
   m_ZDamping: 1.2
@@ -695,7 +695,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5368265542236089022}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.00005852901, y: 0.91582686, z: -0.40157336, w: -0.00013348107}
+  m_LocalRotation: {x: -0.000014240205, y: 0.99518406, z: -0.09802416, w: -0.00014457281}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -808,7 +808,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Cinemachine::Cinemachine.CinemachineOrbitalTransposer
   m_BindingMode: 5
-  m_FollowOffset: {x: 0, y: 4, z: -2.624999}
+  m_FollowOffset: {x: 0, y: 1.8, z: -4.2}
   m_XDamping: 0.8
   m_YDamping: 1
   m_ZDamping: 1.2
@@ -901,7 +901,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6146818730536895488}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.00005581357, y: 0.92390186, z: -0.38262948, w: -0.00013476811}
+  m_LocalRotation: {x: -0.000014240205, y: 0.99518406, z: -0.09802416, w: -0.00014457281}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -983,7 +983,7 @@ Transform:
   m_GameObject: {fileID: 6675779210403013993}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -99.40924, y: 13.109999, z: -33.964996}
+  m_LocalPosition: {x: -99.40878, y: 10.909998, z: -32.39}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1667,6 +1667,11 @@ CharacterJoint:
   m_EnablePreprocessing: 0
   m_MassScale: 1
   m_ConnectedMassScale: 1
+--- !u!82 &2293660863791936059 stripped
+AudioSource:
+  m_CorrespondingSourceObject: {fileID: 621036649809907436, guid: 98c7753dfab3d6e4bb531639942dcf5f, type: 3}
+  m_PrefabInstance: {fileID: 1678406620807412951}
+  m_PrefabAsset: {fileID: 0}
 --- !u!54 &2769285683761633742 stripped
 Rigidbody:
   m_CorrespondingSourceObject: {fileID: 3541130329543435545, guid: 98c7753dfab3d6e4bb531639942dcf5f, type: 3}
@@ -2472,14 +2477,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: '::'
   moveSpeed: 2
   dashSpeed: 5
+  dashInputThreshold: 0.85
   rotationSpeed: 480
   acceleration: 5
+  airAcceleration: 8
+  knockbackAirControlScale: 0.25
+  knockbackGroundAcceleration: 12
+  catchMoveSpeedScale: 0.4
   jumpForce: 5
   groundLayer:
     serializedVersion: 2
     m_Bits: 4294967295
   gravityScale: 0.6
   blockedRatio: 0.3
+  stepHeight: 0.35
+  stepCheckDistance: 0.45
+  stepLift: 0.08
+  audioSource: {fileID: 2293660863791936059}
+  jumpSE: {fileID: 8300000, guid: a9cc45fe99e972e4baaf33876b1170eb, type: 3}
 --- !u!114 &9183756129228535557
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2500,6 +2515,9 @@ MonoBehaviour:
   buttonZoomScale: 1.1
   buttonAnimSec: 0.2
   uiRotateSec: 0.3
+  audioSource: {fileID: 2293660863791936059}
+  switchSE: {fileID: 8300000, guid: 76eb27325151c934d8fbf35bada05fac, type: 3}
+  switchVolume: 1
 --- !u!114 &461471540811621095
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2513,14 +2531,42 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: '::'
   freeLook: {fileID: 8715599545880087750}
-  aimFOV: 28
-  aimRadiusScale: 0.6
-  aimScreenX: 0.35
+  baseFOV: 50
+  baseYAxisSpeed: 2.5
   lerpSpeed: 10
   lookUpStartY: 0
-  aimTargetLayer:
-    serializedVersion: 2
-    m_Bits: 4294967295
+  maxLookUpAngle: 78
+  lookUpSpeedScale: 0.85
+  lockOnTags:
+  - Enemy
+  - N_Pole
+  - S_Pole
+  lockOnRange: 30
+  lockOnYawSpeed: 8
+  lockOnPitchGain: 0.06
+  switchThreshold: 0.7
+  switchRearmThreshold: 0.3
+  lockOnFOVScale: 0.85
+  lockOnScreenX: 0.35
+  fadeObstacles: 1
+  obstacleAlpha: 0.15
+  holeRadius: 1.2
+  holeSoftness: 1.5
+  fadeInTime: 0.2
+  fadeOutTime: 0.3
+  cameraOverlapRadius: 0.8
+  deathFOV: 30
+  deathRadiusScale: 0.35
+  deathSlowScale: 0.2
+  deathSlowHold: 1.2
+  deathSlowRecover: 1.5
+  hideCursor: 1
+  markerPrefab: {fileID: 0}
+  markerScale: 1.25
+  markerSpinSpeed: 120
+  enemyMarkerColor: {r: 1, g: 0.45, b: 0.1, a: 0.95}
+  nPoleMarkerColor: {r: 1, g: 0.3, b: 0.3, a: 0.95}
+  sPoleMarkerColor: {r: 0.3, g: 0.65, b: 1, a: 0.95}
 --- !u!114 &404497667943124053
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2573,6 +2619,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   maxHp: 100
+  knockbackSpeed: 6
+  knockbackUpSpeed: 2.5
+  knockbackTime: 0.25
+  invincibleTime: 1.2
+  hitStopTime: 0.12
+  audioSource: {fileID: 2293660863791936059}
+  damageSE: {fileID: 8300000, guid: b5ba7cdd1825d9a48b1d92e63e0fd96e, type: 3}
 --- !u!114 &8664002019207877617
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2585,6 +2638,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b09edadfcc14f3349b06bbb032c93e0d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCatch
+  audioSource: {fileID: 2293660863791936059}
+  magnetOnSE: {fileID: 8300000, guid: bc50d024266effc47924241ff12a4a99, type: 3}
 --- !u!114 &778381200673064709
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2597,6 +2652,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 199fb73de21b0994c92b2e9f8ed09a74, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MagnetPull
+  audioSource: {fileID: 2293660863791936059}
+  repelSE: {fileID: 8300000, guid: 321a76b0ee691644c9ea2ad757c75d7e, type: 3}
   handPoint: {fileID: 6014791523648236041}
   aimCamera: {fileID: 4918124366715369759}
   rayRange: 30
@@ -2609,11 +2666,19 @@ MonoBehaviour:
   floatAmplitude: 0.15
   floatFrequency: 6
   repelForce: 30
+  showThrowGuide: 1
+  throwGuideLength: 30
+  throwGuideWidth: 0.04
+  throwGuideColor: {r: 1, g: 0.85, b: 0.2, a: 0.9}
   nPoleAttractEffect: {fileID: 0}
   sPoleAttractEffect: {fileID: 0}
+  nPoleReleaseEffect: {fileID: 0}
+  sPoleReleaseEffect: {fileID: 0}
   nPoleLaserEffect: {fileID: 0}
   sPoleLaserEffect: {fileID: 0}
   jumpCooldown: 0
+  enemyAttachOffset: {x: 0, y: -0.2, z: -1}
+  pullRotateSpeed: 4
 --- !u!114 &7524280853114627061
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2667,6 +2732,14 @@ MonoBehaviour:
   faceS: {fileID: 2800000, guid: 2c96c7c4b66f6144db998523b76c139a, type: 3}
   faceEmissionN: {fileID: 2800000, guid: 893e0ff9bc5cc7341bdb95a7de61569d, type: 3}
   faceEmissionS: {fileID: 2800000, guid: d8cdb7c67d1fb684c938fd3b741f352d, type: 3}
+  hologramFaceMaterial: {fileID: 0}
+  autoExpression: 1
+  faceCatchN: {fileID: 0}
+  faceCatchS: {fileID: 0}
+  faceDamageN: {fileID: 0}
+  faceDamageS: {fileID: 0}
+  faceDownN: {fileID: 0}
+  faceDownS: {fileID: 0}
 --- !u!114 &2256275518879357622
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2688,6 +2761,9 @@ MonoBehaviour:
   hitEffect: {fileID: 2863794643059863984, guid: cbcb8b6e38d09d348bfbf6f83e83922a, type: 3}
   downEffect: {fileID: 546935710587009230, guid: d40501971b6b83f40a31cd597160694a, type: 3}
   hitEffectLife: 2
+  damageFlashColor: {r: 1, g: 0.25, b: 0.25, a: 1}
+  damageFlashTime: 0.15
+  blinkInterval: 0.08
 --- !u!114 &6392781413471496729
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2701,6 +2777,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RopewayMagnet
   attachDistance: 0.8
+  pullSpeed: 14
+  rideMoveSpeed: 1.5
+  rideMoveRadius: 0.45
 --- !u!4 &8988816805601806132 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7778935568533470179, guid: 98c7753dfab3d6e4bb531639942dcf5f, type: 3}

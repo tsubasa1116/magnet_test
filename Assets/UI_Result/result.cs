@@ -33,6 +33,11 @@ public class result : MonoBehaviour
     [SerializeField] private Image[] destroyDigits; // 左から順に入れる
     [SerializeField] private Image[] timeDigits;    // 時10, 時1, 分10, 分1, 秒10, 秒1 の順に入れる
 
+    [Header("SE")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip donSE;
+    [SerializeField] private AudioClip scoreSE;
+
     private bool isInputOk = false;
 
     private int destroyCnt;
@@ -41,6 +46,7 @@ public class result : MonoBehaviour
     void Start()
     {
         InitUI();
+        audioSource = GetComponent<AudioSource>();
 
         // 静的クラスから実際のゲームデータを取得
         destroyCnt = GameResultManager.DestroyCount;
@@ -151,16 +157,19 @@ public class result : MonoBehaviour
         yield return new WaitForSeconds(1.0f);
 
         // 3. 「撃破数」UIを表示（！）同時に揺らす
+        audioSource.PlayOneShot(donSE);
         destroy.gameObject.SetActive(true);
         yield return StartCoroutine(ShakeUI(0.3f, 15.0f));
         yield return new WaitForSeconds(1.0f);
 
         // 4. 「クリアタイム」UIを表示（！）同時に揺らす
+        audioSource.PlayOneShot(donSE);
         cleartime.gameObject.SetActive(true);
         yield return StartCoroutine(ShakeUI(0.3f, 15.0f));
         yield return new WaitForSeconds(1.0f);
 
         // 5. スコアのイメージを大きいサイズから元のサイズにイーズ表示
+        audioSource.PlayOneShot(scoreSE);
         scoreImage.gameObject.SetActive(true);
         yield return StartCoroutine(ScaleInScore(0.6f));
         yield return new WaitForSeconds(0.5f);
