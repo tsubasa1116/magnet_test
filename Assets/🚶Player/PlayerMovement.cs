@@ -44,6 +44,7 @@ public class PlayerMovement : MonoBehaviour
 	private bool isBlocked;
 	private Transform cameraTransform;
 	private PlayerHealth health;
+	private InputAction dashAction;
 	private PlayerAim aim;
 	private PlayerCatch catchState;
 	private Vector3 targetForward; // 見た目の向きの目標。入力が止んでも保持してそこへ向き続ける
@@ -53,6 +54,7 @@ public class PlayerMovement : MonoBehaviour
 	private Collider mainCollider; // 足元位置(bounds.min.y)の基準に使う
 	private float lastStepClimbTime; // 段差乗り越え直後の打ち上がり防止用
 
+    private Vector3 externalVelocity;
     private bool isExternalForce;
 
     // --- アニメーション側(AnimationStateController)が参照する状態フラグ ---
@@ -63,6 +65,8 @@ public class PlayerMovement : MonoBehaviour
 	public bool IsGrounded => isGrounded;
 	// 入力はあるが壁などで実際に進めていない状態（アニメをIdleにするのに使う）
 	public bool IsBlocked => isBlocked;
+	// 立体機動中（外部ギミックが制御するので移動を止める）
+	public bool IsOnGrapple { get; set; }
 	// ロープウェイ等に吸着中（外部ギミックが制御するので移動を止める）
 	public bool IsOnRopeway { get; set; }
 
@@ -121,14 +125,15 @@ public class PlayerMovement : MonoBehaviour
 		}
 
 		// ロープウェイ等に吸着中はギミック側が位置を制御するので、こちらは動かさない
-		if (IsOnRopeway)
+		if (IsOnRopeway || IsOnGrapple)
 		{
-			rb.linearVelocity = Vector3.zero;
 			isDashing = false;
 			isBlocked = false;
 			return;
 		}
 
+		// 実際のボタンの押下状態をそのまま反映（離せば必ずfalseに戻る）
+		isDashing = dashAction != null && dashAction.IsPressed();
 		// スティックの倒し具合でダッシュ判定(深く倒す=ダッシュ、浅い=歩き)
 		isDashing = moveInput.magnitude >= dashInputThreshold;
 		isGrounded = CheckGrounded();
@@ -146,7 +151,7 @@ public class PlayerMovement : MonoBehaviour
 		float desired = (isDashing ? dashSpeed : moveSpeed) * Mathf.Clamp01(moveInput.magnitude);
 		isBlocked = IsMoving && desired > 0.01f && v.magnitude < desired * blockedRatio;
 
-        if (!IsOnRopeway)
+        if (!IsOnRopeway && !IsOnGrapple)
         {
             Move();
         }
@@ -170,6 +175,7 @@ public class PlayerMovement : MonoBehaviour
 
 	public void OnJump(InputValue value)
 	{
+		if (value.isPressed && isGrounded)
 		// jumpConsumed: 離陸直後は接地判定がまだtrueのため、連打で2段ジャンプになるのを防ぐ
 		if (value.isPressed && isGrounded && !jumpConsumed)
 		{
@@ -180,20 +186,27 @@ public class PlayerMovement : MonoBehaviour
 		}
 	}
 
-	// --- 移動 ---
+    // --- 移動 ---
 
-	private void Move()
-	{
-		// カメラ基準の移動方向（水平面）
-		Vector3 forward = cameraTransform.forward;
-		Vector3 right = cameraTransform.right;
-		forward.y = 0f;
-		right.y = 0f;
-		forward.Normalize();
-		right.Normalize();
+    private void Move()
+    {
+        // ロープウェイ・GrapplePhysicsが全て移動を管理する
+        if (IsOnRopeway || IsOnGrapple)
+        {
+            return;
+        }
 
-		Vector3 moveDir = forward * moveInput.y + right * moveInput.x;
-		if (moveDir.sqrMagnitude > 1f) moveDir.Normalize();
+        // カメラ基準の移動方向（水平面）
+        Vector3 forward = cameraTransform.forward;
+        Vector3 right = cameraTransform.right;
+        forward.y = 0f;
+        right.y = 0f;
+        forward.Normalize();
+        right.Normalize();
+
+        Vector3 moveDir = forward * moveInput.y + right * moveInput.x;
+        if (moveDir.sqrMagnitude > 1f)
+            moveDir.Normalize();
 
 		// --- 向きの制御 ---
 		if (IsCatching)
@@ -215,10 +228,12 @@ public class PlayerMovement : MonoBehaviour
 			if (IsMoving && moveDir.sqrMagnitude > 0.0001f)
 				targetForward = moveDir.normalized;
 
-			Quaternion targetRot = Quaternion.LookRotation(targetForward);
-			transform.rotation = Quaternion.RotateTowards(
-				transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
-		}
+            Quaternion targetRot = Quaternion.LookRotation(targetForward);
+            transform.rotation = Quaternion.RotateTowards(
+                transform.rotation,
+                targetRot,
+                rotationSpeed * Time.deltaTime);
+        }
 
 		// --- 速度 ---
 		if (!IsMoving)
@@ -244,12 +259,39 @@ public class PlayerMovement : MonoBehaviour
 			return;
 		}
 
-		// 目標速度へだんだん加速/減速（ダッシュON/OFFが急にならない）
-		float targetSpeed = isDashing ? dashSpeed : moveSpeed;
-		currentMoveSpeed = Mathf.MoveTowards(currentMoveSpeed, targetSpeed, acceleration * Time.deltaTime);
-      
-		if (!isExternalForce)
+        // 加速
+        float targetSpeed = isDashing ? dashSpeed : moveSpeed;
+
+        currentMoveSpeed = Mathf.MoveTowards(
+            currentMoveSpeed,
+            targetSpeed,
+            acceleration * Time.deltaTime);
+
+        Vector3 inputVelocity = moveDir * currentMoveSpeed;
+
+        // ===== 外力中 =====
+        if (isExternalForce)
         {
+            externalVelocity = Vector3.MoveTowards(
+                externalVelocity,
+                Vector3.zero,
+                20f * Time.deltaTime);
+
+            // 入力で外力を直接変化させる
+            externalVelocity += moveDir * 25f * Time.deltaTime;
+
+            Vector3 finalVelocity = externalVelocity;
+            finalVelocity.y = rb.linearVelocity.y;
+
+            rb.linearVelocity = finalVelocity;
+        }
+		// ===== 通常移動 =====
+        else
+        {
+            rb.linearVelocity = new Vector3(
+                inputVelocity.x,
+                rb.linearVelocity.y,
+                inputVelocity.z);
 			if (isGrounded)
 			{
 				// 段差乗り越えの直後は、角を駆け上がった上向き速度を殺す
@@ -313,7 +355,7 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-	private bool CheckGrounded()
+    private bool CheckGrounded()
 	{
 		// 1本の細いRayだと床タイルの継ぎ目・コライダーの隙間の真上で空中判定になるため、
 		// 体の幅ぶんの太さを持ったSphereCastで判定する(到達距離はRay1.1mと同等)
@@ -359,6 +401,18 @@ public class PlayerMovement : MonoBehaviour
 		rb.MovePosition(rb.position + Vector3.up * Mathf.Min(stepLift, needed + 0.02f));
 		lastStepClimbTime = Time.time; // 直後の上向き速度クランプ用
 	}
+
+    public void SetExternalVelocity(Vector3 velocity)
+    {
+        externalVelocity = velocity;
+
+        rb.linearVelocity = new Vector3(
+            velocity.x,
+            rb.linearVelocity.y,
+            velocity.z);
+
+        StartExternalForce(2.0f);
+    }
 
     public void StartExternalForce(float duration)
     {

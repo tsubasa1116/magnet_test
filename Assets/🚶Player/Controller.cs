@@ -240,7 +240,7 @@ public class Controller : MonoBehaviour
                 if (canGrapple)
                 {
                     grapple.StartGrapple(gameObject);
-                    grapple.StartGrappleEffect();
+                    //grapple.StartGrappleEffect();
                 }
             }
         }

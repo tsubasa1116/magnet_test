@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &8650722285789888942
+--- !u!1 &6674812087171872619
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,50 +8,50 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 5021213051947021164}
-  - component: {fileID: 6490273656717028829}
-  - component: {fileID: 5285211381749882347}
-  - component: {fileID: 1619376115880605096}
-  - component: {fileID: 8014845080473459179}
-  - component: {fileID: 45459501074680165}
-  - component: {fileID: 6424056680398223437}
+  - component: {fileID: 432238272020294089}
+  - component: {fileID: 5149999567646636409}
+  - component: {fileID: 6884868084130368082}
+  - component: {fileID: 303291391198840295}
+  - component: {fileID: 7329934710332240357}
+  - component: {fileID: 8728070989818780289}
+  - component: {fileID: -360812393404354968}
   m_Layer: 0
-  m_Name: grapple_S
-  m_TagString: N_Pole
+  m_Name: Repel_N
+  m_TagString: Repel_N
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &5021213051947021164
+--- !u!4 &432238272020294089
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8650722285789888942}
+  m_GameObject: {fileID: 6674812087171872619}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -131.25752, y: 6.34, z: -105.4}
-  m_LocalScale: {x: 2, y: 2, z: 2}
-  m_ConstrainProportionsScale: 1
+  m_LocalPosition: {x: -318.897, y: 3.0052352, z: -61.340168}
+  m_LocalScale: {x: 4, y: 5, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &6490273656717028829
+--- !u!33 &5149999567646636409
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8650722285789888942}
+  m_GameObject: {fileID: 6674812087171872619}
   m_Mesh: {fileID: 8721018153259967354, guid: 8a04e0444cc0df04b92b5ff2a4ac0694, type: 3}
---- !u!23 &5285211381749882347
+--- !u!23 &6884868084130368082
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8650722285789888942}
+  m_GameObject: {fileID: 6674812087171872619}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -70,7 +70,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a08b512124da4294b8ba72e96d46cf51, type: 2}
+  - {fileID: 2100000, guid: dfe6a79ec76f8f741b0bfd562420366d, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -94,13 +94,13 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1619376115880605096
+--- !u!65 &303291391198840295
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8650722285789888942}
+  m_GameObject: {fileID: 6674812087171872619}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -113,36 +113,15 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.75, y: 0.75, z: 0.75}
+  m_Size: {x: 0.8, y: 0.8, z: 0.8}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!65 &8014845080473459179
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8650722285789888942}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.75, y: 0.75, z: 0.75}
-  m_Center: {x: 0, y: 0, z: 0}
---- !u!54 &45459501074680165
+--- !u!54 &7329934710332240357
 Rigidbody:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8650722285789888942}
+  m_GameObject: {fileID: 6674812087171872619}
   serializedVersion: 5
   m_Mass: 1
   m_LinearDamping: 0
@@ -163,27 +142,39 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &6424056680398223437
+--- !u!135 &8728070989818780289
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6674812087171872619}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 0.5
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &-360812393404354968
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8650722285789888942}
+  m_GameObject: {fileID: 6674812087171872619}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 98b79804071d4074a8558bfd6a590d40, type: 3}
+  m_Script: {fileID: 11500000, guid: b379aeeec62133941bb0048bd5ccd7bc, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Grapple
-  nPoleObjectAttractEffect: {fileID: 3426117806908384042, guid: 182be586c4cd75c4c8878b67bc1013d9, type: 3}
-  sPoleObjectAttractEffect: {fileID: 5538358611671489080, guid: 9617f933e29c3934abc53a8a5e6e2cf2, type: 3}
-  nPoleLaserEffect: {fileID: 1750323929372548772, guid: ab7d50475476f224ca9f279f51b8ccec, type: 3}
-  sPoleLaserEffect: {fileID: 5432420029223546880, guid: 42b69e0203c2f7f4e86fd46f7572504e, type: 3}
-  physics:
-    reelSpeed: 5
-    minimumLength: 5
-    initialPullForce: 8
-    maxVelocity: 15
-    inputAcceleration: 6
-    sideAcceleration: 4
-  grappleDuration: 2.5
+  m_EditorClassIdentifier: Assembly-CSharp::MagnetObject
+  repelForce: 5
+  liftForce: 2
+  repelSound: {fileID: 0}

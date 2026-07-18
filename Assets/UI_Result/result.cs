@@ -95,6 +95,7 @@ public class result : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Return) || (Gamepad.current?.buttonEast.wasPressedThisFrame == true))
         {
+            GameManager.Instance.ResetGame();
             SceneLoad.LoadWithLoadingScreen("TitleScene", FadeType.White);
         }
     }
