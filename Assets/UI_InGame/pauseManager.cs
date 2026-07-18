@@ -101,7 +101,7 @@ public class pauseManager : MonoBehaviour
         LoadSettings();
         UpdateAllSlider();
         UpdateLighting();
-        AudioManager.Instance.PlayBGM("Field");
+        if (AudioManager.Instance != null) AudioManager.Instance.PlayBGM("Field");
     }
 
 

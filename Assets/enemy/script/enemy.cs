@@ -75,7 +75,14 @@ public class enemy : MonoBehaviour
     void Start()
     {
         currentHp = maxHp;
+
+        // ロックオンや頭の注視はタグ"Enemy"で敵を検索するため、
+        // プレハブ側で付け忘れていても未設定の場合のみ自動で付与する
+        // (N_Enemy/S_Enemyなど磁極タグが付いている場合は上書きしない)
+        if (gameObject.CompareTag("Untagged")) gameObject.tag = "Enemy";
+
         agent = GetComponent<NavMeshAgent>();
+        NavMeshAgentBootstrap.EnsureOnNavMesh(agent);
         rb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();
 

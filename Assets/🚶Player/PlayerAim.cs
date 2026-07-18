@@ -18,6 +18,8 @@ public class PlayerAim : MonoBehaviour
 	[SerializeField] private float baseFOV = 50f;
 	[Tooltip("カメラ上下(Y軸)の基準速度。上下の視点移動が遅い時はここを上げる")]
 	[SerializeField] private float baseYAxisSpeed = 2.5f;
+	[Tooltip("通常時の画面横位置(0.5=中央)。昔の肩越しADSの一時値がシーンに残っていても起動時にここへ戻す")]
+	[SerializeField] private float baseScreenX = 0.5f;
 
 	// ※ADS(R3でカメラズームエイム)は廃止。
 	//   Catch中の常時肩越し・ホールド中の過剰ズーム(FOV28)の原因だったため、
@@ -35,7 +37,7 @@ public class PlayerAim : MonoBehaviour
 
 	[Header("ロックオン設定(R3押し込み)")]
 	[Tooltip("ロックオン対象のタグ(吸い寄せオブジェクトと敵)")]
-	[SerializeField] private string[] lockOnTags = { "Enemy", "N_Pole", "S_Pole" };
+	[SerializeField] private string[] lockOnTags = { "Enemy", "N_Pole", "S_Pole", "N_Enemy", "S_Enemy" };
 	[SerializeField] private float lockOnRange = 30f;
 	[Tooltip("ロックオン中にカメラが対象へ向く速さ(大きいほどキビキビ)")]
 	[SerializeField] private float lockOnYawSpeed = 8f;
@@ -188,9 +190,22 @@ public class PlayerAim : MonoBehaviour
 			var cinemachineCollider = freeLook.GetComponent<CinemachineCollider>();
 			if (cinemachineCollider != null) cinemachineCollider.enabled = false;
 		}
+		// ScreenXもFOVと同様に基準値を正として強制適用する
+		// (旧・肩越しADSの一時値0.35がシーンに保存されたままだと常時肩越しになるため)
+		normalScreenX = baseScreenX;
 		for (int i = 0; i < 3; i++)
+		{
 			composers[i] = freeLook.GetRig(i).GetCinemachineComponent<CinemachineComposer>();
-		if (composers[1] != null) normalScreenX = composers[1].m_ScreenX;
+			if (composers[i] != null) composers[i].m_ScreenX = baseScreenX;
+		}
+
+		// 磁極タグ付きの敵(N_Enemy/S_Enemy)もロックオン対象に含める。
+		// lockOnTagsはシーンに保存された古い値が使われるため、コード側で不足分を補う
+		// (enemy_normal/enemy_skyv2系のルートは磁石用にN_Enemy/S_Enemyタグが付いている)
+		var mergedTags = new List<string>(lockOnTags);
+		foreach (string requiredTag in new[] { "N_Enemy", "S_Enemy" })
+			if (!mergedTags.Contains(requiredTag)) mergedTags.Add(requiredTag);
+		lockOnTags = mergedTags.ToArray();
 
 		// 遮蔽物用ディザ半透明シェーダー(Assets/Resources/ObstacleDitherFade.shader)
 		ditherShader = Shader.Find("Custom/ObstacleDitherFade");
@@ -784,8 +799,8 @@ public class PlayerAim : MonoBehaviour
 	private Color ColorForTarget()
 	{
 		if (lockTarget.CompareTag("Enemy")) return enemyMarkerColor;
-		if (lockTarget.CompareTag("N_Pole")) return nPoleMarkerColor;
-		if (lockTarget.CompareTag("S_Pole")) return sPoleMarkerColor;
+		if (lockTarget.CompareTag("N_Pole") || lockTarget.CompareTag("N_Enemy")) return nPoleMarkerColor;
+		if (lockTarget.CompareTag("S_Pole") || lockTarget.CompareTag("S_Enemy")) return sPoleMarkerColor;
 		return Color.white;
 	}
 

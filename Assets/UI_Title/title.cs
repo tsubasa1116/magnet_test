@@ -75,7 +75,8 @@ public class title : MonoBehaviour
 
     void Start()
     {
-        AudioManager.Instance.PlayBGM("Title");
+        // AudioManagerはまだシーンに未配置のため、存在する場合のみ再生する
+        if (AudioManager.Instance != null) AudioManager.Instance.PlayBGM("Title");
         LoadSettings();
         UpdateAllSlider();
         UpdateLighting();

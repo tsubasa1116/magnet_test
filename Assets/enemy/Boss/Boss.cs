@@ -58,6 +58,7 @@ public class Boss : MonoBehaviour
 	{
 		currentHp = maxHp;
 		agent = GetComponent<NavMeshAgent>();
+		NavMeshAgentBootstrap.EnsureOnNavMesh(agent);
 
 		rb = GetComponent<Rigidbody>();
 		if (rb != null)

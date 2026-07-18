@@ -70,7 +70,12 @@ public class enemy_bomb : MonoBehaviour
     void Start()
     {
         currentHp = maxHp;
+
+        // ロックオン用のタグ"Enemy"が未設定なら自動で付与する(磁極タグは上書きしない)
+        if (gameObject.CompareTag("Untagged")) gameObject.tag = "Enemy";
+
         agent = GetComponent<NavMeshAgent>();
+        NavMeshAgentBootstrap.EnsureOnNavMesh(agent);
         rb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();
 

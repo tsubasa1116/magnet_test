@@ -22,7 +22,8 @@ public class CombatStateManager : MonoBehaviour
         if (wasEmpty)
         {
             // 誰もいなかった状態から初めて交戦開始 → バトルBGMへ
-            AudioManager.Instance.PlayBGMWithFade("Enemy", 1.0f, true, false);
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlayBGMWithFade("Enemy", 1.0f, true, false);
         }
     }
 
@@ -34,7 +35,8 @@ public class CombatStateManager : MonoBehaviour
         if (engagedEnemies.Count == 0)
         {
             // 全ての敵との交戦が終わった時だけフィールドBGMに戻す
-            AudioManager.Instance.PlayBGMWithFade("Field", 1.5f, true, true);
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlayBGMWithFade("Field", 1.5f, true, true);
         }
     }
 }

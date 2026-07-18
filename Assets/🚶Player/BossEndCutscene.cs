@@ -112,6 +112,7 @@ public class BossEndCutscene : MonoBehaviour
 
 	// UI退避
 	private readonly List<Canvas> hiddenCanvases = new List<Canvas>();
+	private bool nyuxtuHidden; // Nyuxtu3でHUDをしまったか(終了時にShowUIで返す)
 
 	void Update()
 	{
@@ -383,14 +384,23 @@ public class BossEndCutscene : MonoBehaviour
 	// ------------------------------------------------------------
 	private void FreezePlayer()
 	{
+		// HUDを隠す。Nyuxtu3があればスライドアウトで滑らかにしまう(Canvasは無効化しない)
 		if (hideUI)
 		{
-			foreach (Canvas c in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+			if (Nyuxtu3.Instance != null)
 			{
-				if (c.enabled && c.isRootCanvas && c.renderMode != RenderMode.WorldSpace)
+				Nyuxtu3.Instance.HideUI();
+				nyuxtuHidden = true;
+			}
+			else
+			{
+				foreach (Canvas c in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
 				{
-					c.enabled = false;
-					hiddenCanvases.Add(c);
+					if (c.enabled && c.isRootCanvas && c.renderMode != RenderMode.WorldSpace)
+					{
+						c.enabled = false;
+						hiddenCanvases.Add(c);
+					}
 				}
 			}
 		}
@@ -465,6 +475,11 @@ public class BossEndCutscene : MonoBehaviour
 	{
 		playerFrozen = false;
 
+		if (nyuxtuHidden)
+		{
+			nyuxtuHidden = false;
+			if (Nyuxtu3.Instance != null) Nyuxtu3.Instance.ShowUI();
+		}
 		foreach (Canvas c in hiddenCanvases)
 			if (c != null) c.enabled = true;
 		hiddenCanvases.Clear();
