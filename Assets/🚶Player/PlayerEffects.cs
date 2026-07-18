@@ -59,6 +59,8 @@ public class PlayerEffects : MonoBehaviour
 			health.OnHit += OnHit;
 			health.OnDied += OnDied;
 		}
+		// ジャンプの瞬間に走りエフェクトを即消す(接地判定が切れるより先に反応させる)
+		if (movement != null) movement.Jumped += OnJumpedStopEffect;
 	}
 
 	void OnDisable()
@@ -69,9 +71,12 @@ public class PlayerEffects : MonoBehaviour
 			health.OnHit -= OnHit;
 			health.OnDied -= OnDied;
 		}
+		if (movement != null) movement.Jumped -= OnJumpedStopEffect;
 		// 点滅の途中で無効化されても、体が消えたままにならないようにする
 		SetBodyVisible(true);
 	}
+
+	private void OnJumpedStopEffect() => StopRunEffect(true);
 
 	void Update()
 	{
@@ -102,25 +107,30 @@ public class PlayerEffects : MonoBehaviour
         else if (currentRunEffect != null)
         {
             runStopTimer += Time.deltaTime;
-            // 空中に出たら即消す(走りエフェクトが宙に浮いてついてくるのを防ぐ)
+            // 空中に出たら残っているパーティクルごと即消す(宙に浮いてついてくるのを防ぐ)
             bool airborne = movement != null && !movement.IsGrounded;
-            if (airborne || runStopTimer >= runStopDelay)
+            if (airborne)
+                StopRunEffect(true);
+            else if (runStopTimer >= runStopDelay)
                 StopRunEffect();
         }
     }
 
-    private void StopRunEffect()
+    // immediate=true で出ているパーティクルも含めて即座に消す(ジャンプ・空中用)
+    private void StopRunEffect(bool immediate = false)
     {
         if (currentRunEffect == null)
             return;
 
         currentRunEffect.transform.SetParent(null);
 
-        var ps = currentRunEffect.GetComponent<ParticleSystem>();
+        var ps = currentRunEffect.GetComponentInChildren<ParticleSystem>();
         if (ps != null)
-            ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+            ps.Stop(true, immediate
+                ? ParticleSystemStopBehavior.StopEmittingAndClear
+                : ParticleSystemStopBehavior.StopEmitting);
 
-        Destroy(currentRunEffect, 2f);
+        Destroy(currentRunEffect, immediate ? 0.1f : 2f);
         currentRunEffect = null;
     }
 
