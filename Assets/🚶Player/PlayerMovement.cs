@@ -57,6 +57,9 @@ public class PlayerMovement : MonoBehaviour
 
     private Vector3 externalVelocity;
     private bool isExternalForce;
+    // SetExternalVelocityで速度を渡された外力(Repel等)か。
+    // falseの外力(被弾ノックバック・ダッシュ台)は速度に触れず物理に任せる
+    private bool externalVelocityDriven;
 
     // --- アニメーション側(AnimationStateController)が参照する状態フラグ ---
     // 「どう動いているか」はこの行動コードが持ち、見た目の制御はAnimation側に任せる
@@ -269,31 +272,34 @@ public class PlayerMovement : MonoBehaviour
             targetSpeed,
             acceleration * Time.deltaTime);
 
-        Vector3 inputVelocity = moveDir * currentMoveSpeed;
-
         // ===== 外力中 =====
         if (isExternalForce)
         {
-            externalVelocity = Vector3.MoveTowards(
-                externalVelocity,
-                Vector3.zero,
-                20f * Time.deltaTime);
+            // SetExternalVelocityで速度を渡された時(Repel等)だけ外力ドライブする。
+            // 渡されていない外力(被弾ノックバック・ダッシュ台)は速度に一切触れず、
+            // AddForceされたインパルスを物理に任せる(マージ前のtsubasa64のノックバック仕様)
+            if (externalVelocityDriven)
+            {
+                externalVelocity = Vector3.MoveTowards(
+                    externalVelocity,
+                    Vector3.zero,
+                    20f * Time.deltaTime);
 
-            // 入力で外力を直接変化させる
-            externalVelocity += moveDir * 25f * Time.deltaTime;
+                // 入力で外力を直接変化させる
+                externalVelocity += moveDir * 25f * Time.deltaTime;
 
-            Vector3 finalVelocity = externalVelocity;
-            finalVelocity.y = rb.linearVelocity.y;
+                Vector3 finalVelocity = externalVelocity;
+                finalVelocity.y = rb.linearVelocity.y;
 
-            rb.linearVelocity = finalVelocity;
+                rb.linearVelocity = finalVelocity;
+            }
         }
 		// ===== 通常移動 =====
+        // ※ここで速度を無条件上書きしない(tsubasa64の旧ノックバック仕様)。
+        //   被弾の吹き飛び慣性は、下の地上/空中それぞれの分岐が
+        //   knockbackGroundAcceleration / knockbackAirControlScale で処理する
         else
         {
-            rb.linearVelocity = new Vector3(
-                inputVelocity.x,
-                rb.linearVelocity.y,
-                inputVelocity.z);
 			if (isGrounded)
 			{
 				// 段差乗り越えの直後は、角を駆け上がった上向き速度を殺す
@@ -406,6 +412,7 @@ public class PlayerMovement : MonoBehaviour
 
     public void SetExternalVelocity(Vector3 velocity)
     {
+        externalVelocityDriven = true;
         externalVelocity = velocity;
 
         rb.linearVelocity = new Vector3(
@@ -428,5 +435,6 @@ public class PlayerMovement : MonoBehaviour
         yield return new WaitForSeconds(duration);
 
         isExternalForce = false;
+        externalVelocityDriven = false; // 次の外力が旧方式ならドライブしない
     }
 }
