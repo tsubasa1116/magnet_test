@@ -44,7 +44,6 @@ public class PlayerMovement : MonoBehaviour
 	private bool isBlocked;
 	private Transform cameraTransform;
 	private PlayerHealth health;
-	private PlayerAim aim;
 	private PlayerCatch catchState;
 	private Vector3 targetForward; // 見た目の向きの目標。入力が止んでも保持してそこへ向き続ける
 	private float currentMoveSpeed; // 実際に適用中の移動速度(加速のため保持)
@@ -95,7 +94,6 @@ public class PlayerMovement : MonoBehaviour
 				if (mainCollider == null) mainCollider = col;
 			}
 
-		aim = GetComponent<PlayerAim>();
 		catchState = GetComponent<PlayerCatch>();
 		health = GetComponent<PlayerHealth>();
 
@@ -105,8 +103,6 @@ public class PlayerMovement : MonoBehaviour
 		currentMoveSpeed = moveSpeed;
 	}
 
-	// エイム中か（カメラズーム用。アニメ側も参照可）
-	public bool IsAiming => aim != null && aim.IsAiming;
 	// Catch中か（ZRホールド中。体の向きと catchストレイフアニメに使う）
 	public bool IsCatching => catchState != null && catchState.IsCatching;
 

@@ -19,12 +19,11 @@ public class PlayerAim : MonoBehaviour
 	[Tooltip("カメラ上下(Y軸)の基準速度。上下の視点移動が遅い時はここを上げる")]
 	[SerializeField] private float baseYAxisSpeed = 2.5f;
 
-	[Header("エイム設定")]
-	[SerializeField] private float aimFOV = 28f;           // エイム時のFOV(小さいほどアップ)
-	[SerializeField] private float aimRadiusScale = 0.6f;  // エイム時の距離倍率(小さいほど接近)
-	[SerializeField] private float aimScreenX = 0.35f;     // エイム時の肩寄せ(0.5=中央, 小さいほど右肩越し)
+	// ※ADS(R3でカメラズームエイム)は廃止。
+	//   Catch中の常時肩越し・ホールド中の過剰ズーム(FOV28)の原因だったため、
+	//   ズームと肩寄せはロックオンだけが持つ。R3はロックオン専用。
+	[Header("カメラ補間")]
 	[SerializeField] private float lerpSpeed = 10f;        // 寄り/戻りのなめらかさ
-	[SerializeField] private LayerMask aimTargetLayer;
 
 	[Header("見上げ設定")]
 	[Tooltip("カメラ上下(Y軸 0=下,1=上)がこの値を下回ると、注視点を頭上へ持ち上げてカメラが上を向き始める")]
@@ -68,8 +67,6 @@ public class PlayerAim : MonoBehaviour
 	[SerializeField] private Color nPoleMarkerColor = new Color(1f, 0.3f, 0.3f, 0.95f);
 	[SerializeField] private Color sPoleMarkerColor = new Color(0.3f, 0.65f, 1f, 0.95f);
 
-	public bool IsAiming { get; private set; }
-	public Vector3 AimPoint { get; private set; }
 	public bool IsLockedOn => locked;
 	public Transform LockOnTarget => lockTarget;
 
@@ -77,7 +74,6 @@ public class PlayerAim : MonoBehaviour
 	private PlayerInput playerInput;
 	private InputAction aimAction;
 	private InputAction cameraAction;
-	private PlayerCatch catchState;
 	private MagnetPull magnetPull;
 	private CinemachineInputProvider inputProvider;
 
@@ -97,7 +93,6 @@ public class PlayerAim : MonoBehaviour
 
 	// 通常時の値(復帰用)
 	private float normalFOV;
-	private float[] normalRadii = new float[3];
 	private float normalScreenX = 0.5f;
 	private CinemachineComposer[] composers = new CinemachineComposer[3];
 
@@ -109,7 +104,6 @@ public class PlayerAim : MonoBehaviour
 		// 押し込み一回でAim ON/OFFをトグル（押しっぱなし不要）
 		aimAction.started += OnAimToggle;
 
-		catchState = GetComponent<PlayerCatch>();
 		magnetPull = GetComponent<MagnetPull>();
 		cameraAction = playerInput.actions["Camera"];
 		inputProvider = freeLook != null ? freeLook.GetComponent<CinemachineInputProvider>() : null;
@@ -132,10 +126,7 @@ public class PlayerAim : MonoBehaviour
 			if (cinemachineCollider != null) cinemachineCollider.enabled = false;
 		}
 		for (int i = 0; i < 3; i++)
-		{
-			normalRadii[i] = freeLook.m_Orbits[i].m_Radius;
 			composers[i] = freeLook.GetRig(i).GetCinemachineComponent<CinemachineComposer>();
-		}
 		if (composers[1] != null) normalScreenX = composers[1].m_ScreenX;
 	}
 
@@ -149,11 +140,9 @@ public class PlayerAim : MonoBehaviour
 		if (markerMat != null) Destroy(markerMat);
 	}
 
+	// R3押し込み = ロックオンのトグル専用
 	private void OnAimToggle(InputAction.CallbackContext _)
 	{
-		IsAiming = !IsAiming;
-
-		// R3押し込みはロックオンのトグルも兼ねる
 		if (locked) Unlock();
 		else TryLockOn();
 	}
@@ -248,33 +237,25 @@ public class PlayerAim : MonoBehaviour
 
 	void Update()
 	{
-		// Aimは「Catch中だけ」有効。Catchでなければ強制的に通常カメラへ戻す
-		if (catchState != null && !catchState.IsCatching) IsAiming = false;
-
 		float t = lerpSpeed * Time.deltaTime;
 
-		// FOV(ズーム)。エイム中は大きく寄り、ロックオン中は少しだけ寄る
-		float targetFOV = IsAiming ? aimFOV : normalFOV * (locked ? lockOnFOVScale : 1f);
+		// FOV(ズーム)。ロックオン中だけ少し寄る
+		float targetFOV = normalFOV * (locked ? lockOnFOVScale : 1f);
 		freeLook.m_Lens.FieldOfView = Mathf.Lerp(freeLook.m_Lens.FieldOfView, targetFOV, t);
 
-		// 距離(各リグの半径)と肩寄せ
+		// 肩寄せ: ロックオン中だけ右肩越し(プレイヤーを画面左へ寄せて対象を見やすく)。
+		// 通常時は中央(0.5)＝肩越しなし
 		for (int i = 0; i < 3; i++)
 		{
-			float targetRadius = normalRadii[i] * (IsAiming ? aimRadiusScale : 1f);
-			freeLook.m_Orbits[i].m_Radius = Mathf.Lerp(freeLook.m_Orbits[i].m_Radius, targetRadius, t);
-
 			if (composers[i] != null)
 			{
-				// 肩寄せ: エイム中とロックオン中は右肩越し(プレイヤーを画面左へ寄せて対象を見やすく)
-				float targetX = IsAiming ? aimScreenX : (locked ? lockOnScreenX : normalScreenX);
+				float targetX = locked ? lockOnScreenX : normalScreenX;
 				composers[i].m_ScreenX = Mathf.Lerp(composers[i].m_ScreenX, targetX, t);
 			}
 		}
 
 		UpdateLookUp();
 		UpdateLockOn();
-
-		if (IsAiming) UpdateAimPoint();
 	}
 
 	// FreeLookはカメラ位置とプレイヤー注視が連動していて、カメラを地面より下に置けない
@@ -580,13 +561,4 @@ public class PlayerAim : MonoBehaviour
 		renderer.receiveShadows = false;
 	}
 
-	private void UpdateAimPoint()
-	{
-		Ray ray = mainCamera.ScreenPointToRay(
-			new Vector3(Screen.width / 2f, Screen.height / 2f, 0f)
-		);
-		AimPoint = Physics.Raycast(ray, out RaycastHit hit, 100f, aimTargetLayer)
-			? hit.point
-			: ray.GetPoint(100f);
-	}
 }
