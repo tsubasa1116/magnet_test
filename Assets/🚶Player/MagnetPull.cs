@@ -12,6 +12,10 @@ public class MagnetPull : MonoBehaviour
 {
     private PlayerHealth health;
 
+    [Header("SE")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip repelSE;
+
     [Header("参照")]
 	[Tooltip("引き寄せた物体がくっつく位置(手のボーンなど)。未指定なら体の前方")]
 	[SerializeField] private Transform handPoint;
@@ -105,6 +109,7 @@ public class MagnetPull : MonoBehaviour
         playerRb = GetComponent<Rigidbody>();
         aim = GetComponent<PlayerAim>();
         health = GetComponent<PlayerHealth>();
+        audioSource = GetComponent<AudioSource>();
         if (aimCamera == null) aimCamera = Camera.main;
     }
     void OnEnable()
@@ -610,6 +615,12 @@ public class MagnetPull : MonoBehaviour
 
         // 発射エフェクトを再生
         PlayReleaseEffect();
+        if (audioSource != null && repelSE != null)
+        {
+            audioSource.PlayOneShot(repelSE);
+        }
+
+      
 
         Collider playerCol = GetComponent<Collider>();
 

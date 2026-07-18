@@ -39,7 +39,11 @@ public class PlayerMovement : MonoBehaviour
 	[Tooltip("段差を乗り越える時の持ち上げ速度(1物理ステップあたりm)")]
 	[SerializeField] private float stepLift = 0.08f;
 
-	private Rigidbody rb;
+    [Header("SE")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip jumpSE;
+
+    private Rigidbody rb;
 	private Vector2 moveInput;
 	private bool isDashing;
 	private bool isGrounded;
@@ -80,8 +84,9 @@ public class PlayerMovement : MonoBehaviour
 	void Awake()
 	{
 		rb = GetComponent<Rigidbody>();
-		// 物理で倒れないように回転を固定（向きはスクリプトで制御する）
-		rb.freezeRotation = true;
+        // 物理で倒れないように回転を固定（向きはスクリプトで制御する）
+        audioSource = GetComponent<AudioSource>();
+        rb.freezeRotation = true;
 		// 物理ステップ間を補間して、カメラ追従時のカクつきを防ぐ
 		rb.interpolation = RigidbodyInterpolation.Interpolate;
 		cameraTransform = Camera.main.transform;

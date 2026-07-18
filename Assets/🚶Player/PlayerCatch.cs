@@ -6,13 +6,19 @@ public class PlayerCatch : MonoBehaviour
 {
     private InputAction catchAction;
     private PlayerHealth health;
+    [Header("SE")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip magnetOnSE;
 
     public bool IsCatching { get; private set; }
+    private bool wasCatching;
 
     void Awake()
     {
         catchAction = GetComponent<PlayerInput>().actions["Magnet ON OFF"];
         health = GetComponent<PlayerHealth>();
+
+        audioSource = GetComponent<AudioSource>();
     }
 
     void OnEnable()
@@ -35,7 +41,18 @@ public class PlayerCatch : MonoBehaviour
             return;
         }
 
-        IsCatching = catchAction != null && catchAction.IsPressed();
+        bool nowCatching = catchAction != null && catchAction.IsPressed();
+
+        if (!wasCatching && nowCatching)
+        {
+            if (audioSource != null && magnetOnSE != null)
+            {
+                audioSource.PlayOneShot(magnetOnSE);
+            }
+        }
+
+        IsCatching = nowCatching;
+        wasCatching = nowCatching;
     }
 
     private void OnDied()

@@ -78,10 +78,12 @@ public class GameOver : MonoBehaviour
         {
             if (cursorIndex == 0)
             {
+                UISE.Instance.EnterUI();
                 SceneLoad.LoadWithLoadingScreen("SampleScene", FadeType.Black);
             }
             else if (cursorIndex == 1)
             {
+                UISE.Instance.StartUI();
                 SceneLoad.LoadWithLoadingScreen("TitleScene", FadeType.Black);
             }
         }
@@ -92,7 +94,7 @@ public class GameOver : MonoBehaviour
     void MoveCursor(int direction)
     {
         cursorIndex += direction;
-
+        UISE.Instance.CursorUI();
         // インデックスが範囲外になったらループさせる
         if (cursorIndex < 0) cursorIndex = cursorPosY.Length - 1;
         if (cursorIndex >= cursorPosY.Length) cursorIndex = 0;
