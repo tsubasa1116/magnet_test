@@ -34,6 +34,15 @@ public class MagnetPull : MonoBehaviour
     [Header("反発(極切替でぶっ飛ばす)")]
     [SerializeField] private float repelForce = 30f;
 
+    [Header("投擲ガイド(ホールド中に飛ぶ方向を線で表示)")]
+    [SerializeField] private bool showThrowGuide = true;
+    [Tooltip("何にも当たらない時の線の長さ")]
+    [SerializeField] private float throwGuideLength = 30f;
+    [SerializeField] private float throwGuideWidth = 0.04f;
+    [SerializeField] private Color throwGuideColor = new Color(1f, 0.85f, 0.2f, 0.9f);
+    private LineRenderer throwGuide;
+    private Material throwGuideMat;
+
 	private PlayerCatch catchState;
 	private PlayerStateMachine stateMachine;
 	private PlayerAim aim;
@@ -182,6 +191,64 @@ public class MagnetPull : MonoBehaviour
     {
         // 物体の引き寄せだけ毎物理ステップで動かす（ギミックは各自で動く）
         if (held != null && !attached) PullHeld();
+    }
+
+    // 投擲ガイド: ホールド中、極切替で飛ぶ方向を線で見せる。
+    // 方向はカメラ/ロックオンに依存するのでカメラ確定後(LateUpdate)に更新
+    void LateUpdate()
+    {
+        bool show = showThrowGuide && IsHolding && (health == null || !health.IsDead);
+        if (!show)
+        {
+            if (throwGuide != null) throwGuide.enabled = false;
+            return;
+        }
+
+        EnsureThrowGuide();
+
+        Vector3 start = held.worldCenterOfMass;
+        Vector3 dir = GetThrowDirection();
+
+        // 最初に当たる物まで線を伸ばす(自分と保持物は無視)
+        Vector3 end = start + dir * throwGuideLength;
+        RaycastHit best = default;
+        bool found = false;
+        foreach (RaycastHit h in Physics.RaycastAll(start, dir, throwGuideLength, rayMask, QueryTriggerInteraction.Ignore))
+        {
+            if (h.collider.transform.IsChildOf(transform)) continue;
+            if (h.collider.transform.IsChildOf(held.transform)) continue;
+            if (!found || h.distance < best.distance) { best = h; found = true; }
+        }
+        if (found) end = best.point;
+
+        throwGuide.enabled = true;
+        throwGuide.SetPosition(0, start);
+        throwGuide.SetPosition(1, end);
+    }
+
+    // ガイド線の生成(初回のみ)。細い先細りの線
+    private void EnsureThrowGuide()
+    {
+        if (throwGuide != null) return;
+
+        GameObject go = new GameObject("ThrowGuide");
+        throwGuide = go.AddComponent<LineRenderer>();
+        throwGuide.useWorldSpace = true;
+        throwGuide.positionCount = 2;
+        throwGuide.startWidth = throwGuideWidth;
+        throwGuide.endWidth = throwGuideWidth * 0.5f;
+        throwGuideMat = new Material(Shader.Find("Sprites/Default"));
+        throwGuide.material = throwGuideMat;
+        throwGuide.startColor = throwGuideColor;
+        throwGuide.endColor = new Color(throwGuideColor.r, throwGuideColor.g, throwGuideColor.b, 0.15f);
+        throwGuide.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        throwGuide.receiveShadows = false;
+    }
+
+    void OnDestroy()
+    {
+        if (throwGuide != null) Destroy(throwGuide.gameObject);
+        if (throwGuideMat != null) Destroy(throwGuideMat);
     }
 
     // 相互作用の終了（ZR離し・極切替）
@@ -526,10 +593,20 @@ public class MagnetPull : MonoBehaviour
         ClearHeld();
     }
 
-	// 発射方向: 画面中央(照準)のレイで狙った点へ向かう方向。
-	// 何にも当たらなければカメラの正面方向へ飛ばす
+	// 発射方向:
+	//   ロックオン中 → ロックオンした対象へまっすぐ
+	//   それ以外     → 画面中央(照準)のレイで狙った点へ向かう方向。
+	//                  何にも当たらなければカメラの正面方向へ飛ばす
 	private Vector3 GetThrowDirection()
 	{
+		// ロックオン優先(飛ばす起点は保持物の重心=実際に飛ぶ物)
+		if (aim != null && aim.TryGetLockOnPoint(out Vector3 lockPoint))
+		{
+			Vector3 origin = held != null ? held.worldCenterOfMass : HandPos;
+			Vector3 toLock = lockPoint - origin;
+			if (toLock.sqrMagnitude > 0.001f) return toLock.normalized;
+		}
+
 		Camera cam = aimCamera != null ? aimCamera : Camera.main;
 		if (cam == null) return transform.forward;
 

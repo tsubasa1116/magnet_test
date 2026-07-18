@@ -20,6 +20,8 @@ public class PlayerMovement : MonoBehaviour
 	[SerializeField, Range(0f, 1f)] private float knockbackAirControlScale = 0.25f;
 	[Tooltip("被弾後(無敵時間中)の地上の加速度(m/s²)。小さいほど吹き飛びの慣性が残る")]
 	[SerializeField] private float knockbackGroundAcceleration = 12f;
+	[Tooltip("Catch中(ZR押下中。ホールド中は除く)の移動速度倍率。磁石を構えている踏ん張り感")]
+	[SerializeField, Range(0f, 1f)] private float catchMoveSpeedScale = 0.4f;
 
 	[Header("ジャンプ設定")]
 	[SerializeField] private float jumpForce = 7f;
@@ -45,6 +47,7 @@ public class PlayerMovement : MonoBehaviour
 	private Transform cameraTransform;
 	private PlayerHealth health;
 	private PlayerCatch catchState;
+	private MagnetPull magnetPull; // Catch減速の除外判定(ホールド中か)の参照用
 	private Vector3 targetForward; // 見た目の向きの目標。入力が止んでも保持してそこへ向き続ける
 	private float currentMoveSpeed; // 実際に適用中の移動速度(加速のため保持)
 	private bool jumpConsumed; // ジャンプ連打による2段ジャンプ防止(着地するまでtrue)
@@ -95,6 +98,7 @@ public class PlayerMovement : MonoBehaviour
 			}
 
 		catchState = GetComponent<PlayerCatch>();
+		magnetPull = GetComponent<MagnetPull>();
 		health = GetComponent<PlayerHealth>();
 
 		Vector3 f = transform.forward;
@@ -105,6 +109,11 @@ public class PlayerMovement : MonoBehaviour
 
 	// Catch中か（ZRホールド中。体の向きと catchストレイフアニメに使う）
 	public bool IsCatching => catchState != null && catchState.IsCatching;
+
+	// Catch中(ZRで磁石を構えている間=Catch系アニメ再生中)は足が遅くなる。
+	// ただしホールド中(手元に保持済み)は通常速度。それ以外も等倍
+	private float MoveSpeedScale =>
+		IsCatching && (magnetPull == null || !magnetPull.IsHolding) ? catchMoveSpeedScale : 1f;
 
 	void FixedUpdate()
 	{
@@ -139,7 +148,7 @@ public class PlayerMovement : MonoBehaviour
 		// 入力があるのに実速度が極端に小さい＝壁などで止められている。
 		Vector3 v = rb.linearVelocity;
 		v.y = 0f;
-		float desired = (isDashing ? dashSpeed : moveSpeed) * Mathf.Clamp01(moveInput.magnitude);
+		float desired = (isDashing ? dashSpeed : moveSpeed) * MoveSpeedScale * Mathf.Clamp01(moveInput.magnitude);
 		isBlocked = IsMoving && desired > 0.01f && v.magnitude < desired * blockedRatio;
 
         if (!IsOnRopeway)
@@ -241,7 +250,8 @@ public class PlayerMovement : MonoBehaviour
 		}
 
 		// 目標速度へだんだん加速/減速（ダッシュON/OFFが急にならない）
-		float targetSpeed = isDashing ? dashSpeed : moveSpeed;
+		// Catch中(構え中)は減速(MoveSpeedScale)を掛ける
+		float targetSpeed = (isDashing ? dashSpeed : moveSpeed) * MoveSpeedScale;
 		currentMoveSpeed = Mathf.MoveTowards(currentMoveSpeed, targetSpeed, acceleration * Time.deltaTime);
       
 		if (!isExternalForce)

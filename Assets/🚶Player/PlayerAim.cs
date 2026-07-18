@@ -50,11 +50,39 @@ public class PlayerAim : MonoBehaviour
 	[Tooltip("ロックオン中の肩寄せ(0.5=中央, 小さいほど右肩越しになり狙っている対象が見やすい)")]
 	[SerializeField] private float lockOnScreenX = 0.35f;
 
-	[Header("遮蔽物の半透明化")]
-	[Tooltip("カメラとプレイヤーの間に入った静的な物(壁・柱など)を半透明にする。カメラが寄る挙動(Cinemachine Collider)は無効化される")]
+	[Header("遮蔽物の半透明化(ディザ方式)")]
+	[Tooltip("カメラとプレイヤーの間に入った物(壁・柱・敵など)を網点状に抜いて半透明に見せる。カメラが寄る挙動(Cinemachine Collider)は無効化される")]
 	[SerializeField] private bool fadeObstacles = true;
-	[Tooltip("遮蔽物の透明度(0=完全に透明)")]
-	[SerializeField, Range(0f, 1f)] private float obstacleAlpha = 0.25f;
+	[Tooltip("穴の中心(視線上)の不透明度(0=完全に透明、1=不透明)")]
+	[SerializeField, Range(0f, 1f)] private float obstacleAlpha = 0.15f;
+	[Tooltip("視線(カメラ→プレイヤーの線)からこの距離までは最強で抜ける(穴の半径)")]
+	[SerializeField] private float holeRadius = 1.2f;
+	[Tooltip("穴の縁のぼかし幅。この幅をかけてなだらかに不透明へ戻る")]
+	[SerializeField] private float holeSoftness = 1.5f;
+	[Tooltip("ディザがかかるまでの時間(秒)。いきなりではなくじわっとかかる")]
+	[SerializeField] private float fadeInTime = 0.2f;
+	[Tooltip("ディザが戻るまでの時間(秒)")]
+	[SerializeField] private float fadeOutTime = 0.3f;
+	[Tooltip("カメラ位置からこの半径内に重なっているコライダーも抜く(巨大な物の中にカメラが入ると、内側からのレイが当たらず素通しになるため)")]
+	[SerializeField] private float cameraOverlapRadius = 0.8f;
+
+	[Header("死亡時カメラ(バラバラに飛ぶ頭を追従・ズーム)")]
+	[Tooltip("死亡時のズームFOV(小さいほどアップ)")]
+	[SerializeField] private float deathFOV = 30f;
+	[Tooltip("死亡時のカメラ距離倍率(小さいほど頭に寄る)")]
+	[SerializeField, Range(0.1f, 1f)] private float deathRadiusScale = 0.35f;
+
+	[Header("死亡演出(スローモーション)")]
+	[Tooltip("死亡時のスローモーション倍率(1=等速)")]
+	[SerializeField, Range(0.05f, 1f)] private float deathSlowScale = 0.2f;
+	[Tooltip("スローを維持する時間(実時間の秒)")]
+	[SerializeField] private float deathSlowHold = 1.2f;
+	[Tooltip("スローから等速へなめらかに戻す時間(実時間の秒)")]
+	[SerializeField] private float deathSlowRecover = 1.5f;
+
+	[Header("カーソル")]
+	[Tooltip("プレイ中はマウスカーソルを隠して画面中央にロックする")]
+	[SerializeField] private bool hideCursor = true;
 
 	[Header("ロックオンマーカー")]
 	[Tooltip("独自デザインを使う場合に指定。未指定ならコードが四隅カギカッコ枠を自動生成する")]
@@ -70,6 +98,18 @@ public class PlayerAim : MonoBehaviour
 	public bool IsLockedOn => locked;
 	public Transform LockOnTarget => lockTarget;
 
+	// ロックオン中の照準点(対象コライダーの中心)。未ロック時は false
+	public bool TryGetLockOnPoint(out Vector3 point)
+	{
+		if (locked && lockTarget != null)
+		{
+			point = LockPoint();
+			return true;
+		}
+		point = Vector3.zero;
+		return false;
+	}
+
 	private Camera mainCamera;
 	private PlayerInput playerInput;
 	private InputAction aimAction;
@@ -77,9 +117,22 @@ public class PlayerAim : MonoBehaviour
 	private MagnetPull magnetPull;
 	private CinemachineInputProvider inputProvider;
 
-	// 遮蔽物フェードの状態(元マテリアルの退避先)
+	// 遮蔽物フェードの状態(元マテリアルの退避先と、生成した差し替えマテリアル)
 	private readonly Dictionary<Renderer, Material[]> fadedRenderers = new Dictionary<Renderer, Material[]>();
+	private readonly Dictionary<Renderer, Material[]> fadeInstances = new Dictionary<Renderer, Material[]>();
+	private readonly Dictionary<Renderer, float> fadeWeights = new Dictionary<Renderer, float>(); // 0..1の時間フェード量
 	private readonly HashSet<Renderer> blockedThisFrame = new HashSet<Renderer>();
+	private Shader ditherShader; // ディザ半透明シェーダー(Resources/ObstacleDitherFade)
+
+	// 死亡時カメラ(ラグドールで飛ぶ頭を追従・注視)
+	private PlayerHealth health;
+	private Transform headBone;
+	private Transform originalLookAt;
+	private Transform originalFollow;
+	private readonly float[] savedOrbitRadii = new float[3];
+	private bool deathFocusActive;
+	private Coroutine slowMoRoutine;
+	private float baseFixedDeltaTime; // スロー中は物理刻みも一緒に縮める(カクつき防止)
 
 	// ロックオン状態
 	private bool locked;               // 対象がDestroyされてもロック中と分かるよう明示フラグで持つ
@@ -107,6 +160,16 @@ public class PlayerAim : MonoBehaviour
 		magnetPull = GetComponent<MagnetPull>();
 		cameraAction = playerInput.actions["Camera"];
 		inputProvider = freeLook != null ? freeLook.GetComponent<CinemachineInputProvider>() : null;
+
+		// 死亡/復活でカメラの注視先を切り替える
+		health = GetComponent<PlayerHealth>();
+		if (health != null)
+		{
+			health.OnDied += OnPlayerDied;
+			health.OnDamaged += OnPlayerHealthChanged;
+		}
+
+		baseFixedDeltaTime = Time.fixedDeltaTime;
 	}
 
 	void Start()
@@ -128,13 +191,142 @@ public class PlayerAim : MonoBehaviour
 		for (int i = 0; i < 3; i++)
 			composers[i] = freeLook.GetRig(i).GetCinemachineComponent<CinemachineComposer>();
 		if (composers[1] != null) normalScreenX = composers[1].m_ScreenX;
+
+		// 遮蔽物用ディザ半透明シェーダー(Assets/Resources/ObstacleDitherFade.shader)
+		ditherShader = Shader.Find("Custom/ObstacleDitherFade");
+		if (fadeObstacles && ditherShader == null)
+			Debug.LogWarning("[PlayerAim] ObstacleDitherFade シェーダーが見つかりません(Resources配下にあるか確認)");
+
+		// 死亡時に追従する頭ボーンを控えておく(Genericリグなので名前で検索)
+		originalLookAt = freeLook.LookAt;
+		originalFollow = freeLook.Follow;
+		headBone = FindHeadBone();
+
+		// プレイ中はカーソルを隠す
+		ApplyCursorState();
+	}
+
+	// カーソルを隠して中央へロック(ウィンドウにフォーカスが戻った時も再適用)
+	private void ApplyCursorState()
+	{
+		if (!hideCursor) return;
+		Cursor.lockState = CursorLockMode.Locked;
+		Cursor.visible = false;
+	}
+
+	void OnApplicationFocus(bool focused)
+	{
+		if (focused) ApplyCursorState();
+	}
+
+	// 頭ボーンを名前で探す。メッシュがスキンされているのはJNTIn骨格なので
+	// Main_Head_JNTIn(実名)を最優先、無ければ head_jntin → head を含む最初のノード
+	private Transform FindHeadBone()
+	{
+		Transform jntinFallback = null;
+		Transform fallback = null;
+		foreach (Transform t in GetComponentsInChildren<Transform>(true))
+		{
+			if (t.name == "Main_Head_JNTIn") return t;
+			string lower = t.name.ToLowerInvariant();
+			if (jntinFallback == null && lower.Contains("head_jntin")) jntinFallback = t;
+			if (fallback == null && lower.Contains("head")) fallback = t;
+		}
+		return jntinFallback != null ? jntinFallback : fallback;
+	}
+
+	// 死亡: バラバラに吹き飛ぶ「頭」をカメラで追従・注視し、ズームで寄る
+	private void OnPlayerDied()
+	{
+		if (freeLook == null || headBone == null) return;
+
+		// ロックオン/遮蔽フェードは後始末してから頭を追う
+		Unlock();
+		RestoreAllFaded();
+
+		freeLook.Follow = headBone;
+		freeLook.LookAt = headBone;
+		for (int i = 0; i < 3; i++)
+		{
+			savedOrbitRadii[i] = freeLook.m_Orbits[i].m_Radius;
+			freeLook.m_Orbits[i].m_Radius *= deathRadiusScale;
+		}
+		freeLook.m_Lens.FieldOfView = deathFOV;
+		deathFocusActive = true;
+
+		// 全体スローモーションでドラマチックに(実時間で保持→なめらかに等速へ)
+		if (slowMoRoutine != null) StopCoroutine(slowMoRoutine);
+		slowMoRoutine = StartCoroutine(DeathSlowMotion());
+	}
+
+	private System.Collections.IEnumerator DeathSlowMotion()
+	{
+		SetTimeScale(deathSlowScale);
+
+		float t = 0f;
+		while (t < deathSlowHold)
+		{
+			t += Time.unscaledDeltaTime;
+			yield return null;
+		}
+
+		t = 0f;
+		while (t < deathSlowRecover)
+		{
+			t += Time.unscaledDeltaTime;
+			SetTimeScale(Mathf.Lerp(deathSlowScale, 1f, Mathf.Clamp01(t / deathSlowRecover)));
+			yield return null;
+		}
+
+		SetTimeScale(1f);
+		slowMoRoutine = null;
+	}
+
+	private void SetTimeScale(float s)
+	{
+		Time.timeScale = s;
+		Time.fixedDeltaTime = baseFixedDeltaTime * s;
+	}
+
+	// スローを確実に解除する(復活・シーン破棄用)
+	private void CancelSlowMotion()
+	{
+		if (slowMoRoutine != null)
+		{
+			StopCoroutine(slowMoRoutine);
+			slowMoRoutine = null;
+		}
+		if (deathFocusActive) SetTimeScale(1f);
+	}
+
+	// 復活(Revive)したらカメラを元に戻す(OnDamagedはRevive時にも発火する)
+	private void OnPlayerHealthChanged()
+	{
+		if (deathFocusActive && health != null && !health.IsDead && freeLook != null)
+		{
+			CancelSlowMotion();
+			freeLook.Follow = originalFollow;
+			freeLook.LookAt = originalLookAt;
+			for (int i = 0; i < 3; i++)
+				freeLook.m_Orbits[i].m_Radius = savedOrbitRadii[i];
+			freeLook.m_Lens.FieldOfView = normalFOV;
+			deathFocusActive = false;
+		}
 	}
 
 	void OnDestroy()
 	{
+		// シーン遷移してもスローが残らないように(Time.timeScaleはシーンをまたいで持続する)
+		CancelSlowMotion();
+
 		if (aimAction != null)
 		{
 			aimAction.started -= OnAimToggle;
+		}
+		if (health != null)
+		{
+			health.OnDied -= OnPlayerDied;
+			health.OnDamaged -= OnPlayerHealthChanged;
 		}
 		if (marker != null) Destroy(marker.gameObject);
 		if (markerMat != null) Destroy(markerMat);
@@ -156,7 +348,7 @@ public class PlayerAim : MonoBehaviour
 
 	// --- 遮蔽物の半透明化 ---
 
-	// カメラとプレイヤーの間にある静的な物(RigidbodyなしのCollider)を半透明にし、
+	// カメラとプレイヤーの間にある物(壁・柱・敵・箱など)を半透明にし、
 	// どいたら元のマテリアルに戻す
 	private void UpdateObstacleFade()
 	{
@@ -168,39 +360,133 @@ public class PlayerAim : MonoBehaviour
 		Vector3 target = transform.position + Vector3.up * 1f;
 		Vector3 diff = target - origin;
 
+		// シェーダーの「視線の円筒切り取り」用にプレイヤー側の端点を毎フレーム渡す
+		Shader.SetGlobalVector("_ObstacleFadePlayerPos", target);
+
+		// ① カメラとプレイヤーの間を遮っている物
 		foreach (RaycastHit hit in Physics.RaycastAll(
 			origin, diff.normalized, diff.magnitude, ~0, QueryTriggerInteraction.Ignore))
 		{
-			Transform ht = hit.collider.transform;
-			if (ht.IsChildOf(transform)) continue;                  // 自分は対象外
-			if (hit.collider.attachedRigidbody != null) continue;   // 動く物(敵・箱等)は対象外
-
-			foreach (Renderer r in hit.collider.GetComponentsInChildren<Renderer>())
-			{
-				if (r == null) continue;
-				FadeRenderer(r);
-				blockedThisFrame.Add(r);
-			}
+			FadeCollider(hit.collider);
 		}
 
-		// 遮らなくなったものを元に戻す
+		// ② カメラ位置に重なっている物。
+		// 巨大な物のコライダー内部にカメラが入ると「内側から撃つレイは当たらない」ため
+		// ①では検出できず素通しになる。重なり判定で拾って抜く。
+		// (見えているのはカメラ前へはみ出した部分＝カメラに近いので、距離ディザが最大強度で効く)
+		foreach (Collider col in Physics.OverlapSphere(
+			origin, cameraOverlapRadius, ~0, QueryTriggerInteraction.Ignore))
+		{
+			FadeCollider(col);
+		}
+
+		// 時間フェード: 遮っている間は1へ、遮らなくなったら0へじわっと動かし、
+		// 0まで戻りきったものだけ元のマテリアルへ復元する(いきなりかからない/戻らない)
 		var restore = new List<Renderer>();
-		foreach (var kv in fadedRenderers)
-			if (kv.Key == null || !blockedThisFrame.Contains(kv.Key)) restore.Add(kv.Key);
+		var animKeys = new List<Renderer>(fadeWeights.Keys);
+		foreach (Renderer r in animKeys)
+		{
+			if (r == null) { restore.Add(r); continue; }
+
+			float w = fadeWeights[r];
+			w = blockedThisFrame.Contains(r)
+				? Mathf.MoveTowards(w, 1f, Time.deltaTime / Mathf.Max(fadeInTime, 0.01f))
+				: Mathf.MoveTowards(w, 0f, Time.deltaTime / Mathf.Max(fadeOutTime, 0.01f));
+			fadeWeights[r] = w;
+
+			if (w <= 0f) { restore.Add(r); continue; }
+
+			if (fadeInstances.TryGetValue(r, out Material[] mats))
+				foreach (Material m in mats)
+					if (m != null) m.SetFloat("_FadeT", w);
+		}
 		foreach (Renderer r in restore)
 		{
-			if (r != null) r.sharedMaterials = fadedRenderers[r];
+			if (r != null && fadedRenderers.ContainsKey(r)) r.sharedMaterials = fadedRenderers[r];
 			fadedRenderers.Remove(r);
+			fadeWeights.Remove(r);
+			DestroyFadeInstances(r);
 		}
 	}
 
+	// 対象コライダー配下のメッシュをフェードする(自分・引き寄せ中の保持物は対象外)
+	private void FadeCollider(Collider col)
+	{
+		Transform ht = col.transform;
+		if (ht.IsChildOf(transform)) return; // 自分は対象外
+		// 磁石で引き寄せ中の物は対象外(カメラ前を横切るたびチラつくのを防ぐ)
+		if (magnetPull != null && magnetPull.HeldObject != null
+			&& ht.IsChildOf(magnetPull.HeldObject)) return;
+
+		foreach (Renderer r in col.GetComponentsInChildren<Renderer>())
+		{
+			if (r == null) continue;
+			// メッシュ系だけ差し替える(パーティクルやスプライトはシェーダー互換が無いため)
+			if (!(r is MeshRenderer) && !(r is SkinnedMeshRenderer)) continue;
+			FadeRenderer(r);
+			blockedThisFrame.Add(r);
+		}
+	}
+
+	// マテリアルを「ディザ半透明」の差し替えマテリアルへ置き換える。
+	// アルファブレンドではなく網点で抜く方式なので、前後関係が壊れず
+	// 内部の面が透けて汚くならない(中途半端な透過にならない)
 	private void FadeRenderer(Renderer r)
 	{
 		if (fadedRenderers.ContainsKey(r)) return;
+		if (ditherShader == null) return;
 
-		fadedRenderers[r] = r.sharedMaterials; // 元マテリアルを退避(戻す時はこれを再代入)
-		foreach (Material m in r.materials)    // インスタンス化してから透明化
-			MakeTransparent(m, obstacleAlpha);
+		Material[] originals = r.sharedMaterials;
+		fadedRenderers[r] = originals; // 元マテリアルを退避(戻す時はこれを再代入)
+
+		var faded = new Material[originals.Length];
+		for (int i = 0; i < originals.Length; i++)
+		{
+			Material src = originals[i];
+			Material m = new Material(ditherShader);
+			if (src != null)
+			{
+				// 見た目(テクスチャ・色)は元マテリアルからコピー
+				string texProp = src.HasProperty("_BaseMap") ? "_BaseMap"
+					: (src.HasProperty("_MainTex") ? "_MainTex" : null);
+				if (texProp != null && src.GetTexture(texProp) != null)
+				{
+					m.SetTexture("_BaseMap", src.GetTexture(texProp));
+					m.SetTextureScale("_BaseMap", src.GetTextureScale(texProp));
+					m.SetTextureOffset("_BaseMap", src.GetTextureOffset(texProp));
+				}
+				if (src.HasProperty("_BaseColor")) m.SetColor("_BaseColor", src.GetColor("_BaseColor"));
+				else if (src.HasProperty("_Color")) m.SetColor("_BaseColor", src.GetColor("_Color"));
+			}
+			m.SetFloat("_Alpha", obstacleAlpha);
+			m.SetFloat("_HoleRadius", holeRadius);
+			m.SetFloat("_HoleSoftness", holeSoftness);
+			m.SetFloat("_FadeT", 0f); // 0から時間をかけてじわっとかける
+			faded[i] = m;
+		}
+		fadeInstances[r] = faded;
+		fadeWeights[r] = 0f;
+		r.sharedMaterials = faded;
+	}
+
+	// 差し替え用に生成したマテリアルを破棄(リーク防止)
+	private void DestroyFadeInstances(Renderer r)
+	{
+		if (r == null || !fadeInstances.TryGetValue(r, out Material[] mats))
+		{
+			// 破棄済みレンダラーの分も掃除する
+			var deadKeys = new List<Renderer>();
+			foreach (var kv in fadeInstances)
+				if (kv.Key == null) deadKeys.Add(kv.Key);
+			foreach (var k in deadKeys)
+			{
+				foreach (Material m in fadeInstances[k]) if (m != null) Destroy(m);
+				fadeInstances.Remove(k);
+			}
+			return;
+		}
+		foreach (Material m in mats) if (m != null) Destroy(m);
+		fadeInstances.Remove(r);
 	}
 
 	private void RestoreAllFaded()
@@ -208,35 +494,19 @@ public class PlayerAim : MonoBehaviour
 		foreach (var kv in fadedRenderers)
 			if (kv.Key != null) kv.Key.sharedMaterials = kv.Value;
 		fadedRenderers.Clear();
-	}
+		fadeWeights.Clear();
 
-	// URP/Litマテリアルを実行時に半透明へ切り替える定石レシピ
-	private static void MakeTransparent(Material m, float alpha)
-	{
-		m.SetFloat("_Surface", 1f);
-		m.SetOverrideTag("RenderType", "Transparent");
-		m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-		m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-		m.SetInt("_ZWrite", 0);
-		m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-		m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-
-		if (m.HasProperty("_BaseColor"))
-		{
-			Color c = m.GetColor("_BaseColor");
-			c.a = alpha;
-			m.SetColor("_BaseColor", c);
-		}
-		if (m.HasProperty("_Color"))
-		{
-			Color c = m.GetColor("_Color");
-			c.a = alpha;
-			m.SetColor("_Color", c);
-		}
+		foreach (var kv in fadeInstances)
+			foreach (Material m in kv.Value)
+				if (m != null) Destroy(m);
+		fadeInstances.Clear();
 	}
 
 	void Update()
 	{
+		// 死亡中はカメラ制御をしない(死亡カメラのFOV/距離を上書きしないように)
+		if (health != null && health.IsDead) return;
+
 		float t = lerpSpeed * Time.deltaTime;
 
 		// FOV(ズーム)。ロックオン中だけ少し寄る
@@ -334,17 +604,18 @@ public class PlayerAim : MonoBehaviour
 	{
 		if (!locked) return;
 
-		// オブジェクトを保持(ホールド)したらロックオンは解除する
-		if (magnetPull != null && magnetPull.IsHolding)
+		// ホールド中もロックオンは維持する(飛ばす先の指定に使うため)。
+		// ただし「掴んだ対象そのもの」へのロックは意味がないので静かに外す
+		// (自動乗り換えはしない。飛ばす先は改めてR3で選んでもらう)
+		if (magnetPull != null && magnetPull.HeldObject == lockTarget)
 		{
 			Unlock();
 			return;
 		}
 
-		// 対象が消えた(Destroy含む)・掴んだ・離れすぎた → 近くの別対象へ乗り換え(いなければ解除)
+		// 対象が消えた(Destroy含む)・離れすぎた → 近くの別対象へ乗り換え(いなければ解除)
 		bool gone = lockTarget == null || !lockTarget.gameObject.activeInHierarchy;
 		bool invalid = gone
-			|| (magnetPull != null && magnetPull.HeldObject == lockTarget)
 			|| Vector3.Distance(transform.position, LockPoint()) > lockOnRange * 1.3f;
 		if (invalid)
 		{
