@@ -464,5 +464,6 @@ public class enemy_bomb : MonoBehaviour
         if (explosionEffect != null) Instantiate(explosionEffect, transform.position, Quaternion.identity);
         //audioSource.PlayOneShot(explosionSE); 
         Destroy(gameObject/*, explosionSE.length*/);
+        GameManager.Instance.AddKill();
     }
 }

@@ -59,10 +59,7 @@ public class enemy_Sky : MonoBehaviour
     [SerializeField] private Transform targetPlayer;
     [SerializeField] private GameObject markExclamation;
     [SerializeField] private GameObject markQuestion;
-    [SerializeField] private GameObject beam;
     [SerializeField] private Transform effectPoint;
-    [SerializeField] private GameObject markExclamation; // ！マーク
-    [SerializeField] private GameObject markQuestion;    // ？マーク
 
     [Header("レーザー")]
     [SerializeField] private GameObject Laser;    // レーザー
@@ -456,6 +453,28 @@ public class enemy_Sky : MonoBehaviour
         }
     }
 
+    //アニメーションイベントで特定のフレームから呼び出すようの関数
+    public void SpawnBeam()
+    {
+        if (currentState == EnemyState.MagnetPulled ||
+            currentState == EnemyState.MagnetThrown ||
+            currentState == EnemyState.Hit) return;
+
+        if (Laser  == null || targetPlayer == null) return;
+
+        // プレイヤーの方向を計算[]
+        Vector3 targetPos = effectPoint.position;
+        targetPos.y += 0.4f;
+
+        Vector3 direction = (targetPos - transform.position).normalized;
+        Vector3 spawnPos = transform.position + direction * 0.8f;
+        GameObject firedBeam = Instantiate(Laser, spawnPos, Quaternion.LookRotation(direction));
+
+        Rigidbody beamRb = firedBeam.GetComponent<Rigidbody>();
+        if (beamRb != null)
+            beamRb.linearVelocity = direction * beamSpeed;
+    }
+
     private IEnumerator SpawnOriginDelay()
     {
         yield return new WaitForSeconds(originDelay);
@@ -481,33 +500,15 @@ public class enemy_Sky : MonoBehaviour
         return origin;
     }
 
-    //アニメーションイベントで特定のフレームから呼び出すようの関数
-    public void SpawnBeam()
-    {
-        if (Laser == null || targetPlayer == null) return;
-        // プレイヤーの方向を計算[]
-        Vector3 targetPos = effectPoint.position;
-        targetPos.y += 0.4f;
-
-        Vector3 direction = (targetPos - transform.position).normalized;
-
-        // キャラクターの少し前方にビームを生成
-        Vector3 spawnPos = transform.position + direction * 0.8f;
-
-        // ビームの生成
-        GameObject firedBeam = Instantiate(Laser, spawnPos, Quaternion.LookRotation(direction));
-
-        // ビームを飛ばす処理（ビームにRigidbodyがついている前提）
-        Rigidbody beamRb = firedBeam.GetComponent<Rigidbody>();
-        if (beamRb != null)
-            beamRb.linearVelocity = direction * beamSpeed;
-    }
-
-    // ステート切り替え処理
     private void ChangeState(EnemyState nextState)
     {
         currentState = nextState;
-        if (!agent.enabled) return; // 磁力で飛んでいる時はエラー防止
+
+        if (currentState == EnemyState.MagnetPulled ||
+            currentState == EnemyState.MagnetThrown ||
+            currentState == EnemyState.Hit) return;
+
+        if (!IsAgentActiveAndOnNavMesh) return;
 
         agent.isStopped = false;
 
@@ -524,7 +525,7 @@ public class enemy_Sky : MonoBehaviour
         }
         else if (nextState == EnemyState.Attack)
         {
-            // 距離による移動をUpdateで制御するため、ここでは特に止めない
+            // Update側
         }
         else if (nextState == EnemyState.Search)
         {
@@ -542,11 +543,10 @@ public class enemy_Sky : MonoBehaviour
     // 探索中にランダムな位置を目的地に設定する処理
     private void WanderAround()
     {
-        if (!agent.enabled) return;
+        if (!IsAgentActiveAndOnNavMesh) return;
         Vector3 randomPos = transform.position + Random.insideUnitSphere * searchRadius;
         NavMeshHit hit;
 
-        // 飛行型は上下の判定範囲が広い可能性があるので、少し広めに NavMesh を探す
         if (NavMesh.SamplePosition(randomPos, out hit, searchRadius, NavMesh.AllAreas))
         {
             agent.SetDestination(hit.position);
@@ -567,9 +567,30 @@ public class enemy_Sky : MonoBehaviour
         if (throwable != null && throwable.IsThrown)
         {
             TakeDamage(throwable.Damage);
-
-            // 一度だけダメージを与える
             throwable.ResetThrown();
+            return;
+        }
+
+        if (currentState == EnemyState.MagnetThrown)
+        {
+            if (collision.gameObject.CompareTag("Player")) return;
+
+            float impactForce = collision.relativeVelocity.magnitude;
+
+            Vector3 normal = collision.contacts[0].normal;
+            bool isFloor = normal.y > 0.7f;
+
+            if (isFloor)
+            {
+                RecoverToNavMesh();
+            }
+            else
+            {
+                if (impactForce >= hitImpactThreshold)
+                {
+                    TriggerHitCollision(impactForce);
+                }
+            }
         }
     }
 
@@ -591,6 +612,7 @@ public class enemy_Sky : MonoBehaviour
     {
         if (enemyDeathEffect != null) Instantiate(enemyDeathEffect, transform.position, Quaternion.identity);
         Destroy(gameObject);
+        GameManager.Instance.AddKill();
     }
 
     // 磁力をN極・S極として感知して力を受ける処理
@@ -692,136 +714,6 @@ public class enemy_Sky : MonoBehaviour
         }
     }
 
-    private void ChangeState(EnemyState nextState)
-    {
-        currentState = nextState;
-
-        if (currentState == EnemyState.MagnetPulled ||
-            currentState == EnemyState.MagnetThrown ||
-            currentState == EnemyState.Hit) return;
-
-        if (!IsAgentActiveAndOnNavMesh) return;
-
-        agent.isStopped = false;
-
-        if (nextState == EnemyState.Wait)
-        {
-            if (agent.isOnNavMesh) agent.isStopped = true;
-        }
-        else if (nextState == EnemyState.Notice)
-        {
-            if (agent.isOnNavMesh) agent.isStopped = true;
-            noticeTimer = noticeTime;
-            if (markExclamation != null) markExclamation.SetActive(true);
-            StartCoroutine(HideMark(markExclamation, noticeTime));
-        }
-        else if (nextState == EnemyState.Attack)
-        {
-            // Update側
-        }
-        else if (nextState == EnemyState.Search)
-        {
-            if (markQuestion != null) markQuestion.SetActive(true);
-            StartCoroutine(HideMark(markQuestion, 1.5f));
-            searchTimer = searchTime;
-            WanderAround();
-        }
-        else if (nextState == EnemyState.Return)
-        {
-            agent.SetDestination(startPosition);
-        }
-    }
-
-    private void WanderAround()
-    {
-        if (!IsAgentActiveAndOnNavMesh) return;
-        Vector3 randomPos = transform.position + Random.insideUnitSphere * searchRadius;
-        NavMeshHit hit;
-
-        if (NavMesh.SamplePosition(randomPos, out hit, searchRadius, NavMesh.AllAreas))
-        {
-            agent.SetDestination(hit.position);
-        }
-    }
-
-    private IEnumerator HideMark(GameObject mark, float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        if (mark != null) mark.SetActive(false);
-    }
-
-    private void Attack()
-    {
-        if (attackTimer <= 0f)
-        {
-            FireBeam();
-            attackTimer = attackInterval;
-        }
-    }
-
-    private void FireBeam()
-    {
-        if (beam == null || targetPlayer == null) return;
-
-        if (anim != null)
-        {
-            anim.SetTrigger("attack");
-        }
-    }
-
-    public void SpawnBeam()
-    {
-        if (currentState == EnemyState.MagnetPulled ||
-            currentState == EnemyState.MagnetThrown ||
-            currentState == EnemyState.Hit) return;
-
-        if (beam == null || targetPlayer == null) return;
-
-        Vector3 direction = (targetPlayer.position - transform.position).normalized;
-        Vector3 spawnPos = transform.position + direction * 0.8f;
-        GameObject firedBeam = Instantiate(beam, spawnPos, Quaternion.LookRotation(direction));
-
-        Rigidbody beamRb = firedBeam.GetComponent<Rigidbody>();
-        if (beamRb != null)
-        {
-            beamRb.linearVelocity = direction * beamSpeed;
-        }
-    }
-
-    private void OnCollisionEnter(Collision collision)
-    {
-        ThrowableObject throwable = collision.gameObject.GetComponent<ThrowableObject>();
-
-        if (throwable != null && throwable.IsThrown)
-        {
-            TakeDamage(throwable.Damage);
-            throwable.ResetThrown();
-            return;
-        }
-
-        if (currentState == EnemyState.MagnetThrown)
-        {
-            if (collision.gameObject.CompareTag("Player")) return;
-
-            float impactForce = collision.relativeVelocity.magnitude;
-
-            Vector3 normal = collision.contacts[0].normal;
-            bool isFloor = normal.y > 0.7f;
-
-            if (isFloor)
-            {
-                RecoverToNavMesh();
-            }
-            else
-            {
-                if (impactForce >= hitImpactThreshold)
-                {
-                    TriggerHitCollision(impactForce);
-                }
-            }
-        }
-    }
-
     private void TriggerHitCollision(float force)
     {
         ChangeState(EnemyState.Hit);
@@ -850,23 +742,5 @@ public class enemy_Sky : MonoBehaviour
         TakeDamage(maxHp / 3);
 
         Debug.Log($"{gameObject.name} (飛行) が壁に激突！ポトッと床へ自由落下させます。");
-    }
-
-    public void TakeDamage(float damageAmount)
-    {
-        currentHp -= damageAmount;
-        if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
-
-        if (currentHp <= 0)
-        {
-            HitStop.Play(0.12f); // 倒した手応えのヒットストップ
-            Die();
-        }
-    }
-
-    private void Die()
-    {
-        if (enemyDeathEffect != null) Instantiate(enemyDeathEffect, transform.position, Quaternion.identity);
-        Destroy(gameObject);
     }
 }

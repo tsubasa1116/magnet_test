@@ -489,6 +489,12 @@ public class enemy_Boss : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.H))
             {
                 SceneLoad.LoadDirect("ResultScene", FadeType.White);
+                GameManager.Instance.EndGame();
+
+                GameResultManager.SetResultData(
+                    GameManager.Instance.TotalKillCount,
+                    Mathf.FloorToInt(GameManager.Instance.ElapsedTime)
+                );
             }
 
             if (Input.GetKeyDown(KeyCode.J))
