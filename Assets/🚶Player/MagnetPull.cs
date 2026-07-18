@@ -513,7 +513,8 @@ public class MagnetPull : MonoBehaviour
         ThrowableObject throwable = held.GetComponent<ThrowableObject>();
         if (throwable != null) throwable.Throw();
 
-        Vector3 dir = transform.forward;
+        // 画面中央(照準)で狙った方向へ飛ばす
+        Vector3 dir = GetThrowDirection();
         if (attached) held.transform.SetParent(null);
         RestoreColliders();
         if (heldAura != null) heldAura.SetHeld(false);
@@ -538,6 +539,33 @@ public class MagnetPull : MonoBehaviour
 
         ClearHeld();
     }
+
+	// 発射方向: 画面中央(照準)のレイで狙った点へ向かう方向。
+	// 何にも当たらなければカメラの正面方向へ飛ばす
+	private Vector3 GetThrowDirection()
+	{
+		Camera cam = aimCamera != null ? aimCamera : Camera.main;
+		if (cam == null) return transform.forward;
+
+		Ray ray = cam.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f, 0f));
+
+		// 自分と保持物は照準判定から除外し、一番手前のヒット点を狙う
+		RaycastHit best = default;
+		bool found = false;
+		foreach (RaycastHit h in Physics.RaycastAll(ray, 100f, rayMask, QueryTriggerInteraction.Ignore))
+		{
+			if (h.collider.transform.IsChildOf(transform)) continue;
+			if (held != null && h.collider.transform.IsChildOf(held.transform)) continue;
+			if (!found || h.distance < best.distance)
+			{
+				best = h;
+				found = true;
+			}
+		}
+
+		Vector3 dir = found ? (best.point - HandPos) : ray.direction;
+		return dir.sqrMagnitude > 0.001f ? dir.normalized : ray.direction;
+	}
 
     private void RestoreColliders()
     {
