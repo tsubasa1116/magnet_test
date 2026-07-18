@@ -48,6 +48,8 @@ public class PlayerAim : MonoBehaviour
 	[SerializeField] private float switchRearmThreshold = 0.3f;
 	[Tooltip("ロックオン中のズーム。通常FOVに掛ける倍率(1=変化なし、小さいほどアップ)")]
 	[SerializeField] private float lockOnFOVScale = 0.85f;
+	[Tooltip("ロックオン中の肩寄せ(0.5=中央, 小さいほど右肩越しになり狙っている対象が見やすい)")]
+	[SerializeField] private float lockOnScreenX = 0.35f;
 
 	[Header("遮蔽物の半透明化")]
 	[Tooltip("カメラとプレイヤーの間に入った静的な物(壁・柱など)を半透明にする。カメラが寄る挙動(Cinemachine Collider)は無効化される")]
@@ -263,7 +265,8 @@ public class PlayerAim : MonoBehaviour
 
 			if (composers[i] != null)
 			{
-				float targetX = IsAiming ? aimScreenX : normalScreenX;
+				// 肩寄せ: エイム中とロックオン中は右肩越し(プレイヤーを画面左へ寄せて対象を見やすく)
+				float targetX = IsAiming ? aimScreenX : (locked ? lockOnScreenX : normalScreenX);
 				composers[i].m_ScreenX = Mathf.Lerp(composers[i].m_ScreenX, targetX, t);
 			}
 		}
