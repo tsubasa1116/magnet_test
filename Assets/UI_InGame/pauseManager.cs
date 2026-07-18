@@ -3,6 +3,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 
 public class pauseManager : MonoBehaviour
 {
@@ -15,6 +16,9 @@ public class pauseManager : MonoBehaviour
         Title, // タイトル確認状態
     }
     private PauseState currentState = PauseState.None;
+
+    [Header("参照")]
+    [SerializeField] private FollowUI[] follow;
 
     [Header("ポーズUI")]
     [SerializeField] private GameObject pauseUI;
@@ -125,11 +129,13 @@ public class pauseManager : MonoBehaviour
                 if (currentState == PauseState.MenuSelect)
                 {
                     // メインメニューのカーソル操作
-                    if (Input.GetKeyDown(KeyCode.UpArrow)) SuggestCursor(-1);
+                    if (Gamepad.current?.dpad.up.wasPressedThisFrame == true)   SuggestCursor(-1);
+                    if (Gamepad.current?.dpad.down.wasPressedThisFrame == true) SuggestCursor(1);
+                    if (Input.GetKeyDown(KeyCode.UpArrow))   SuggestCursor(-1);
                     if (Input.GetKeyDown(KeyCode.DownArrow)) SuggestCursor(1);
 
                     // 決定キー（Enter等）で処理を実行
-                    if (Input.GetKeyDown(KeyCode.Return))
+                    if (Input.GetKeyDown(KeyCode.Return) || Gamepad.current?.buttonEast.wasPressedThisFrame == true)
                     {
                         EnterMenu();
                     }
@@ -140,9 +146,13 @@ public class pauseManager : MonoBehaviour
                     currentX = Mathf.Lerp(currentX, 0.0f, Time.unscaledDeltaTime * maskSpeed);
                     cursorMain.anchoredPosition = new Vector2(currentX, 0.0f);
 
+                    if (Gamepad.current?.dpad.up.wasPressedThisFrame == true) MoveCursor(-1);
+                    if (Gamepad.current?.dpad.down.wasPressedThisFrame == true) MoveCursor(1);
                     if (Input.GetKeyDown(KeyCode.UpArrow))   MoveCursor(-1);
                     if (Input.GetKeyDown(KeyCode.DownArrow)) MoveCursor(1);
 
+                    if (Gamepad.current?.dpad.left.wasPressedThisFrame == true) MoveSlider(-1);
+                    if (Gamepad.current?.dpad.right.wasPressedThisFrame == true) MoveSlider(1);
                     if (Input.GetKeyDown(KeyCode.LeftArrow))   MoveSlider(-1);
                     if (Input.GetKeyDown(KeyCode.RightArrow)) MoveSlider(1);
 
@@ -152,10 +162,12 @@ public class pauseManager : MonoBehaviour
                     skipTextSlide = true;
 
                     // メインメニューのカーソル操作
+                    if (Gamepad.current?.dpad.up.wasPressedThisFrame == true)   CPCursor(-1);
+                    if (Gamepad.current?.dpad.down.wasPressedThisFrame == true) CPCursor(1);
                     if (Input.GetKeyDown(KeyCode.UpArrow)) CPCursor(-1);
                     if (Input.GetKeyDown(KeyCode.DownArrow)) CPCursor(1);
 
-                    if (Input.GetKeyDown(KeyCode.Return))
+                    if (Input.GetKeyDown(KeyCode.Return) || Gamepad.current?.buttonEast.wasPressedThisFrame == true)
                     {
                         EnterMenu();
                     }
@@ -165,19 +177,25 @@ public class pauseManager : MonoBehaviour
                     skipTextSlide = true;
 
                     // メインメニューのカーソル操作
+                    if (Gamepad.current?.dpad.up.wasPressedThisFrame == true)   TCCursor(-1);
+                    if (Gamepad.current?.dpad.down.wasPressedThisFrame == true) TCCursor(1);
                     if (Input.GetKeyDown(KeyCode.UpArrow)) TCCursor(-1);
                     if (Input.GetKeyDown(KeyCode.DownArrow)) TCCursor(1);
 
-                    if (Input.GetKeyDown(KeyCode.Return))
+                    if (Input.GetKeyDown(KeyCode.Return) || Gamepad.current?.buttonEast.wasPressedThisFrame == true)
                     {
                         EnterMenu();
                     }
                 }
             }
         }
-        if (Input.GetKeyDown(KeyCode.P))
-        {
-            if (isPause)
+        
+       bool pausePressed = Input.GetKeyDown(KeyCode.P) || Gamepad.current?.startButton.wasPressedThisFrame == true;
+       bool backPressed = pausePressed || Gamepad.current?.buttonSouth.wasPressedThisFrame == true;
+
+       if (isPause)
+       {
+            if (backPressed)
             {
                 if (currentState == PauseState.MenuSelect)
                 {
@@ -200,11 +218,15 @@ public class pauseManager : MonoBehaviour
                     ChangeState(PauseState.MenuSelect); // オプションからメインメニューへ戻る
                 }
             }
-            else
+       }
+       else
+       {
+            if (pausePressed)
             {
                 PauseGame();
             }
-        }
+       }
+       
     }
 
     // 状態切り替え
@@ -541,13 +563,21 @@ public class pauseManager : MonoBehaviour
 
         if (index == 1) // ON
         {
-            followOn.SetActive(true);
-            followOff.SetActive(false);
+            for (int i = 0; i < follow.Length; i++)
+            {
+                followOn.SetActive(true);
+                followOff.SetActive(false);
+                follow[i].followON = true;
+            }
         }
         else // OFF
         {
-            followOn.SetActive(false);
-            followOff.SetActive(true);
+            for (int i = 0; i < follow.Length; i++)
+            {
+                followOn.SetActive(false);
+                followOff.SetActive(true);
+                follow[i].followON = false;
+            }
         }
     }
 

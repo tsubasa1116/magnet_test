@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using UnityEngine.SceneManagement;
+using UnityEngine.InputSystem;
 
 public class title : MonoBehaviour
 {
@@ -124,7 +125,7 @@ public class title : MonoBehaviour
             pressButton.alpha = blinkCurve.Evaluate(t);
         }
 
-        if (!isOpen && Input.GetKeyDown(KeyCode.Return))
+        if (!isOpen && (Input.GetKeyDown(KeyCode.Return) || AnyGamepadButtonPressed()))
         {
             UISE.Instance.EnterUI();
             OpenMenu();
@@ -154,21 +155,30 @@ public class title : MonoBehaviour
                 cursorMainOP.anchoredPosition = new Vector2(currentOpX, 0.0f);
 
                 // オプション画面中の操作
+                if (Gamepad.current?.dpad.up.wasPressedThisFrame == true) MoveOptionCursor(-1);
+                if (Gamepad.current?.dpad.down.wasPressedThisFrame == true) MoveOptionCursor(1);
                 if (Input.GetKeyDown(KeyCode.UpArrow)) MoveOptionCursor(-1);
                 if (Input.GetKeyDown(KeyCode.DownArrow)) MoveOptionCursor(1);
 
+                if (Gamepad.current?.dpad.left.wasPressedThisFrame == true) MoveSlider(-1);
+                if (Gamepad.current?.dpad.right.wasPressedThisFrame == true) MoveSlider(1);
                 if (Input.GetKeyDown(KeyCode.LeftArrow)) MoveSlider(-1);
                 if (Input.GetKeyDown(KeyCode.RightArrow)) MoveSlider(1);
 
+                if (Gamepad.current?.startButton.wasPressedThisFrame == true ||
+                    Gamepad.current?.buttonSouth.wasPressedThisFrame == true) CloseOption();
                 if (Input.GetKeyDown(KeyCode.Escape)) CloseOption();
             }
             else
             {
                 // メインメニュー中の操作
+                if (Gamepad.current?.dpad.up.wasPressedThisFrame == true)   MoveCursor(-1);
+                if (Gamepad.current?.dpad.down.wasPressedThisFrame == true) MoveCursor(1);
                 if (Input.GetKeyDown(KeyCode.UpArrow)) MoveCursor(-1);
                 if (Input.GetKeyDown(KeyCode.DownArrow)) MoveCursor(1);
 
-                if (Input.GetKeyDown(KeyCode.Return))
+                if (Input.GetKeyDown(KeyCode.Return) ||
+                   (Gamepad.current?.buttonEast.wasPressedThisFrame == true))
                 {
                     if (cursorIndex == 0)
                     {
@@ -459,5 +469,21 @@ public class title : MonoBehaviour
         {
             sliderSetting[i].sliderIndex = PlayerPrefs.GetInt("ConfigSlider_" + i, 0);
         }
+    }
+
+    private bool AnyGamepadButtonPressed()
+    {
+        var gp = Gamepad.current;
+        if (gp == null) return false;
+
+        foreach (var control in gp.allControls)
+        {
+            if (control is UnityEngine.InputSystem.Controls.ButtonControl button
+                && button.wasPressedThisFrame)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -106,6 +106,20 @@ public class CutsceneTest : MonoBehaviour
 			{
 				pos = player.transform.position;
 				rot = player.transform.rotation;
+
+				// プレイヤーのピボットは体の中心なので、そのまま生成すると浮く。
+				// 足元の接地点まで下ろす(自分のコライダーは無視)
+				float bestDist = float.MaxValue;
+				foreach (RaycastHit hit in Physics.RaycastAll(
+					pos + Vector3.up * 0.5f, Vector3.down, 5f, ~0, QueryTriggerInteraction.Ignore))
+				{
+					if (hit.collider.transform.IsChildOf(player.transform)) continue;
+					if (hit.distance < bestDist)
+					{
+						bestDist = hit.distance;
+						pos = hit.point;
+					}
+				}
 			}
 		}
 
@@ -115,7 +129,9 @@ public class CutsceneTest : MonoBehaviour
 		actorInstance = Instantiate(actorPf, pos, rot);
 		if (actorCl != null)
 		{
-			PlayOn(actorInstance, actorCl);
+			// アバターを外してGenericのパス一致でボーンを直接動かす
+			// (Humanoid経由だと深い座りポーズが浮くため)
+			PlayOn(actorInstance, actorCl, stripAvatar: true);
 			length = Mathf.Max(length, actorCl.length);
 		}
 		else
@@ -129,7 +145,7 @@ public class CutsceneTest : MonoBehaviour
 			cameraInstance = Instantiate(cameraPf, pos, rot);
 			if (cameraCl != null)
 			{
-				PlayOn(cameraInstance, cameraCl);
+				PlayOn(cameraInstance, cameraCl, stripAvatar: false);
 				length = Mathf.Max(length, cameraCl.length);
 			}
 			cameraNode = FindCameraNode(cameraInstance);
@@ -187,7 +203,8 @@ public class CutsceneTest : MonoBehaviour
 
 	// 通常のAnimator再生でクリップを流す。
 	// テンプレートコントローラの中身をAnimatorOverrideControllerで差し替える方式(最も標準的な経路)
-	private void PlayOn(GameObject go, AnimationClip clip)
+	// stripAvatar=trueでアバターを外し、Genericのパス一致でボーンを直接動かす
+	private void PlayOn(GameObject go, AnimationClip clip, bool stripAvatar)
 	{
 		if (playbackTemplate == null)
 		{
@@ -198,6 +215,7 @@ public class CutsceneTest : MonoBehaviour
 		Animator animator = go.GetComponent<Animator>();
 		if (animator == null) animator = go.AddComponent<Animator>();
 		animator.enabled = true;
+		if (stripAvatar) animator.avatar = null;
 		animator.applyRootMotion = true;
 		animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
 

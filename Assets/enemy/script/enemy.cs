@@ -510,5 +510,6 @@ public class enemy : MonoBehaviour
             Instantiate(enemyDeathEffect, transform.position, Quaternion.identity);
 
         Destroy(gameObject);
+        GameManager.Instance.AddKill();
     }
 }

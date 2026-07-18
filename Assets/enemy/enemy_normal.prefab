@@ -27,8 +27,8 @@ Transform:
   m_GameObject: {fileID: 3760595592133395977}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -1, z: -0, w: 0}
-  m_LocalPosition: {x: 0, y: 1.5, z: 0}
-  m_LocalScale: {x: 0.33333334, y: 0.20000002, z: 0.33333334}
+  m_LocalPosition: {x: 0, y: 1.4, z: 0}
+  m_LocalScale: {x: 0.15, y: 0.15, z: 0.15}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4482588810070274318}
@@ -82,7 +82,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 1b9a05ab042d6b14e84fe9aa8e8af380, type: 3}
+  m_Sprite: {fileID: 21300000, guid: cdc10614ee61b7d42b5c1c769aa66029, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -131,8 +131,8 @@ Transform:
   m_GameObject: {fileID: 7947493887540880593}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -1, z: -0, w: 0}
-  m_LocalPosition: {x: 0, y: 1.5, z: 0}
-  m_LocalScale: {x: 0.33333334, y: 0.20000002, z: 0.33333334}
+  m_LocalPosition: {x: 0, y: 1.4, z: 0}
+  m_LocalScale: {x: 0.15, y: 0.15, z: 0.15}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4482588810070274318}
@@ -186,7 +186,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 884e23d39e1ec184cb7e993d237aacb3, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 25b0779a6721298429cf8bc5b0777d88, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -286,7 +286,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: b0e6b66b53b867148b36a7cc4de73d3a, type: 3}
       propertyPath: m_TagString
-      value: Enemy
+      value: N_Enemy
       objectReference: {fileID: 0}
     - target: {fileID: 5866666021909216657, guid: b0e6b66b53b867148b36a7cc4de73d3a, type: 3}
       propertyPath: m_Controller
@@ -466,7 +466,7 @@ MonoBehaviour:
   searchRadius: 1.5
   noticeTime: 1
   lookBackSpeed: 8
-  targetPlayer: {fileID: 7396978679956632521, guid: 98c7753dfab3d6e4bb531639942dcf5f, type: 3}
+  targetPlayer: {fileID: 0}
   markExclamation: {fileID: 7947493887540880593}
   markQuestion: {fileID: 3760595592133395977}
   anim: {fileID: 7554073767100345204}
