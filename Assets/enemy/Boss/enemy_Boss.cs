@@ -166,6 +166,13 @@ public class enemy_Boss : MonoBehaviour
     public float summonRadius = 5.0f;                    // ボスを中心とした召喚半径
     public int summonCount = 3;                          // 一度に召喚する数
 
+    [Header("SE")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip summonSE;
+    [SerializeField] private AudioClip chargeSE;
+    [SerializeField] private AudioClip punchSE;
+
+
     // =========================================
     // 初期化処理
     // =========================================
@@ -176,6 +183,7 @@ public class enemy_Boss : MonoBehaviour
 
         anim = GetComponent<Animator>();
         anim.SetBool("Idol", true);
+        audioSource = GetComponent<AudioSource>();
     }
 
     // =========================================
@@ -504,12 +512,12 @@ public class enemy_Boss : MonoBehaviour
 
             if (Input.GetKeyDown(KeyCode.G))
             {
-                mission.SetMission(0);
+                mission.SetMission(4,3);
             }
 
             if (Input.GetKeyDown(KeyCode.F))
             {
-                mission.ClearMission(0);
+                mission.ClearMission(4);
             }
 
             if (Input.GetKeyDown(KeyCode.V))
@@ -920,6 +928,7 @@ public class enemy_Boss : MonoBehaviour
             {
                 Vector3 effectPos = new Vector3(armBone_R.position.x, transform.position.y + 0.05f, armBone_R.position.z);
                 Instantiate(impactEffect, effectPos, Quaternion.identity);
+                audioSource.PlayOneShot(punchSE);
                 Debug.Log("Smash_N");
                 smashEffectCnt = 1;
             }
@@ -937,6 +946,7 @@ public class enemy_Boss : MonoBehaviour
                     Vector3 effectPosI = new Vector3(armBone_R.position.x, transform.position.y + 0.05f, armBone_R.position.z);
 
                     // 計算した位置にエフェクトを発生
+                    audioSource.PlayOneShot(punchSE);
                     Instantiate(impactEffect, effectPosI, Quaternion.identity);
                     Instantiate(waveEffect, effectPos, Quaternion.identity);
                     Debug.Log($"Smash_B - {smashEffectCnt + 1}回目着弾！");
@@ -1322,6 +1332,7 @@ public class enemy_Boss : MonoBehaviour
 
             // 敵を生成
             GameObject enemy = Instantiate(prefab, spawnPos, Quaternion.identity);
+            audioSource.PlayOneShot(summonSE);
 
             Instantiate(summonEffect, spawnPos, Quaternion.identity);
 
@@ -1435,4 +1446,8 @@ public class enemy_Boss : MonoBehaviour
             // バリアが削れていくときの演出（色変化？エフェクト？）
         }
     }
-}
+    public void EventChargeSound()
+    {
+        audioSource.PlayOneShot(chargeSE);
+    }
+    }

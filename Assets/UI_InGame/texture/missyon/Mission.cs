@@ -3,10 +3,15 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 
-public class Mission: MonoBehaviour
+public class Mission : MonoBehaviour
 {
     [SerializeField] private Sprite[] missionSprites;
     [SerializeField] private Image[] missionImages;
+    [SerializeField] private Image missionNumber;
+    [SerializeField] private Sprite[] misNumSprites;
+
+    // 敵討伐ミッションのインデックス（1＝2Fへ移動 2＝バリア 3＝ボス 4＝ドア 5＝敵 6＝部屋移動 → 0始まりで4）
+    private const int ENEMY_MISSION_INDEX = 4;
 
     private GameObject[] checkMarks;
 
@@ -50,12 +55,16 @@ public class Mission: MonoBehaviour
                 checkMarks[i].SetActive(false);
             }
         }
+
+        // 表示中の敵ミッションがなくなったので数字表示も更新（非表示になる）
+        RefreshMissionNumberVisibility();
     }
 
     /// <summary>
     /// 1＝2Fへ移動 2＝バリア 3＝ボス 4＝ドア 5＝敵 6＝部屋移動
+    /// enemyCount：敵討伐ミッション（spriteIndex=4）の時だけ使用。倒すべき数に対応するmisNumSpritesのインデックス
     /// </summary>
-    public void SetMission(int spriteIndex)
+    public void SetMission(int spriteIndex, int enemyCount = 0)
     {
         if (missionSprites == null || spriteIndex < 0 || spriteIndex >= missionSprites.Length) return;
 
@@ -73,6 +82,14 @@ public class Mission: MonoBehaviour
                 missionImages[i].enabled = true;
 
                 missionImages[i].SetNativeSize();
+
+                // 敵討伐ミッションの場合は、数字（倒すべき数）もセットして表示する
+                if (spriteIndex == ENEMY_MISSION_INDEX)
+                {
+                    SetMissionNumber(enemyCount);
+                }
+
+                RefreshMissionNumberVisibility();
 
                 return;
             }
@@ -105,6 +122,44 @@ public class Mission: MonoBehaviour
 
         // ここに到達した場合は、そもそもそのミッションがまだ画面に出ていない状態
         Debug.LogWarning($"ミッションID {spriteIndex} は現在表示されていません。");
+    }
+
+    public void SetMissionNumber(int spriteIndex)
+    {
+        if (misNumSprites == null || spriteIndex < 0 || spriteIndex >= misNumSprites.Length) return;
+        Sprite targetSprite = misNumSprites[spriteIndex];
+        if (targetSprite == null) return;
+        if (missionNumber != null)
+        {
+            missionNumber.sprite = targetSprite;
+            missionNumber.SetNativeSize();
+        }
+    }
+
+    /// <summary>
+    /// 現在表示中のミッションの中に敵討伐ミッションが含まれているかを見て、
+    /// missionNumberの表示・非表示を切り替える
+    /// </summary>
+    private void RefreshMissionNumberVisibility()
+    {
+        if (missionNumber == null || missionSprites == null || missionSprites.Length <= ENEMY_MISSION_INDEX) return;
+
+        Sprite enemySprite = missionSprites[ENEMY_MISSION_INDEX];
+        bool hasEnemyMission = false;
+
+        if (enemySprite != null && missionImages != null)
+        {
+            foreach (var img in missionImages)
+            {
+                if (img != null && img.enabled && img.sprite == enemySprite)
+                {
+                    hasEnemyMission = true;
+                    break;
+                }
+            }
+        }
+
+        missionNumber.gameObject.SetActive(hasEnemyMission);
     }
 
     // コルーチン側は「スロット番号」で処理するので、以前のままでOKです！
@@ -149,5 +204,8 @@ public class Mission: MonoBehaviour
                 missionImages[i].SetNativeSize();
             }
         }
+
+        // 敵討伐ミッションがまだ残っていれば数字表示を復活させる（クリアしたのが敵以外の場合など）
+        RefreshMissionNumberVisibility();
     }
 }

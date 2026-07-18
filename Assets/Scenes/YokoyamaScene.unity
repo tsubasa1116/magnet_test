@@ -6249,6 +6249,7 @@ MonoBehaviour:
   faceS: {fileID: 2800000, guid: 2c96c7c4b66f6144db998523b76c139a, type: 3}
   faceEmissionN: {fileID: 2800000, guid: 893e0ff9bc5cc7341bdb95a7de61569d, type: 3}
   faceEmissionS: {fileID: 2800000, guid: d8cdb7c67d1fb684c938fd3b741f352d, type: 3}
+  hologramFaceMaterial: {fileID: 0}
   autoExpression: 1
   faceCatchN: {fileID: 0}
   faceCatchS: {fileID: 0}
@@ -6268,6 +6269,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 199fb73de21b0994c92b2e9f8ed09a74, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MagnetPull
+  audioSource: {fileID: 0}
+  repelSE: {fileID: 0}
   handPoint: {fileID: 343269131}
   aimCamera: {fileID: 504984031}
   rayRange: 30
@@ -6280,6 +6283,10 @@ MonoBehaviour:
   floatAmplitude: 0.15
   floatFrequency: 6
   repelForce: 30
+  showThrowGuide: 1
+  throwGuideLength: 30
+  throwGuideWidth: 0.04
+  throwGuideColor: {r: 1, g: 0.85, b: 0.2, a: 0.9}
   nPoleAttractEffect: {fileID: 2089655013999462284, guid: 354a46b4b641dd44087f32d8e8e74065, type: 3}
   sPoleAttractEffect: {fileID: 4872931878383916707, guid: 44350d96b3cb8b447bbbcf7905ef4cac, type: 3}
   nPoleReleaseEffect: {fileID: 8727938363716839220, guid: 35b57502ff53b1a48bfb28020b5f8c1f, type: 3}
@@ -6301,6 +6308,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b09edadfcc14f3349b06bbb032c93e0d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCatch
+  audioSource: {fileID: 0}
+  magnetOnSE: {fileID: 0}
 --- !u!114 &1008238218
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6319,6 +6328,8 @@ MonoBehaviour:
   knockbackTime: 0.25
   invincibleTime: 1.2
   hitStopTime: 0.12
+  audioSource: {fileID: 0}
+  damageSE: {fileID: 0}
 --- !u!114 &1008238219
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6373,13 +6384,7 @@ MonoBehaviour:
   freeLook: {fileID: 370239723}
   baseFOV: 50
   baseYAxisSpeed: 2.5
-  aimFOV: 28
-  aimRadiusScale: 0.6
-  aimScreenX: 0.35
   lerpSpeed: 10
-  aimTargetLayer:
-    serializedVersion: 2
-    m_Bits: 4294967295
   lookUpStartY: 0.35
   maxLookUpAngle: 78
   lookUpSpeedScale: 100
@@ -6393,6 +6398,20 @@ MonoBehaviour:
   switchThreshold: 0.7
   switchRearmThreshold: 0.3
   lockOnFOVScale: 0.85
+  lockOnScreenX: 0.35
+  fadeObstacles: 1
+  obstacleAlpha: 0.15
+  holeRadius: 1.2
+  holeSoftness: 1.5
+  fadeInTime: 0.2
+  fadeOutTime: 0.3
+  cameraOverlapRadius: 0.8
+  deathFOV: 30
+  deathRadiusScale: 0.35
+  deathSlowScale: 0.2
+  deathSlowHold: 1.2
+  deathSlowRecover: 1.5
+  hideCursor: 1
   markerPrefab: {fileID: 0}
   markerScale: 1.25
   markerSpinSpeed: 120
@@ -6419,6 +6438,9 @@ MonoBehaviour:
   buttonZoomScale: 1.2
   buttonAnimSec: 0.15
   uiRotateSec: 0.3
+  audioSource: {fileID: 0}
+  switchSE: {fileID: 0}
+  switchVolume: 1
 --- !u!114 &1008238223
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6437,12 +6459,20 @@ MonoBehaviour:
   rotationSpeed: 480
   acceleration: 5
   airAcceleration: 8
+  knockbackAirControlScale: 0.25
+  knockbackGroundAcceleration: 12
+  catchMoveSpeedScale: 0.4
   jumpForce: 5
   groundLayer:
     serializedVersion: 2
     m_Bits: 4294967295
   gravityScale: 0.6
   blockedRatio: 0.3
+  stepHeight: 0.35
+  stepCheckDistance: 0.45
+  stepLift: 0.08
+  audioSource: {fileID: 1008238242}
+  jumpSE: {fileID: 8300000, guid: a9cc45fe99e972e4baaf33876b1170eb, type: 3}
 --- !u!54 &1008238226 stripped
 Rigidbody:
   m_CorrespondingSourceObject: {fileID: 3541130329543435545, guid: 98c7753dfab3d6e4bb531639942dcf5f, type: 3}
@@ -6476,6 +6506,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RopewayMagnet
   attachDistance: 0.8
+  pullSpeed: 14
+  rideMoveSpeed: 1.5
+  rideMoveRadius: 0.45
 --- !u!114 &1008238240
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6513,6 +6546,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerRespawn
   respawnDelay: 3
+--- !u!82 &1008238242 stripped
+AudioSource:
+  m_CorrespondingSourceObject: {fileID: 621036649809907436, guid: 98c7753dfab3d6e4bb531639942dcf5f, type: 3}
+  m_PrefabInstance: {fileID: 1603999526}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1016829438
 PrefabInstance:
   m_ObjectHideFlags: 0

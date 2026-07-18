@@ -38,7 +38,7 @@ public class pauseManager : MonoBehaviour
     [SerializeField] private Sprite[] normalSprite;
     [SerializeField] private Sprite[] selectSprite;
     [SerializeField] public Vector2 startText = new(-1250, -168);
-    [SerializeField] public Vector2[] newText   = { new(-595, -168), new(-665, -168), new(-702, -168) };
+    [SerializeField] public Vector2[] newText = { new(-595, -168), new(-665, -168), new(-702, -168) };
     [SerializeField] public float moveTextSpeed = 4.0f;
     private int suggestIndex = 0;
     private bool skipTextSlide = false;
@@ -46,9 +46,9 @@ public class pauseManager : MonoBehaviour
     [Header("背景（左）")]
     [SerializeField] public RectTransform suggestBack;
     [SerializeField] public Vector2 startPos = new(-1300, 0);
-    [SerializeField] public Vector2 newPos   = new(-562, 0);
+    [SerializeField] public Vector2 newPos = new(-562, 0);
     [SerializeField] public float moveSpeed = 7.0f;
-    [SerializeField] public float waitOpen  = 0.7f;
+    [SerializeField] public float waitOpen = 0.7f;
 
     [Header("カーソル")]
     [SerializeField] public RectTransform cursor;
@@ -76,14 +76,18 @@ public class pauseManager : MonoBehaviour
 
     [SerializeField] private float arrowMove = 30.0f;      // 動くピクセル
     [SerializeField] private float arrowMoveTime = 0.1f; // 往路にかかる時間
-    
+
+    [Header("音量（5段階）")]
+    [SerializeField] private float[] bgmVolumeTable = { 0f, 0.25f, 0.5f, 0.75f, 1f };
+    [SerializeField] private float[] seVolumeTable = { 0f, 0.25f, 0.5f, 0.75f, 1f };
+
     [Header("チェックポイントチェック")]
     [SerializeField] private GameObject CPcheckUI;
     [SerializeField] private Image[] suggestImageCP;
     [SerializeField] private Sprite[] normalSpriteCP;
     [SerializeField] private Sprite[] selectSpriteCP;
     private int suggestIndexCP = 0;
-    
+
     [Header("タイトルチェック")]
     [SerializeField] private GameObject TCcheckUI;
     [SerializeField] private Image[] suggestImageTC;
@@ -100,6 +104,8 @@ public class pauseManager : MonoBehaviour
     {
         LoadSettings();
         UpdateAllSlider();
+        UpdateBGMVolume();
+        UpdateSEVolume();
         UpdateLighting();
         AudioManager.Instance.PlayBGM("Field");
     }
@@ -129,9 +135,9 @@ public class pauseManager : MonoBehaviour
                 if (currentState == PauseState.MenuSelect)
                 {
                     // メインメニューのカーソル操作
-                    if (Gamepad.current?.dpad.up.wasPressedThisFrame == true)   SuggestCursor(-1);
+                    if (Gamepad.current?.dpad.up.wasPressedThisFrame == true) SuggestCursor(-1);
                     if (Gamepad.current?.dpad.down.wasPressedThisFrame == true) SuggestCursor(1);
-                    if (Input.GetKeyDown(KeyCode.UpArrow))   SuggestCursor(-1);
+                    if (Input.GetKeyDown(KeyCode.UpArrow)) SuggestCursor(-1);
                     if (Input.GetKeyDown(KeyCode.DownArrow)) SuggestCursor(1);
 
                     // 決定キー（Enter等）で処理を実行
@@ -148,12 +154,12 @@ public class pauseManager : MonoBehaviour
 
                     if (Gamepad.current?.dpad.up.wasPressedThisFrame == true) MoveCursor(-1);
                     if (Gamepad.current?.dpad.down.wasPressedThisFrame == true) MoveCursor(1);
-                    if (Input.GetKeyDown(KeyCode.UpArrow))   MoveCursor(-1);
+                    if (Input.GetKeyDown(KeyCode.UpArrow)) MoveCursor(-1);
                     if (Input.GetKeyDown(KeyCode.DownArrow)) MoveCursor(1);
 
                     if (Gamepad.current?.dpad.left.wasPressedThisFrame == true) MoveSlider(-1);
                     if (Gamepad.current?.dpad.right.wasPressedThisFrame == true) MoveSlider(1);
-                    if (Input.GetKeyDown(KeyCode.LeftArrow))   MoveSlider(-1);
+                    if (Input.GetKeyDown(KeyCode.LeftArrow)) MoveSlider(-1);
                     if (Input.GetKeyDown(KeyCode.RightArrow)) MoveSlider(1);
 
                 }
@@ -162,7 +168,7 @@ public class pauseManager : MonoBehaviour
                     skipTextSlide = true;
 
                     // メインメニューのカーソル操作
-                    if (Gamepad.current?.dpad.up.wasPressedThisFrame == true)   CPCursor(-1);
+                    if (Gamepad.current?.dpad.up.wasPressedThisFrame == true) CPCursor(-1);
                     if (Gamepad.current?.dpad.down.wasPressedThisFrame == true) CPCursor(1);
                     if (Input.GetKeyDown(KeyCode.UpArrow)) CPCursor(-1);
                     if (Input.GetKeyDown(KeyCode.DownArrow)) CPCursor(1);
@@ -177,7 +183,7 @@ public class pauseManager : MonoBehaviour
                     skipTextSlide = true;
 
                     // メインメニューのカーソル操作
-                    if (Gamepad.current?.dpad.up.wasPressedThisFrame == true)   TCCursor(-1);
+                    if (Gamepad.current?.dpad.up.wasPressedThisFrame == true) TCCursor(-1);
                     if (Gamepad.current?.dpad.down.wasPressedThisFrame == true) TCCursor(1);
                     if (Input.GetKeyDown(KeyCode.UpArrow)) TCCursor(-1);
                     if (Input.GetKeyDown(KeyCode.DownArrow)) TCCursor(1);
@@ -189,12 +195,12 @@ public class pauseManager : MonoBehaviour
                 }
             }
         }
-        
-       bool pausePressed = Input.GetKeyDown(KeyCode.P) || Gamepad.current?.startButton.wasPressedThisFrame == true;
-       bool backPressed = pausePressed || Gamepad.current?.buttonSouth.wasPressedThisFrame == true;
 
-       if (isPause)
-       {
+        bool pausePressed = Input.GetKeyDown(KeyCode.P) || Gamepad.current?.startButton.wasPressedThisFrame == true;
+        bool backPressed = pausePressed || Gamepad.current?.buttonSouth.wasPressedThisFrame == true;
+
+        if (isPause)
+        {
             if (backPressed)
             {
                 if (currentState == PauseState.MenuSelect)
@@ -218,15 +224,15 @@ public class pauseManager : MonoBehaviour
                     ChangeState(PauseState.MenuSelect); // オプションからメインメニューへ戻る
                 }
             }
-       }
-       else
-       {
+        }
+        else
+        {
             if (pausePressed)
             {
                 PauseGame();
             }
-       }
-       
+        }
+
     }
 
     // 状態切り替え
@@ -395,7 +401,7 @@ public class pauseManager : MonoBehaviour
                         break;
                 }
                 break;
-                case PauseState.Checkpoint:
+            case PauseState.Checkpoint:
                 switch (suggestIndexCP)
                 {
                     case 0:
@@ -409,7 +415,7 @@ public class pauseManager : MonoBehaviour
                 }
                 break;
 
-                case PauseState.Title:
+            case PauseState.Title:
                 switch (suggestIndexTC)
                 {
                     case 0:
@@ -533,7 +539,18 @@ public class pauseManager : MonoBehaviour
         pos.x = sliderPosX[currentSlider.sliderIndex];
         currentSlider.handle.anchoredPosition = pos;
 
-        if (cursorIndex == 2) UpdateLighting();
+        if (cursorIndex == 0)
+        {
+            UpdateBGMVolume();
+        }
+        else if (cursorIndex == 1)
+        {
+            UpdateSEVolume();
+        }
+        else if (cursorIndex == 2)
+        {
+            UpdateLighting();
+        }
 
         SaveSettings();
     }
@@ -610,7 +627,7 @@ public class pauseManager : MonoBehaviour
         }
         target.anchoredPosition = startAnchoredPos; // 元に戻す
 
-        isAnim= false;
+        isAnim = false;
     }
 
     private void UpdateLighting()
@@ -622,12 +639,47 @@ public class pauseManager : MonoBehaviour
         if (targetIndex < sliderSetting.Length)
         {
             int currentIndex = sliderSetting[targetIndex].sliderIndex;
-            
+
             lightingLayer.alpha = lightingAlpha[currentIndex];
         }
+    }
 
-        
+    // BGM音量（0番目のスライダー）
+    private void UpdateBGMVolume()
+    {
+        const int bgmSliderIndex = 0;
 
+        if (AudioManager.Instance == null ||
+            bgmSliderIndex >= sliderSetting.Length ||
+            bgmVolumeTable == null ||
+            bgmVolumeTable.Length == 0)
+        {
+            return;
+        }
+
+        int index = sliderSetting[bgmSliderIndex].sliderIndex;
+        index = Mathf.Clamp(index, 0, bgmVolumeTable.Length - 1);
+
+        AudioManager.Instance.SetBGMVolume(bgmVolumeTable[index]);
+    }
+
+    // SE音量（1番目のスライダー）
+    private void UpdateSEVolume()
+    {
+        const int seSliderIndex = 1;
+
+        if (AudioManager.Instance == null ||
+            seSliderIndex >= sliderSetting.Length ||
+            seVolumeTable == null ||
+            seVolumeTable.Length == 0)
+        {
+            return;
+        }
+
+        int index = sliderSetting[seSliderIndex].sliderIndex;
+        index = Mathf.Clamp(index, 0, seVolumeTable.Length - 1);
+
+        AudioManager.Instance.SetSEVolume(seVolumeTable[index]);
     }
 
     void SaveSettings()

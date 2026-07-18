@@ -71,6 +71,10 @@ public class title : MonoBehaviour
     [SerializeField] private CanvasGroup lightingLayer;
     [SerializeField] private float[] lightingAlpha;
 
+    [Header("音量（5段階）")]
+    [SerializeField] private float[] bgmVolumeTable = { 0f, 0.25f, 0.5f, 0.75f, 1f };
+    [SerializeField] private float[] seVolumeTable  = { 0f, 0.25f, 0.5f, 0.75f, 1f };
+
     private bool isInputOk = false;
 
     void Start()
@@ -78,6 +82,8 @@ public class title : MonoBehaviour
         AudioManager.Instance.PlayBGM("Title");
         LoadSettings();
         UpdateAllSlider();
+        UpdateBGMVolume(); 
+        UpdateSEVolume();
         UpdateLighting();
 
         InitUI();
@@ -183,7 +189,7 @@ public class title : MonoBehaviour
                     if (cursorIndex == 0)
                     {
                         UISE.Instance.StartUI();
-                        SceneLoad.LoadWithLoadingScreen("SamScene", FadeType.Black);
+                        SceneLoad.LoadWithLoadingScreen("YokoyamaScene", FadeType.Black);
                     }
                     else if (cursorIndex == 1)
                     {
@@ -258,6 +264,44 @@ public class title : MonoBehaviour
         index = Mathf.Clamp(index, 0, lightingAlpha.Length - 1);
 
         lightingLayer.alpha = lightingAlpha[index];
+    }
+
+    // BGM音量（0番目のスライダー）
+    void UpdateBGMVolume()
+    {
+        const int bgmSliderIndex = 0;
+
+        if (AudioManager.Instance == null ||
+            bgmSliderIndex >= sliderSetting.Length ||
+            bgmVolumeTable == null ||
+            bgmVolumeTable.Length == 0)
+        {
+            return;
+        }
+
+        int index = sliderSetting[bgmSliderIndex].sliderIndex;
+        index = Mathf.Clamp(index, 0, bgmVolumeTable.Length - 1);
+
+        AudioManager.Instance.SetBGMVolume(bgmVolumeTable[index]);
+    }
+
+    // SE音量（1番目のスライダー）
+    void UpdateSEVolume()
+    {
+        const int seSliderIndex = 1;
+
+        if (AudioManager.Instance == null ||
+            seSliderIndex >= sliderSetting.Length ||
+            seVolumeTable == null ||
+            seVolumeTable.Length == 0)
+        {
+            return;
+        }
+
+        int index = sliderSetting[seSliderIndex].sliderIndex;
+        index = Mathf.Clamp(index, 0, seVolumeTable.Length - 1);
+
+        AudioManager.Instance.SetSEVolume(seVolumeTable[index]);
     }
 
     // メニューを開く
@@ -353,6 +397,14 @@ public class title : MonoBehaviour
         pos.x = sliderPosX[currentSlider.sliderIndex];
         currentSlider.handle.anchoredPosition = pos;
 
+        if (optionCursorIndex == 0)
+        {
+            UpdateBGMVolume();
+        }
+        if (optionCursorIndex == 1)
+        {
+            UpdateSEVolume();
+        }
         if (optionCursorIndex == 2)
         {
             UpdateLighting();
