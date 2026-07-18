@@ -34,18 +34,24 @@ public class PlayerHealth : MonoBehaviour
     private PlayerRagdoll ragdoll;
 	private Rigidbody rb;
 	private PlayerMovement movement;
-	private float invincibleUntil;
+    [Header("SE")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip damageSE;
+    private float invincibleUntil;
 	private float knockbackUntil;
 
-	void Awake()
-	{
-		Hp = maxHp;
-		ragdoll = GetComponent<PlayerRagdoll>();
-		rb = GetComponent<Rigidbody>();
-		movement = GetComponent<PlayerMovement>();
-	}
+    void Awake()
+    {
+        Hp = maxHp;
+        ragdoll = GetComponent<PlayerRagdoll>();
+        rb = GetComponent<Rigidbody>();
+        movement = GetComponent<PlayerMovement>();
 
-	void Update()
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
+    }
+
+    void Update()
 	{
 		// デバッグ用: I キーで即死
 		if (Input.GetKeyDown(KeyCode.I)) TakeDamage(maxHp);
@@ -65,6 +71,10 @@ public class PlayerHealth : MonoBehaviour
 		invincibleUntil = Time.time + invincibleTime; // 無敵開始(点滅はPlayerEffectsが行う)
 		ApplyKnockback(sourcePosition);
 		HitStop.Play(hitStopTime);
+        if (audioSource != null && damageSE != null)
+        {
+            audioSource.PlayOneShot(damageSE,80f);
+        }
 
         OnDamaged?.Invoke();
 		OnHit?.Invoke();

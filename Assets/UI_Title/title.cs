@@ -74,6 +74,7 @@ public class title : MonoBehaviour
 
     void Start()
     {
+        AudioManager.Instance.PlayBGM("Title");
         LoadSettings();
         UpdateAllSlider();
         UpdateLighting();
@@ -125,6 +126,7 @@ public class title : MonoBehaviour
 
         if (!isOpen && Input.GetKeyDown(KeyCode.Return))
         {
+            UISE.Instance.EnterUI();
             OpenMenu();
             return;
         }
@@ -170,10 +172,12 @@ public class title : MonoBehaviour
                 {
                     if (cursorIndex == 0)
                     {
-                        SceneLoad.LoadWithLoadingScreen("SampleScene", FadeType.Black);
+                        UISE.Instance.StartUI();
+                        SceneLoad.LoadWithLoadingScreen("SamScene", FadeType.Black);
                     }
                     else if (cursorIndex == 1)
                     {
+                        UISE.Instance.EnterUI();
                         isOption = true;
                         optionMenuUI.SetActive(true);
                         idleCursor.SetActive(true);
@@ -187,6 +191,7 @@ public class title : MonoBehaviour
                     }
                     else if (cursorIndex == 2)
                     {
+                        UISE.Instance.EnterUI();
                         UnityEditor.EditorApplication.isPlaying = false; // エディタ上で停止
                         Application.Quit();
                     }
@@ -264,6 +269,7 @@ public class title : MonoBehaviour
         isOption = false;
         optionMenuUI.SetActive(false);
         idleCursor.SetActive(false);
+        UISE.Instance.CancelUI();
 
         // ロゴとスコアを再表示
         titleLogoUI.SetActive(true);
@@ -283,6 +289,7 @@ public class title : MonoBehaviour
         bool isCombo = (Time.unscaledTime - lastInputTime) < inputComboCnt;
         lastInputTime = Time.unscaledTime;
 
+        UISE.Instance.CursorUI();
         optionCursorIndex += direction;
         if (optionCursorIndex < 0) optionCursorIndex = optionCursorPosY.Length - 1;
         if (optionCursorIndex >= optionCursorPosY.Length) optionCursorIndex = 0;
@@ -297,7 +304,7 @@ public class title : MonoBehaviour
     void MoveSlider(int direction)
     {
         if (optionCursorIndex < 0 || optionCursorIndex >= sliderSetting.Length) return;
-
+        UISE.Instance.CursorUI();
         SliderSetting currentSlider = sliderSetting[optionCursorIndex];
 
         if (optionCursorIndex == 3)
@@ -349,6 +356,8 @@ public class title : MonoBehaviour
     {
         bool isCombo = (Time.time - lastInputTime) < inputComboCnt;
         lastInputTime = Time.time;
+
+        UISE.Instance.CursorUI();
 
         // カーソルの位置調節
         cursorIndex += direction;

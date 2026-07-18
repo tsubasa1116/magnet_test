@@ -31,12 +31,23 @@ public class PlayerStateMachine : MonoBehaviour
     [SerializeField] private float buttonAnimSec = 0.15f;
     [SerializeField] private float uiRotateSec = 0.3f;
 
+
+    [Header("SE")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip switchSE;
+    [SerializeField] private float switchVolume = 1f;
+
     private bool isChangeMode = false;
+
+
 
     void Awake()
     {
         catchState = GetComponent<PlayerCatch>();
         health = GetComponent<PlayerHealth>();
+
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
     }
 
     void Update()
@@ -76,6 +87,11 @@ public class PlayerStateMachine : MonoBehaviour
     private void SwitchState()
     {
         CurrentState = CurrentState == MagnetState.N ? MagnetState.S : MagnetState.N;
+
+        if (audioSource != null && switchSE != null)
+        {
+            audioSource.PlayOneShot(switchSE, switchVolume);
+        }
 
         StartCoroutine(AnimateButtonPress());
         StartCoroutine(RotateUI());

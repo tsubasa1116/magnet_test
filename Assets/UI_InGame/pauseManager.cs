@@ -97,6 +97,7 @@ public class pauseManager : MonoBehaviour
         LoadSettings();
         UpdateAllSlider();
         UpdateLighting();
+        AudioManager.Instance.PlayBGM("Field");
     }
 
 
@@ -184,15 +185,18 @@ public class pauseManager : MonoBehaviour
                 }
                 else if (currentState == PauseState.Option)
                 {
+                    UISE.Instance.CancelUI();
                     skipTextSlide = true;
                     ChangeState(PauseState.MenuSelect); // オプションからメインメニューへ戻る
                 }
                 else if (currentState == PauseState.Checkpoint)
                 {
+                    UISE.Instance.CancelUI();
                     ChangeState(PauseState.MenuSelect); // オプションからメインメニューへ戻る
                 }
                 else if (currentState == PauseState.Title)
                 {
+                    UISE.Instance.CancelUI();
                     ChangeState(PauseState.MenuSelect); // オプションからメインメニューへ戻る
                 }
             }
@@ -314,6 +318,7 @@ public class pauseManager : MonoBehaviour
     void SuggestCursor(int direction)
     {
         suggestIndex += direction;
+        UISE.Instance.CursorUI();
 
         // ループ処理
         if (suggestIndex < 0) suggestIndex = suggestImage.Length - 1;
@@ -325,6 +330,7 @@ public class pauseManager : MonoBehaviour
     void CPCursor(int direction)
     {
         suggestIndexCP += direction;
+        UISE.Instance.CursorUI();
 
         // ループ処理
         if (suggestIndexCP < 0) suggestIndexCP = suggestImageCP.Length - 1;
@@ -336,6 +342,7 @@ public class pauseManager : MonoBehaviour
     void TCCursor(int direction)
     {
         suggestIndexTC += direction;
+        UISE.Instance.CursorUI();
 
         // ループ処理
         if (suggestIndexTC < 0) suggestIndexTC = suggestImageTC.Length - 1;
@@ -353,12 +360,15 @@ public class pauseManager : MonoBehaviour
                 switch (suggestIndex)
                 {
                     case 0: // オプション
+                        UISE.Instance.EnterUI();
                         ChangeState(PauseState.Option);
                         break;
                     case 1: // チェックポイント
+                        UISE.Instance.EnterUI();
                         ChangeState(PauseState.Checkpoint);
                         break;
                     case 2: // タイトルに戻る
+                        UISE.Instance.EnterUI();
                         ChangeState(PauseState.Title);
                         break;
                 }
@@ -367,9 +377,11 @@ public class pauseManager : MonoBehaviour
                 switch (suggestIndexCP)
                 {
                     case 0:
+                        UISE.Instance.StartUI();
                         Debug.Log("チェック");
                         break;
                     case 1:
+                        UISE.Instance.EnterUI();
                         ChangeState(PauseState.MenuSelect);
                         break;
                 }
@@ -379,10 +391,12 @@ public class pauseManager : MonoBehaviour
                 switch (suggestIndexTC)
                 {
                     case 0:
+                        UISE.Instance.EnterUI();
                         ResumeGame();
-                        SceneManager.LoadScene("TitleScene");
+                        SceneLoad.LoadWithLoadingScreen("TitleScene", FadeType.Black);
                         break;
                     case 1:
+                        UISE.Instance.EnterUI();
                         ChangeState(PauseState.MenuSelect);
                         break;
                 }
@@ -435,6 +449,7 @@ public class pauseManager : MonoBehaviour
         bool isCombo = (Time.unscaledTime - lastInputTime) < inputComboCnt;
         lastInputTime = Time.unscaledTime;
 
+        UISE.Instance.CursorUI();
         // カーソルの位置調節
         cursorIndex += direction;
         if (cursorIndex < 0) cursorIndex = cursorPosY.Length - 1;
@@ -454,8 +469,9 @@ public class pauseManager : MonoBehaviour
 
         // 現在選んでいる縦カーソル（cursorIndex）と同じスライダーを取得
         SliderSetting currentSlider = sliderSetting[cursorIndex];
+        UISE.Instance.CursorUI();
 
-       
+
         if (cursorIndex == 3)
         {
             if (isAnim) return;

@@ -58,6 +58,7 @@ public class enemy_bomb : MonoBehaviour
     private float noticeTimer;
 
     private bool isMagnetized = false; // 磁力の影響(吹っ飛んでいる最中など)を受けているかどうか
+    private bool hasFoundPlayer = false;
     private float timeOffset;          // 個体ごとにフワフワのタイミングをずらすための乱数
 
     private Animator anim;
@@ -369,24 +370,55 @@ public class enemy_bomb : MonoBehaviour
 
         if (nextState == EnemyState.Wait)
         {
-            if (agent.isOnNavMesh) agent.isStopped = true;
+            if (hasFoundPlayer)
+            {
+                hasFoundPlayer = false;
+            }
+
+            if (agent.isOnNavMesh)
+                agent.isStopped = true;
         }
         else if (nextState == EnemyState.Notice)
         {
-            if (agent.isOnNavMesh) agent.isStopped = true;
+            if (agent.isOnNavMesh)
+                agent.isStopped = true;
+
             noticeTimer = noticeTime;
-            if (markExclamation != null) markExclamation.SetActive(true);
+
+            if (!hasFoundPlayer)
+            {
+                hasFoundPlayer = true;
+                CombatStateManager.Instance.EnterCombat(this.gameObject);
+            }
+
+            if (markExclamation != null)
+                markExclamation.SetActive(true);
+
             StartCoroutine(HideMark(markExclamation, noticeTime));
         }
         else if (nextState == EnemyState.Search)
         {
-            if (markQuestion != null) markQuestion.SetActive(true);
+            if (hasFoundPlayer)
+            {
+                hasFoundPlayer = false;
+                CombatStateManager.Instance.ExitCombat(this.gameObject);
+            }
+
+            if (markQuestion != null)
+                markQuestion.SetActive(true);
+
             StartCoroutine(HideMark(markQuestion, 1.5f));
+
             searchTimer = searchTime;
             WanderAround();
         }
         else if (nextState == EnemyState.Return)
         {
+            if (hasFoundPlayer)
+            {
+                hasFoundPlayer = false;
+            }
+
             agent.SetDestination(startPosition);
         }
     }
@@ -461,8 +493,16 @@ public class enemy_bomb : MonoBehaviour
 
     private void Die()
     {
-        if (explosionEffect != null) Instantiate(explosionEffect, transform.position, Quaternion.identity);
-        //audioSource.PlayOneShot(explosionSE); 
-        Destroy(gameObject/*, explosionSE.length*/);
+        if (hasFoundPlayer)
+        {
+            hasFoundPlayer = false;
+        }
+
+        CombatStateManager.Instance.ExitCombat(this.gameObject);
+
+        if (explosionEffect != null)
+            Instantiate(explosionEffect, transform.position, Quaternion.identity);
+
+        Destroy(gameObject);
     }
 }

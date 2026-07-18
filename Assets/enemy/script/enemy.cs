@@ -37,6 +37,9 @@ public class enemy : MonoBehaviour
     [SerializeField] private Animator anim;
     [SerializeField] private float attackInterval = 2.0f;
     [SerializeField] private int attackDamage = 10;
+    [SerializeField] private AudioSource audioSource; // ←追加
+    [SerializeField] private AudioClip attackSE;      // ←追加
+
     private float attackTimer;
 
     [Header("エフェクト")]
@@ -59,6 +62,8 @@ public class enemy : MonoBehaviour
     private float searchTimer;
     private float noticeTimer;
     private bool isAttack = false;
+    // BGM通知用
+    private bool hasFoundPlayer = false;
 
     // 吹っ飛ばされた直後に即着地判定されるのを防ぐタイマー
     private float recoveryCooldown = 0f;
@@ -73,6 +78,8 @@ public class enemy : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
         rb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();
+
+        audioSource = GetComponent<AudioSource>(); // ←追加
 
         if (rb != null) rb.isKinematic = true;
         startPosition = transform.position;
@@ -289,16 +296,42 @@ public class enemy : MonoBehaviour
 
         if (nextState == EnemyState.Wait)
         {
+            if (hasFoundPlayer)
+            {
+                hasFoundPlayer = false;
+            }
+
             agent.isStopped = true;
-            if (anim != null) { anim.SetBool("walk", false); anim.SetBool("run", false); anim.SetBool("idol", true); }
+
+            if (anim != null)
+            {
+                anim.SetBool("walk", false);
+                anim.SetBool("run", false);
+                anim.SetBool("idol", true);
+            }
         }
         else if (nextState == EnemyState.Notice)
         {
             agent.isStopped = true;
             noticeTimer = noticeTime;
-            if (markExclamation != null) markExclamation.SetActive(true);
+
+            if (!hasFoundPlayer)
+            {
+                hasFoundPlayer = true;
+                CombatStateManager.Instance.EnterCombat(this.gameObject);
+            }
+
+            if (markExclamation != null)
+                markExclamation.SetActive(true);
+
             StartCoroutine(HideMark(markExclamation, noticeTime));
-            if (anim != null) { anim.SetBool("walk", false); anim.SetBool("run", false); anim.SetBool("idol", false); }
+
+            if (anim != null)
+            {
+                anim.SetBool("walk", false);
+                anim.SetBool("run", false);
+                anim.SetBool("idol", false);
+            }
         }
         else if (nextState == EnemyState.Chase)
         {
@@ -309,13 +342,24 @@ public class enemy : MonoBehaviour
         {
             if (anim != null) { anim.SetBool("run", false); anim.SetBool("idle", false); anim.SetBool("walk", true); }
             if (markQuestion != null) markQuestion.SetActive(true);
+            CombatStateManager.Instance.ExitCombat(this.gameObject);
             StartCoroutine(HideMark(markQuestion, 1.5f));
             searchTimer = searchTime;
             WanderAround();
         }
         else if (nextState == EnemyState.Return)
         {
-            if (anim != null) { anim.SetBool("walk", false); anim.SetBool("run", true); }
+            if (hasFoundPlayer)
+            {
+                hasFoundPlayer = false;
+            }
+
+            if (anim != null)
+            {
+                anim.SetBool("walk", false);
+                anim.SetBool("run", true);
+            }
+
             agent.SetDestination(startPosition);
         }
     }
@@ -344,7 +388,15 @@ public class enemy : MonoBehaviour
     [SerializeField, Range(0.0f, 1.0f)] private float damageDelay = 0.3f;
     private void AttackEnemy()
     {
-        if (anim != null) anim.SetTrigger("beam");
+        if (anim != null)
+            anim.SetTrigger("beam");
+
+        // SEを鳴らす
+        if (audioSource != null && attackSE != null)
+        {
+            audioSource.PlayOneShot(attackSE, 1.5f); // ←音量1.5倍
+        }
+
         StartCoroutine(DelayDamageCoroutine());
         StartCoroutine(WaitAttackAnimation());
     }
@@ -448,7 +500,15 @@ public class enemy : MonoBehaviour
 
     private void Die()
     {
-        if (enemyDeathEffect != null) Instantiate(enemyDeathEffect, transform.position, Quaternion.identity);
+        if (hasFoundPlayer)
+        {
+            hasFoundPlayer = false;
+        }
+        CombatStateManager.Instance.ExitCombat(this.gameObject);
+
+        if (enemyDeathEffect != null)
+            Instantiate(enemyDeathEffect, transform.position, Quaternion.identity);
+
         Destroy(gameObject);
     }
 }

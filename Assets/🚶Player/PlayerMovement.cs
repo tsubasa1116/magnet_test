@@ -37,7 +37,11 @@ public class PlayerMovement : MonoBehaviour
 	[Tooltip("段差を乗り越える時の持ち上げ速度(1物理ステップあたりm)")]
 	[SerializeField] private float stepLift = 0.08f;
 
-	private Rigidbody rb;
+    [Header("SE")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip jumpSE;
+
+    private Rigidbody rb;
 	private Vector2 moveInput;
 	private bool isDashing;
 	private bool isGrounded;
@@ -72,8 +76,9 @@ public class PlayerMovement : MonoBehaviour
 	void Awake()
 	{
 		rb = GetComponent<Rigidbody>();
-		// 物理で倒れないように回転を固定（向きはスクリプトで制御する）
-		rb.freezeRotation = true;
+        // 物理で倒れないように回転を固定（向きはスクリプトで制御する）
+        audioSource = GetComponent<AudioSource>();
+        rb.freezeRotation = true;
 		// 物理ステップ間を補間して、カメラ追従時のカクつきを防ぐ
 		rb.interpolation = RigidbodyInterpolation.Interpolate;
 		cameraTransform = Camera.main.transform;
@@ -168,21 +173,27 @@ public class PlayerMovement : MonoBehaviour
 		moveInput = value.Get<Vector2>();
 	}
 
-	public void OnJump(InputValue value)
-	{
-		// jumpConsumed: 離陸直後は接地判定がまだtrueのため、連打で2段ジャンプになるのを防ぐ
-		if (value.isPressed && isGrounded && !jumpConsumed)
-		{
-			jumpConsumed = true;
-			lastJumpTime = Time.time;
-			rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-			Jumped?.Invoke(); // ジャンプ開始をアニメ側へ通知
-		}
-	}
+    public void OnJump(InputValue value)
+    {
+        if (value.isPressed && isGrounded && !jumpConsumed)
+        {
+            jumpConsumed = true;
+            lastJumpTime = Time.time;
 
-	// --- 移動 ---
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
 
-	private void Move()
+            if (audioSource != null && jumpSE != null)
+            {
+                audioSource.PlayOneShot(jumpSE,10f);
+            }
+
+            Jumped?.Invoke();
+        }
+    }
+
+    // --- 移動 ---
+
+    private void Move()
 	{
 		// カメラ基準の移動方向（水平面）
 		Vector3 forward = cameraTransform.forward;

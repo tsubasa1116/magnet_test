@@ -94,6 +94,7 @@ public class result : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Return))
         {
+            UISE.Instance.EnterUI();
             SceneLoad.LoadWithLoadingScreen("TitleScene", FadeType.White);
         }
     }
