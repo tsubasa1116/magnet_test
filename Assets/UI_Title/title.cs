@@ -183,7 +183,7 @@ public class title : MonoBehaviour
                     if (cursorIndex == 0)
                     {
                         UISE.Instance.StartUI();
-                        SceneLoad.LoadWithLoadingScreen("SamScene", FadeType.Black);
+                        SceneLoad.LoadWithLoadingScreen("SampleScene", FadeType.Black);
                     }
                     else if (cursorIndex == 1)
                     {
