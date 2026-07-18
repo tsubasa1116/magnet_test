@@ -79,6 +79,9 @@ public class Mission: MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 1＝2Fへ移動 2＝バリア 3＝ボス 4＝ドア 5＝敵 6＝部屋移動
+    /// </summary>
     public void ClearMission(int spriteIndex)
     {
         // 1. 指定されたIDの画像を取得

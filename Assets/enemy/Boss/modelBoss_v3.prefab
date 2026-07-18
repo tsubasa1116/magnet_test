@@ -1526,6 +1526,9 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5749164344755181083}
     - targetCorrespondingSourceObject: {fileID: -8671427709155031640, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 3270700384866751611}
@@ -1772,6 +1775,7 @@ MonoBehaviour:
   ArmMesh: {fileID: 611297472600083875}
   attackDamage: 1
   bossScript: {fileID: 364246862457991203}
+  isLeft: 0
 --- !u!54 &8022127394348885258
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -2092,6 +2096,7 @@ MonoBehaviour:
   ArmMesh: {fileID: 5844721507097907357}
   attackDamage: 1
   bossScript: {fileID: 364246862457991203}
+  isLeft: 0
 --- !u!1 &6130334705992224310 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
@@ -2123,10 +2128,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::enemy_Boss
   bossMesh: {fileID: 6807997120657929935}
+  bossMain: {fileID: 0}
   targetPlayer: {fileID: 0}
   target: {fileID: 0}
   anim: {fileID: 0}
   hpBarScript: {fileID: 0}
+  barrier: {fileID: 0}
   moveSpeed: 10
   targetDistance: 10
   stopDistance: 5
@@ -2168,6 +2175,9 @@ MonoBehaviour:
     m_Bits: 8
   sepaArm: {fileID: 5224426238319890295, guid: be09bb6e465ad34418d3ee6935bd69a8, type: 3}
   sepaArmR: {fileID: 0}
+  autoReviveTime: 8
+  blinkDuration: 2
+  blinkInterval: 0.1
   isStartAction: 0
   actionInterval: 6
   isSecond: 0
@@ -2186,11 +2196,18 @@ MonoBehaviour:
   summonEffect: {fileID: 8777217394673370483, guid: cf45957e9cd9bc446b8fe8de6674f526, type: 3}
   summonRadius: 5
   summonCount: 3
+  gameOverTransition: {fileID: 0}
+  mission: {fileID: 0}
   attackTagN: N_Pole
   attackTagS: S_Pole
 --- !u!4 &6308404378603985230 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1034085623949093417, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
+  m_PrefabInstance: {fileID: 6472300754322813799}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &6798326865856173196 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
   m_PrefabInstance: {fileID: 6472300754322813799}
   m_PrefabAsset: {fileID: 0}
 --- !u!4 &6807997120657929935 stripped
@@ -2222,4 +2239,66 @@ Transform:
 SkinnedMeshRenderer:
   m_CorrespondingSourceObject: {fileID: -6757470901607252206, guid: e0a6408aa9361cc46bd3043451af6d5f, type: 3}
   m_PrefabInstance: {fileID: 6472300754322813799}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1001 &8013677348308329769
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 6798326865856173196}
+    m_Modifications:
+    - target: {fileID: 2377741817622459186, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.06
+      objectReference: {fileID: 0}
+    - target: {fileID: 2377741817622459186, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.24406056
+      objectReference: {fileID: 0}
+    - target: {fileID: 2377741817622459186, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.099
+      objectReference: {fileID: 0}
+    - target: {fileID: 2377741817622459186, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2377741817622459186, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2377741817622459186, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2377741817622459186, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2377741817622459186, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2377741817622459186, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2377741817622459186, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8410759849957338979, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+      propertyPath: m_Name
+      value: EffectBossCircleSpin_Light
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+--- !u!4 &5749164344755181083 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2377741817622459186, guid: d40f1a29757924d45970bb4b0f66950e, type: 3}
+  m_PrefabInstance: {fileID: 8013677348308329769}
   m_PrefabAsset: {fileID: 0}
