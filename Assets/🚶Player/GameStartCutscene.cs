@@ -62,6 +62,7 @@ public class GameStartCutscene : MonoBehaviour
 	private readonly List<Renderer> hiddenRenderers = new List<Renderer>();
 	private readonly List<Collider> disabledColliders = new List<Collider>();
 	private readonly List<Canvas> hiddenCanvases = new List<Canvas>();
+	private bool nyuxtuHidden; // Nyuxtu3でHUDをしまったか(終了時にShowUIで返す)
 
 	void Start()
 	{
@@ -97,9 +98,20 @@ public class GameStartCutscene : MonoBehaviour
 
 	private void Play()
 	{
+		// ゲームオーバーからのコンティニュー時はオープニングを再生しない
+		// (プレイヤーはPlayerRespawnがセーブポイントへ配置済み)
+		if (PlayerRespawn.ContinueFromCheckpoint)
+		{
+			if (Nyuxtu3.Instance != null) Nyuxtu3.Instance.ShowUI();
+			enabled = false;
+			return;
+		}
+
 		if (actorPrefab == null || playbackTemplate == null)
 		{
 			Debug.LogWarning("[GameStartCutscene] FBX参照かPlayback Templateが未設定のため再生をスキップします");
+			// Nyuxtu3のHUDは画面外初期化なので、再生しない場合はここで出しておく
+			if (Nyuxtu3.Instance != null) Nyuxtu3.Instance.ShowUI();
 			return;
 		}
 
@@ -220,15 +232,25 @@ public class GameStartCutscene : MonoBehaviour
 
 	private void HidePlayer()
 	{
-		// HUDを隠す(カットシーン映像に集中させる)
+		// HUDを隠す(カットシーン映像に集中させる)。
+		// ゲーム開始時はまだHUDを見せていないので、Nyuxtu3があればスライドを見せず即座に画面外へ
+		// (HideUI()だと開始の瞬間に「表示→スルッと消える」のが見えてしまう)
 		if (hideUI)
 		{
-			foreach (Canvas c in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+			if (Nyuxtu3.Instance != null)
 			{
-				if (c.enabled && c.isRootCanvas && c.renderMode != RenderMode.WorldSpace)
+				Nyuxtu3.Instance.HideUIImmediate();
+				nyuxtuHidden = true;
+			}
+			else
+			{
+				foreach (Canvas c in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
 				{
-					c.enabled = false;
-					hiddenCanvases.Add(c);
+					if (c.enabled && c.isRootCanvas && c.renderMode != RenderMode.WorldSpace)
+					{
+						c.enabled = false;
+						hiddenCanvases.Add(c);
+					}
 				}
 			}
 		}
@@ -345,6 +367,11 @@ public class GameStartCutscene : MonoBehaviour
 	{
 		RestorePhysics();
 
+		if (nyuxtuHidden)
+		{
+			nyuxtuHidden = false;
+			if (Nyuxtu3.Instance != null) Nyuxtu3.Instance.ShowUI();
+		}
 		foreach (Canvas c in hiddenCanvases)
 			if (c != null) c.enabled = true;
 		hiddenCanvases.Clear();

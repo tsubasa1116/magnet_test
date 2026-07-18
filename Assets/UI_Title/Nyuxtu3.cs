@@ -86,6 +86,23 @@ public class Nyuxtu3 : MonoBehaviour
        
     }
 
+    /// <summary>
+    /// アニメ無しで即座に画面外へ置く(ゲーム開始時など、最初から隠しておきたい時用)。
+    /// HideUI()だと画面内→画面外のスライドが一瞬見えてしまう。
+    /// </summary>
+    public void HideUIImmediate()
+    {
+        if (leftFollowUI != null) leftFollowUI.isPaused = true;
+        StopAllRoutines();
+
+        rightSide.anchoredPosition = startPos[0];
+        leftSide.anchoredPosition = startPos[1];
+        downSide.anchoredPosition = startPos[2];
+
+        if (fadeCanvasGroup != null)
+            fadeCanvasGroup.alpha = 0f;
+    }
+
     private void StopAllRoutines()
     {
         if (rightRoutine != null) StopCoroutine(rightRoutine);
