@@ -55,4 +55,4 @@ public class PunchArm : MonoBehaviour
     {
         isDetached = true;
     }
-}
+}   

@@ -34,6 +34,10 @@ public class PlayerMagnetSkin : MonoBehaviour
 	[SerializeField] private Texture faceEmissionN;
 	[SerializeField] private Texture faceEmissionS;
 
+	[Header("顔ホログラム(任意)")]
+	[Tooltip("マテリアルを割り当てると顔がホログラム表示になる(表情差分もそのまま反映される)。Noneなら通常表示")]
+	[SerializeField] private Material hologramFaceMaterial;
+
 	[Header("表情差分(未割当の表情は通常の顔のまま)")]
 	[Tooltip("状態(キャッチ/被弾/死亡)から表情を自動で切り替える")]
 	[SerializeField] private bool autoExpression = true;
@@ -65,6 +69,16 @@ public class PlayerMagnetSkin : MonoBehaviour
 		catchState = GetComponent<PlayerCatch>();
 		if (targetRenderer == null) targetRenderer = GetComponentInChildren<SkinnedMeshRenderer>();
 		if (targetRenderer != null) mats = targetRenderer.materials; // インスタンス化(共有アセットを汚さない)
+
+		// ホログラムマテリアルが指定されていれば、顔のマテリアルを差し替える
+		// (Apply()が顔テクスチャを_MainTexに流し込むので、表情差分もそのまま反映される)
+		if (hologramFaceMaterial != null && mats != null && faceIndex >= 0 && faceIndex < mats.Length)
+		{
+			mats[faceIndex] = new Material(hologramFaceMaterial);
+			targetRenderer.materials = mats;
+			mats = targetRenderer.materials;
+		}
+
 		stateMachine.OnStateChanged += Apply;
 	}
 
@@ -110,8 +124,15 @@ public class PlayerMagnetSkin : MonoBehaviour
 		if (IsValid(faceIndex))
 		{
 			Material fm = mats[faceIndex];
-			SetAlbedo(fm, SelectFaceTexture(n));
-			SetTex(fm, EmissionMapID, n ? faceEmissionN : faceEmissionS);
+			Texture face = SelectFaceTexture(n);
+			SetAlbedo(fm, face);
+
+			// 表情差分中に通常顔のエミッシブが重なると「二重の顔」に見えるため、
+			// 表情中はエミッシブにも同じ表情テクスチャを使う(通常時は専用エミッシブ)
+			Texture emission = expression == FaceExpression.Normal
+				? (n ? faceEmissionN : faceEmissionS)
+				: face;
+			SetTex(fm, EmissionMapID, emission);
 			fm.EnableKeyword("_EMISSION");
 		}
 	}

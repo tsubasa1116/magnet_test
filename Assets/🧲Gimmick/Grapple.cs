@@ -2,209 +2,215 @@ using UnityEngine;
 
 public class Grapple : MonoBehaviour
 {
-    [Header("エフェクト")]
-    [SerializeField] private GameObject nPoleObjectAttractEffect;
-    [SerializeField] private GameObject sPoleObjectAttractEffect;
+    #region Effect
 
-    [Header("レーザーエフェクト")]
-    [SerializeField] private GameObject nPoleLaserEffect;
-    [SerializeField] private GameObject sPoleLaserEffect;
+    [Header("Attract Effect")]
+
+    [SerializeField]private GameObject nPoleObjectAttractEffect;
+    [SerializeField]private GameObject sPoleObjectAttractEffect;
+
+    [Header("Laser")]
+    [SerializeField]private GameObject nPoleLaserEffect;
+    [SerializeField]private GameObject sPoleLaserEffect;
+
+    #endregion
+
+    [Header("Physics")]
+    [SerializeField]private GrapplePhysics physics = new GrapplePhysics();
+    [SerializeField]private float grappleDuration = 2.0f;
+
+    private float grappleTimer;
+    private PlayerMovement movement;
+    private Rigidbody playerRb;
+    private GameObject player;
 
     private GameObject currentLaser;
     private LineRenderer currentLine;
     private GameObject currentEffect;
 
-    private GameObject player;
-    private Rigidbody playerRb;
+    private bool initialized;
 
-    [Header("立体機動")]
-    [SerializeField] private float pullForce = 50f;      // 引っ張る力
-    [SerializeField] private float reelSpeed = 15f;      // ワイヤー巻き取り速度
-    [SerializeField] private float stopDistance = 5f;    // 終了距離
+    public bool IsGrappling
+    {
+        get
+        {
+            return physics.IsGrappling;
+        }
+    }
 
-    private bool isGrappling;
+    private void Awake()
+    {
 
-    private Vector3 grapplePoint;        // アンカー位置
-    private float ropeLength;            // 現在のロープ長
+    }
 
-    // プレイヤーから呼び出す
+    /// Grapple開始
     public void StartGrapple(GameObject targetPlayer)
     {
-        if (isGrappling)
-            return;
+        if (physics.IsGrappling) return;
+
+        if (targetPlayer == null) return;
 
         player = targetPlayer;
 
-        if (player == null)
-            return;
-
         playerRb = player.GetComponent<Rigidbody>();
 
-        if (playerRb == null)
-            return;
+        if (playerRb == null) return;
 
-        isGrappling = true;
+        movement = player.GetComponent<PlayerMovement>();
 
-        // アンカー位置を保存
-        grapplePoint = transform.position;
+        physics.Initialize(playerRb);
 
-        // 現在のロープ長
-        ropeLength = Vector3.Distance(playerRb.position, grapplePoint);
+        physics.Begin(transform);
 
-        // 最初に少しだけ引っ張る
-        Vector3 dir = (grapplePoint - playerRb.position).normalized;
-        playerRb.AddForce(dir * pullForce * 0.5f, ForceMode.VelocityChange);
+        initialized = true;
 
-        PlayerMovement movement = player.GetComponent<PlayerMovement>();
+        if (movement != null) movement.IsOnGrapple = true;
 
-        if (movement != null)
-        {
-            movement.IsOnRopeway = true;
-        }
-
-        // エフェクト開始
         StartGrappleEffect();
+        grappleTimer = grappleDuration;
     }
 
-    void Update()
+    /// Grapple終了
+    public void StopGrapple()
     {
-        if (!isGrappling || player == null)
-            return;
+        if (!physics.IsGrappling) return;
 
-        // プレイヤーをアンカー方向へ向ける
-        Vector3 direction = (grapplePoint - player.transform.position).normalized;
+        physics.End();
 
-        if (direction != Vector3.zero)
-        {
-            player.transform.rotation = Quaternion.RotateTowards(
-                player.transform.rotation,
-                Quaternion.LookRotation(direction),
-                600f * Time.deltaTime);
-        }
+        if (movement != null) movement.IsOnGrapple = false;
 
-        // エフェクト
-        if (currentEffect != null)
-        {
-            currentEffect.transform.position =
-                grapplePoint + direction * 5f;
+        StopGrappleEffect();
 
-            currentEffect.transform.rotation =
-                Quaternion.LookRotation(-direction);
-        }
+        initialized = false;
 
-        // ワイヤー描画
-        if (currentLine != null)
-        {
-            currentLine.SetPosition(0, grapplePoint);
-            currentLine.SetPosition(1, player.transform.position);
-        }
+        player = null;
+        playerRb = null;
+        movement = null;
+    }
 
-        // 近づいたら終了
-        if (Vector3.Distance(player.transform.position, grapplePoint) <= stopDistance)
+    private void Update()
+    {
+        if (!initialized) return;
+
+        if (!physics.IsGrappling) return;
+
+        grappleTimer -= Time.deltaTime;
+
+        if (grappleTimer <= 0f)
         {
             StopGrapple();
+            return;
         }
+
+        UpdatePlayerRotation();
+
+        UpdateEffect();
+
+        UpdateLaser();
     }
 
     private void FixedUpdate()
     {
-        if (!isGrappling || playerRb == null)
-            return;
+        if (!initialized) return;
 
-        GrappleMove();
+        if (!physics.IsGrappling) return;
+
+        // PlayerMovementが保持する入力を使うため、キーボードとゲームパッドの両方で操作できる。
+        Vector2 moveInput = movement != null ? movement.MoveInput : Vector2.zero;
+
+        physics.FixedTick(moveInput, Camera.main != null ? Camera.main.transform : null);
     }
 
-    private void GrappleMove()
+    /// プレイヤーをアンカー方向へ向ける
+    private void UpdatePlayerRotation()
     {
-        // ロープ方向
-        Vector3 rope = grapplePoint - playerRb.position;
+        if (player == null) return;
 
-        float distance = rope.magnitude;
+        Vector3 direction = physics.Anchor.position - player.transform.position;
 
-        if (distance <= 0.1f)
-            return;
+        direction.y = 0f;
 
-        Vector3 dir = rope.normalized;
+        if (direction.sqrMagnitude < 0.001f) return;
 
-        // 上方向へ引っ張りすぎない
-        if (dir.y > 0f)
+        Quaternion targetRotation = Quaternion.LookRotation(direction);
+
+        player.transform.rotation = Quaternion.RotateTowards(player.transform.rotation, targetRotation, 720f * Time.deltaTime);
+    }
+
+    /// 吸着エフェクト更新
+    private void UpdateEffect()
+    {
+        if (currentEffect == null) return;
+
+        Vector3 direction = (player.transform.position - transform.position).normalized;
+
+        currentEffect.transform.position = transform.position + direction * 0.4f;
+
+        currentEffect.transform.rotation = Quaternion.LookRotation(direction);
+    }
+
+    /// レーザー更新
+    private void UpdateLaser()
+    {
+        if (currentLine == null) return;
+
+        currentLine.SetPosition(0, transform.position);
+
+        currentLine.SetPosition(1, player.transform.position);
+    }
+
+    /// エフェクト開始
+    private void StartGrappleEffect()
+    {
+        //------------------------------------------------
+        // 吸着エフェクト
+        //------------------------------------------------
+        if (currentEffect == null)
         {
-            dir.y *= 0.2f;
-            dir.Normalize();
-        }
+            GameObject effectPrefab = null;
 
-        // ワイヤー巻き取り
-        ropeLength -= reelSpeed * Time.fixedDeltaTime;
-        ropeLength = Mathf.Max(stopDistance, ropeLength);
+            if (CompareTag("S_Pole"))
+                effectPrefab = sPoleObjectAttractEffect;
+            else
+                effectPrefab = nPoleObjectAttractEffect;
 
-        // アンカー方向へ引っ張る
-        playerRb.AddForce(dir * pullForce, ForceMode.Acceleration);
-
-        // ロープ長を超えたら補正
-        if (distance > ropeLength)
-        {
-            // ロープ長に合わせる
-            playerRb.position =
-                grapplePoint - dir * ropeLength;
-
-            // ロープ方向へ離れる速度だけ消す
-            Vector3 velocity = playerRb.linearVelocity;
-
-            float awaySpeed = Vector3.Dot(velocity, dir);
-
-            if (awaySpeed < 0f)
+            if (effectPrefab != null)
             {
-                velocity -= dir * awaySpeed;
+                currentEffect = Instantiate(effectPrefab, transform.position, Quaternion.identity, transform);
             }
-
-            playerRb.linearVelocity = velocity;
-        }
-    }
-
-    // プレイヤーがこのオブジェクトに立体機動した時に呼ぶ
-    public void StartGrappleEffect()
-    {
-        if (currentEffect == null && sPoleObjectAttractEffect != null)
-        {
-            currentEffect = Instantiate(sPoleObjectAttractEffect, transform.position, Quaternion.identity, transform);
         }
 
-        // レーザー生成
+        //------------------------------------------------
+        // レーザー
+        //------------------------------------------------
         if (currentLaser == null)
         {
-            // この点はプレイヤーの逆極なので、プレイヤー側の極でレーザー色を選ぶ
-            GameObject laserPrefab = CompareTag("S_Pole") ? nPoleLaserEffect : sPoleLaserEffect;
+            GameObject laserPrefab = null;
+
+            if (CompareTag("S_Pole"))
+                laserPrefab = nPoleLaserEffect;
+            else
+                laserPrefab = sPoleLaserEffect;
 
             if (laserPrefab != null)
             {
                 currentLaser = Instantiate(laserPrefab);
+
                 currentLine = currentLaser.GetComponentInChildren<LineRenderer>();
+
+                if (currentLine != null && player != null)
+                {
+                    currentLine.positionCount = 2;
+
+                    currentLine.SetPosition(0, transform.position);
+                    currentLine.SetPosition(1, player.transform.position);
+                }
             }
         }
     }
 
-    public void StopGrapple()
-    {
-        if (!isGrappling)
-            return;
-
-        isGrappling = false;
-
-        StopGrappleEffect();
-
-        PlayerMovement movement = player.GetComponent<PlayerMovement>();
-
-        if (movement != null)
-        {
-            movement.IsOnRopeway = false;
-        }
-
-        player = null;
-        playerRb = null;
-    }
-
-    // 立体機動終了時に呼ぶ
-    public void StopGrappleEffect()
+    /// エフェクト終了
+    private void StopGrappleEffect()
     {
         if (currentLaser != null)
         {
@@ -220,4 +226,40 @@ public class Grapple : MonoBehaviour
         }
     }
 
+    /// 現在のプレイヤー
+    public GameObject Player
+    {
+        get
+        {
+            return player;
+        }
+    }
+
+    /// プレイヤーRigidbody
+    public Rigidbody PlayerRigidbody
+    {
+        get
+        {
+            return playerRb;
+        }
+    }
+
+    /// GrapplePhysics取得
+    public GrapplePhysics Physics
+    {
+        get
+        {
+            return physics;
+        }
+    }
+
+    private void OnDisable()
+    {
+        StopGrapple();
+    }
+
+    private void OnDestroy()
+    {
+        StopGrapple();
+    }
 }

@@ -67,7 +67,9 @@ public class MagnetPull : MonoBehaviour
     // --- ギミック相互作用（引き寄せ対象がギミックなら、物体を引くのではなくこちらが作用する） ---
     private Rigidbody playerRb;            // 自分のRigidbody(ジャンプ台で使う)
 	private Grapple currentGrapple;        // 立体機動中の対象
+	private bool grappleReleaseAwaitingInputRelease;
 	private RopewayMagnet currentRopeway;  // ロープウェイ吸着中の対象
+	private Transform laserTarget;
     private jump currentJumpStand;
     [SerializeField] private float jumpCooldown;
 
@@ -121,8 +123,17 @@ public class MagnetPull : MonoBehaviour
         if (!catchState.IsCatching)
         {
             EndInteraction();
+			grappleReleaseAwaitingInputRelease = false;
             return;
         }
+
+		// 時間切れの解除後は、磁力を一度OFFにするまで再接続を防ぐ。
+		if (currentGrapple != null && !currentGrapple.IsGrappling)
+		if (currentGrapple != null && !currentGrapple.IsGrappling)
+		{
+			currentGrapple = null;
+			grappleReleaseAwaitingInputRelease = true;
+		}
 
         if (currentJumpStand != null && jumpCooldown <= 0f && currentJumpStand.CanLaunch(stateMachine))
         {
@@ -131,7 +142,7 @@ public class MagnetPull : MonoBehaviour
             return;
         }
 
-        if (!Interacting)
+		if (!Interacting && !grappleReleaseAwaitingInputRelease)
         {
             TryInteract();
         }
@@ -144,16 +155,18 @@ public class MagnetPull : MonoBehaviour
                 EndInteraction();
         }
 
-        if (currentLine != null && held != null)
+		if (currentLine != null && (laserTarget != null || currentRopeway != null))
         {
             currentLine.useWorldSpace = true;
 
             currentLine.SetPosition(0, HandPos);
-            currentLine.SetPosition(1, held.worldCenterOfMass);
+			currentLine.SetPosition(1, currentRopeway != null
+				? currentRopeway.TetherPoint
+				: laserTarget.position);
 
             currentLaser.transform.position = Vector3.zero;
         }
-        else if (attached)
+		else if (attached || (currentRopeway != null && currentRopeway.IsAttached))
         {
             DestroyEffect();
         }
@@ -184,29 +197,44 @@ public class MagnetPull : MonoBehaviour
         if (held != null && !attached) PullHeld();
     }
 
-    // 相互作用の終了（ZR離し・極切替）
-    private void EndInteraction()
-    {
-        if (held != null) Release();
-        if (currentGrapple != null)
-        {
-            currentGrapple.StopGrapple();
-            currentGrapple = null;
-        }
-        if (currentRopeway != null)
-        {
-            currentRopeway.DetachPlayer();
-            currentRopeway = null;
-        }
-    }
+	// 相互作用の終了（ZR離し・極切替）
+	private void EndInteraction()
+	{
+		if (held != null) Release();
+		if (currentGrapple != null)
+		{
+			currentGrapple.StopGrapple();
+			currentGrapple = null;
+		}
+		if (currentRopeway != null)
+		{
+			currentRopeway.DetachPlayer();
+			currentRopeway = null;
+			DestroyEffect();
+		}
+	}
 
     private Transform HandParent => handPoint != null ? handPoint : transform;
     private Vector3 HandPos => handPoint != null
         ? handPoint.position
         : transform.position + transform.forward * 0.8f + Vector3.up * 1f;
 
-    private string WantedTag()
-        => stateMachine.CurrentState == MagnetState.S ? "N_Pole" : "S_Pole";
+    // 変更後：物体用・敵用の両方を返す
+    private static readonly string[] NPoleTags = { "N_Pole", "N_Enemy" };
+    private static readonly string[] SPoleTags = { "S_Pole", "S_Enemy" };
+
+    private string[] WantedTags()
+        => stateMachine.CurrentState == MagnetState.S ? NPoleTags : SPoleTags;
+
+    private bool IsWantedTag(Component c)
+    {
+        var tags = WantedTags();
+        for (int i = 0; i < tags.Length; i++)
+        {
+            if (c.CompareTag(tags[i])) return true;
+        }
+        return false;
+    }
 
     // 引き寄せ対象を判定して、種類ごとの作用を起動する
     private void TryInteract()
@@ -220,8 +248,8 @@ public class MagnetPull : MonoBehaviour
 		if (aim != null && aim.IsLockedOn && aim.LockOnTarget != null)
 		{
 			Transform target = aim.LockOnTarget;
-			if (target.CompareTag(WantedTag())
-				&& Vector3.Distance(transform.position, target.position) <= rayRange)
+			if (IsWantedTag(target)
+            && Vector3.Distance(transform.position, target.position) <= rayRange)
 			{
 				InteractWith(target);
 			}
@@ -239,13 +267,13 @@ public class MagnetPull : MonoBehaviour
             Collider col = hit.collider;
             if (col.transform.IsChildOf(transform)) continue; // 自分は無視
 
-            if (!col.CompareTag(WantedTag()))
+            if (!IsWantedTag(col))
             {
-                if (col.isTrigger) continue; // 非対象のトリガーは視線を遮らない
-                return;                       // 非対象のソリッド(壁等)で遮られる
+                if (col.isTrigger) continue;
+                return;
             }
 
-			InteractWith(col.transform);
+            InteractWith(col.transform);
 			return;
 		}
 	}
@@ -270,6 +298,7 @@ public class MagnetPull : MonoBehaviour
 			grabbedPole = stateMachine.CurrentState;
 			ropeway.AttachPlayer(gameObject);
 			currentRopeway = ropeway;
+			CreateRopewayTether(ropeway.TetherPoint);
 			return;
 		}
 
@@ -304,6 +333,10 @@ public class MagnetPull : MonoBehaviour
         attached = false;
         pullVel = Vector3.zero;
         grabbedPole = stateMachine.CurrentState;
+		attached = false;
+		pullVel = Vector3.zero;
+		grabbedPole = stateMachine.CurrentState;
+		laserTarget = held.transform;
 
         // 引き寄せ中はキネマティックにして確実に・滑らかに動かす
         savedUseGravity = rb.useGravity;
@@ -343,7 +376,7 @@ public class MagnetPull : MonoBehaviour
                     currentLine.positionCount = 2;
 
                     currentLine.SetPosition(0, HandPos);
-                    currentLine.SetPosition(1, held.worldCenterOfMass);
+					currentLine.SetPosition(1, laserTarget.position);
                 }
 
                 Debug.Log(currentLine);
@@ -361,6 +394,41 @@ public class MagnetPull : MonoBehaviour
             {
                 currentAttractEffect = Instantiate(attractPrefab, HandParent);
 
+                currentAttractEffect.transform.localPosition = Vector3.zero;
+                currentAttractEffect.transform.localRotation = Quaternion.identity;
+            }
+        }
+    }
+
+    private void CreateRopewayTether(Vector3 target)
+    {
+        laserTarget = null;
+
+        if ((health == null || !health.IsDead) && currentLaser == null)
+        {
+            GameObject laserPrefab = stateMachine.CurrentState == MagnetState.N
+                ? nPoleLaserEffect : sPoleLaserEffect;
+            if (laserPrefab != null)
+            {
+                currentLaser = Instantiate(laserPrefab, null);
+                currentLine = currentLaser.GetComponentInChildren<LineRenderer>();
+                if (currentLine != null)
+                {
+                    currentLine.useWorldSpace = true;
+                    currentLine.positionCount = 2;
+                    currentLine.SetPosition(0, HandPos);
+                    currentLine.SetPosition(1, target);
+                }
+            }
+        }
+
+        if ((health == null || !health.IsDead) && currentAttractEffect == null)
+        {
+            GameObject attractPrefab = stateMachine.CurrentState == MagnetState.N
+                ? nPoleAttractEffect : sPoleAttractEffect;
+            if (attractPrefab != null)
+            {
+                currentAttractEffect = Instantiate(attractPrefab, HandParent);
                 currentAttractEffect.transform.localPosition = Vector3.zero;
                 currentAttractEffect.transform.localRotation = Quaternion.identity;
             }
@@ -499,7 +567,8 @@ public class MagnetPull : MonoBehaviour
         ThrowableObject throwable = held.GetComponent<ThrowableObject>();
         if (throwable != null) throwable.Throw();
 
-        Vector3 dir = transform.forward;
+        // 画面中央(照準)で狙った方向へ飛ばす
+        Vector3 dir = GetThrowDirection();
         if (attached) held.transform.SetParent(null);
         RestoreColliders();
         if (heldAura != null) heldAura.SetHeld(false);
@@ -524,6 +593,33 @@ public class MagnetPull : MonoBehaviour
 
         ClearHeld();
     }
+
+	// 発射方向: 画面中央(照準)のレイで狙った点へ向かう方向。
+	// 何にも当たらなければカメラの正面方向へ飛ばす
+	private Vector3 GetThrowDirection()
+	{
+		Camera cam = aimCamera != null ? aimCamera : Camera.main;
+		if (cam == null) return transform.forward;
+
+		Ray ray = cam.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f, 0f));
+
+		// 自分と保持物は照準判定から除外し、一番手前のヒット点を狙う
+		RaycastHit best = default;
+		bool found = false;
+		foreach (RaycastHit h in Physics.RaycastAll(ray, 100f, rayMask, QueryTriggerInteraction.Ignore))
+		{
+			if (h.collider.transform.IsChildOf(transform)) continue;
+			if (held != null && h.collider.transform.IsChildOf(held.transform)) continue;
+			if (!found || h.distance < best.distance)
+			{
+				best = h;
+				found = true;
+			}
+		}
+
+		Vector3 dir = found ? (best.point - HandPos) : ray.direction;
+		return dir.sqrMagnitude > 0.001f ? dir.normalized : ray.direction;
+	}
 
     private void RestoreColliders()
     {
@@ -568,6 +664,7 @@ public class MagnetPull : MonoBehaviour
 
     void DestroyEffect()
     {
+		laserTarget = null;
         if (currentLaser != null)
         {
             Destroy(currentLaser);

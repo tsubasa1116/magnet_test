@@ -1,13 +1,13 @@
 using UnityEngine;
 
-public class dash : MonoBehaviour
+public class Repel : MonoBehaviour
 {
     [Header("効果音")]
     [SerializeField] private AudioClip dashSound;
 
     [Header("ダッシュ設定")]
     // 吹き飛ばす力
-    [SerializeField] private float dashForce = 2000.0f;
+    [SerializeField] private float dashForce = 25.0f;
 
     // 少し上方向へ飛ばす力
     [SerializeField] private float liftForce = 2.0f;
