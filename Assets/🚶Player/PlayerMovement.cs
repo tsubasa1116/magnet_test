@@ -20,6 +20,8 @@ public class PlayerMovement : MonoBehaviour
 	[SerializeField, Range(0f, 1f)] private float knockbackAirControlScale = 0.25f;
 	[Tooltip("被弾後(無敵時間中)の地上の加速度(m/s²)。小さいほど吹き飛びの慣性が残る")]
 	[SerializeField] private float knockbackGroundAcceleration = 12f;
+	[Tooltip("Catch中(ZR押下中。ホールド中は除く)の移動速度倍率。磁石を構えている踏ん張り感")]
+	[SerializeField, Range(0f, 1f)] private float catchMoveSpeedScale = 0.4f;
 
 	[Header("ジャンプ設定")]
 	[SerializeField] private float jumpForce = 7f;
@@ -37,16 +39,19 @@ public class PlayerMovement : MonoBehaviour
 	[Tooltip("段差を乗り越える時の持ち上げ速度(1物理ステップあたりm)")]
 	[SerializeField] private float stepLift = 0.08f;
 
-	private Rigidbody rb;
+    [Header("SE")]
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip jumpSE;
+
+    private Rigidbody rb;
 	private Vector2 moveInput;
 	private bool isDashing;
 	private bool isGrounded;
 	private bool isBlocked;
 	private Transform cameraTransform;
 	private PlayerHealth health;
-	private InputAction dashAction;
-	private PlayerAim aim;
 	private PlayerCatch catchState;
+	private MagnetPull magnetPull; // Catch減速の除外判定(ホールド中か)の参照用
 	private Vector3 targetForward; // 見た目の向きの目標。入力が止んでも保持してそこへ向き続ける
 	private float currentMoveSpeed; // 実際に適用中の移動速度(加速のため保持)
 	private bool jumpConsumed; // ジャンプ連打による2段ジャンプ防止(着地するまでtrue)
@@ -56,6 +61,9 @@ public class PlayerMovement : MonoBehaviour
 
     private Vector3 externalVelocity;
     private bool isExternalForce;
+    // SetExternalVelocityで速度を渡された外力(Repel等)か。
+    // falseの外力(被弾ノックバック・ダッシュ台)は速度に触れず物理に任せる
+    private bool externalVelocityDriven;
 
     // --- アニメーション側(AnimationStateController)が参照する状態フラグ ---
     // 「どう動いているか」はこの行動コードが持ち、見た目の制御はAnimation側に任せる
@@ -76,8 +84,9 @@ public class PlayerMovement : MonoBehaviour
 	void Awake()
 	{
 		rb = GetComponent<Rigidbody>();
-		// 物理で倒れないように回転を固定（向きはスクリプトで制御する）
-		rb.freezeRotation = true;
+        // 物理で倒れないように回転を固定（向きはスクリプトで制御する）
+        audioSource = GetComponent<AudioSource>();
+        rb.freezeRotation = true;
 		// 物理ステップ間を補間して、カメラ追従時のカクつきを防ぐ
 		rb.interpolation = RigidbodyInterpolation.Interpolate;
 		cameraTransform = Camera.main.transform;
@@ -99,8 +108,8 @@ public class PlayerMovement : MonoBehaviour
 				if (mainCollider == null) mainCollider = col;
 			}
 
-		aim = GetComponent<PlayerAim>();
 		catchState = GetComponent<PlayerCatch>();
+		magnetPull = GetComponent<MagnetPull>();
 		health = GetComponent<PlayerHealth>();
 
 		Vector3 f = transform.forward;
@@ -109,10 +118,13 @@ public class PlayerMovement : MonoBehaviour
 		currentMoveSpeed = moveSpeed;
 	}
 
-	// エイム中か（カメラズーム用。アニメ側も参照可）
-	public bool IsAiming => aim != null && aim.IsAiming;
 	// Catch中か（ZRホールド中。体の向きと catchストレイフアニメに使う）
 	public bool IsCatching => catchState != null && catchState.IsCatching;
+
+	// Catch中(ZRで磁石を構えている間=Catch系アニメ再生中)は足が遅くなる。
+	// ただしホールド中(手元に保持済み)は通常速度。それ以外も等倍
+	private float MoveSpeedScale =>
+		IsCatching && (magnetPull == null || !magnetPull.IsHolding) ? catchMoveSpeedScale : 1f;
 
 	void FixedUpdate()
 	{
@@ -132,8 +144,6 @@ public class PlayerMovement : MonoBehaviour
 			return;
 		}
 
-		// 実際のボタンの押下状態をそのまま反映（離せば必ずfalseに戻る）
-		isDashing = dashAction != null && dashAction.IsPressed();
 		// スティックの倒し具合でダッシュ判定(深く倒す=ダッシュ、浅い=歩き)
 		isDashing = moveInput.magnitude >= dashInputThreshold;
 		isGrounded = CheckGrounded();
@@ -148,7 +158,7 @@ public class PlayerMovement : MonoBehaviour
 		// 入力があるのに実速度が極端に小さい＝壁などで止められている。
 		Vector3 v = rb.linearVelocity;
 		v.y = 0f;
-		float desired = (isDashing ? dashSpeed : moveSpeed) * Mathf.Clamp01(moveInput.magnitude);
+		float desired = (isDashing ? dashSpeed : moveSpeed) * MoveSpeedScale * Mathf.Clamp01(moveInput.magnitude);
 		isBlocked = IsMoving && desired > 0.01f && v.magnitude < desired * blockedRatio;
 
         if (!IsOnRopeway && !IsOnGrapple)
@@ -259,39 +269,42 @@ public class PlayerMovement : MonoBehaviour
 			return;
 		}
 
-        // 加速
-        float targetSpeed = isDashing ? dashSpeed : moveSpeed;
+        // 加速。Catch中(磁石構え中。ホールド中は除く)は減速(MoveSpeedScale)を掛ける
+        float targetSpeed = (isDashing ? dashSpeed : moveSpeed) * MoveSpeedScale;
 
         currentMoveSpeed = Mathf.MoveTowards(
             currentMoveSpeed,
             targetSpeed,
             acceleration * Time.deltaTime);
 
-        Vector3 inputVelocity = moveDir * currentMoveSpeed;
-
         // ===== 外力中 =====
         if (isExternalForce)
         {
-            externalVelocity = Vector3.MoveTowards(
-                externalVelocity,
-                Vector3.zero,
-                20f * Time.deltaTime);
+            // SetExternalVelocityで速度を渡された時(Repel等)だけ外力ドライブする。
+            // 渡されていない外力(被弾ノックバック・ダッシュ台)は速度に一切触れず、
+            // AddForceされたインパルスを物理に任せる(マージ前のtsubasa64のノックバック仕様)
+            if (externalVelocityDriven)
+            {
+                externalVelocity = Vector3.MoveTowards(
+                    externalVelocity,
+                    Vector3.zero,
+                    20f * Time.deltaTime);
 
-            // 入力で外力を直接変化させる
-            externalVelocity += moveDir * 25f * Time.deltaTime;
+                // 入力で外力を直接変化させる
+                externalVelocity += moveDir * 25f * Time.deltaTime;
 
-            Vector3 finalVelocity = externalVelocity;
-            finalVelocity.y = rb.linearVelocity.y;
+                Vector3 finalVelocity = externalVelocity;
+                finalVelocity.y = rb.linearVelocity.y;
 
-            rb.linearVelocity = finalVelocity;
+                rb.linearVelocity = finalVelocity;
+            }
         }
 		// ===== 通常移動 =====
+        // ※ここで速度を無条件上書きしない(tsubasa64の旧ノックバック仕様)。
+        //   被弾の吹き飛び慣性は、下の地上/空中それぞれの分岐が
+        //   knockbackGroundAcceleration / knockbackAirControlScale で処理する
         else
         {
-            rb.linearVelocity = new Vector3(
-                inputVelocity.x,
-                rb.linearVelocity.y,
-                inputVelocity.z);
 			if (isGrounded)
 			{
 				// 段差乗り越えの直後は、角を駆け上がった上向き速度を殺す
@@ -404,6 +417,7 @@ public class PlayerMovement : MonoBehaviour
 
     public void SetExternalVelocity(Vector3 velocity)
     {
+        externalVelocityDriven = true;
         externalVelocity = velocity;
 
         rb.linearVelocity = new Vector3(
@@ -426,5 +440,6 @@ public class PlayerMovement : MonoBehaviour
         yield return new WaitForSeconds(duration);
 
         isExternalForce = false;
+        externalVelocityDriven = false; // 次の外力が旧方式ならドライブしない
     }
 }

@@ -32,7 +32,7 @@ public class enemy_Sky : MonoBehaviour
     [SerializeField] private float attackInterval = 2.0f;
     [SerializeField] private float beamSpeed = 10.0f;
     private bool isAttack = false;
-
+    private bool hasFoundPlayer = false;
     [Header("浮遊高度")]
     [SerializeField] private float hoverHeight = 2.0f;     // 地面からの基本の高さ
     [SerializeField] private float hoverRange = 0.5f;
@@ -514,13 +514,30 @@ public class enemy_Sky : MonoBehaviour
 
         if (nextState == EnemyState.Wait)
         {
-            if (agent.isOnNavMesh) agent.isStopped = true;
+            if (hasFoundPlayer)
+            {
+                hasFoundPlayer = false;
+            }
+
+            if (agent.isOnNavMesh)
+                agent.isStopped = true;
         }
         else if (nextState == EnemyState.Notice)
         {
-            if (agent.isOnNavMesh) agent.isStopped = true;
+            if (agent.isOnNavMesh)
+                agent.isStopped = true;
+
             noticeTimer = noticeTime;
-            if (markExclamation != null) markExclamation.SetActive(true);
+
+            if (!hasFoundPlayer)
+            {
+                hasFoundPlayer = true;
+                CombatStateManager.Instance.EnterCombat(this.gameObject);
+            }
+
+            if (markExclamation != null)
+                markExclamation.SetActive(true);
+
             StartCoroutine(HideMark(markExclamation, noticeTime));
         }
         else if (nextState == EnemyState.Attack)
@@ -529,13 +546,27 @@ public class enemy_Sky : MonoBehaviour
         }
         else if (nextState == EnemyState.Search)
         {
-            if (markQuestion != null) markQuestion.SetActive(true);
+            if (hasFoundPlayer)
+            {
+                hasFoundPlayer = false;
+                CombatStateManager.Instance.ExitCombat(this.gameObject);
+            }
+
+            if (markQuestion != null)
+                markQuestion.SetActive(true);
+
             StartCoroutine(HideMark(markQuestion, 1.5f));
+
             searchTimer = searchTime;
             WanderAround();
         }
         else if (nextState == EnemyState.Return)
         {
+            if (hasFoundPlayer)
+            {
+                hasFoundPlayer = false;
+            }
+
             agent.SetDestination(startPosition);
         }
     }
@@ -610,6 +641,13 @@ public class enemy_Sky : MonoBehaviour
 
     private void Die()
     {
+        if (hasFoundPlayer)
+        {
+            hasFoundPlayer = false;
+        }
+
+        CombatStateManager.Instance.ExitCombat(this.gameObject);
+
         if (enemyDeathEffect != null) Instantiate(enemyDeathEffect, transform.position, Quaternion.identity);
         Destroy(gameObject);
         GameManager.Instance.AddKill();

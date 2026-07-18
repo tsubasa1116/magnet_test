@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7440372303202621969
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5202555737853969916}
+  - component: {fileID: 9063384374016924970}
+  m_Layer: 0
+  m_Name: BossEndCutscene
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5202555737853969916
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7440372303202621969}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -314.07, y: 8.63, z: -136.51}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9063384374016924970
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7440372303202621969}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0e5d1a7ec5c0de4f8a9b2c3d4e5f608, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  actorClip: {fileID: 1827226128182048838, guid: 19aefbc502d328f4297169494c26dc88, type: 3}
+  cameraPrefab: {fileID: 919132149155446097, guid: a30fa507ebe6a50409c8a5a94c8b504c, type: 3}
+  cameraClip: {fileID: 1827226128182048838, guid: a30fa507ebe6a50409c8a5a94c8b504c, type: 3}
+  playbackTemplate: {fileID: 9100000, guid: c9f1e2d3a4b5687090a1b2c3d4e5f607, type: 2}
+  flashFrames:
+  - 6
+  - 35
+  - 45
+  flashFadeTime: 0.25
+  flashMaxAlpha: 1
+  sphereStartFrame: 150
+  sphereExpandTime: 0.5
+  sphereHoldTime: 0.2
+  sphereShrinkTime: 0.3
+  sphereMaxRadius: 8
+  sphereColor: {r: 1, g: 1, b: 1, a: 0.95}
+  sphereMaterial: {fileID: 2100000, guid: b05f3a1c7e9d2b4f8a6c0d1e2f3a4b5c, type: 2}
+  spherePrefab: {fileID: 0}
+  boss: {fileID: 0}
+  spawnPoint: {fileID: 0}
+  cameraBlendInTime: 1
+  cameraBlendOutTime: 1.2
+  hideUI: 1
+  debugKillKey: 107

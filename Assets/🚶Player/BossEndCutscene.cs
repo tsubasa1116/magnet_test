@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using Cinemachine;
 
 // ボス撃破カットシーン。ボスのHPが0になったら自動再生する(一度だけ)。
@@ -27,6 +28,30 @@ public class BossEndCutscene : MonoBehaviour
 	[Header("再生用テンプレート(CutscenePlayback.controller)")]
 	[SerializeField] private RuntimeAnimatorController playbackTemplate;
 
+	[Header("演出: 白フラッシュ(クリップのフレーム番号・昇順で)")]
+	[Tooltip("この各フレームで画面を白く光らせる(カットの切り替わり用)")]
+	[SerializeField] private float[] flashFrames = { 6f, 35f, 45f };
+	[Tooltip("白から透明へ戻る時間(秒)")]
+	[SerializeField] private float flashFadeTime = 0.25f;
+	[SerializeField, Range(0f, 1f)] private float flashMaxAlpha = 1f;
+
+	[Header("演出: 消滅球体(ボスを包んで消す)")]
+	[Tooltip("球体が広がり始めるクリップのフレーム番号")]
+	[SerializeField] private float sphereStartFrame = 150f;
+	[Tooltip("最大まで広がる時間(秒)")]
+	[SerializeField] private float sphereExpandTime = 0.45f;
+	[Tooltip("最大のまま保持する時間(秒)。この間(包まれている間)にボスを消す")]
+	[SerializeField] private float sphereHoldTime = 0.2f;
+	[Tooltip("しぼんで消える時間(秒)")]
+	[SerializeField] private float sphereShrinkTime = 0.55f;
+	[Tooltip("球体の最大半径(ボスがすっぽり入る大きさ)")]
+	[SerializeField] private float sphereMaxRadius = 8f;
+	[SerializeField] private Color sphereColor = new Color(1f, 1f, 1f, 0.95f);
+	[Tooltip("球に貼るマテリアル(ホログラム等)。未指定なら sphereColor の単色球")]
+	[SerializeField] private Material sphereMaterial;
+	[Tooltip("独自の球体エフェクトを使う場合に指定(直径1で作ること。指定時は sphereMaterial より優先)")]
+	[SerializeField] private GameObject spherePrefab;
+
 	[Header("対象ボス(未指定ならシーンで最も近い enemy_Boss)")]
 	[SerializeField] private enemy_Boss boss;
 
@@ -47,6 +72,16 @@ public class BossEndCutscene : MonoBehaviour
 	private bool hasPlayed;
 	private bool playing;
 	private float endTime;
+	private float cutsceneStartTime;
+	private float clipFPS = 30f;
+
+	// 演出の状態
+	private int nextFlashIndex;
+	private bool sphereTriggered;
+	private GameObject flashCanvasGO;
+	private Image flashImage;
+	private GameObject vanishSphere;
+	private Material vanishSphereMat;
 
 	// カメラFBX
 	private GameObject cameraInstance;
@@ -82,6 +117,8 @@ public class BossEndCutscene : MonoBehaviour
 	{
 		if (playing)
 		{
+			UpdateCutsceneEffects();
+
 			// スキップ入力は受け付けない。尺が来たら終わるだけ
 			if (Time.time >= endTime) Finish();
 			return;
@@ -192,6 +229,10 @@ public class BossEndCutscene : MonoBehaviour
 		BeginCameraTakeover();
 
 		endTime = Time.time + (length > 0f ? length : 5f);
+		cutsceneStartTime = Time.time;
+		clipFPS = actorClip != null && actorClip.frameRate > 0f ? actorClip.frameRate : 30f;
+		nextFlashIndex = 0;
+		sphereTriggered = false;
 		playing = true;
 		Debug.Log($"[BossEndCutscene] 撃破カットシーン再生開始 ({length:F1}秒)");
 	}
@@ -327,6 +368,11 @@ public class BossEndCutscene : MonoBehaviour
 		blendSaved = false;
 		if (puppetVcam != null) Destroy(puppetVcam.gameObject);
 		puppetVcam = null;
+
+		// フラッシュ用Canvasを片付ける(球体は自分のコルーチンが最後まで面倒を見る)
+		if (flashCanvasGO != null) Destroy(flashCanvasGO);
+		flashCanvasGO = null;
+		flashImage = null;
 
 		Debug.Log("[BossEndCutscene] 撃破カットシーン終了(操作可能)");
 		enabled = false;
@@ -486,8 +532,162 @@ public class BossEndCutscene : MonoBehaviour
 		return found != null ? found : rig.transform;
 	}
 
+	// ------------------------------------------------------------
+	// カットシーン中の演出(白フラッシュ・消滅球体)
+	// ------------------------------------------------------------
+	private void UpdateCutsceneEffects()
+	{
+		float elapsedFrames = (Time.time - cutsceneStartTime) * clipFPS;
+
+		// 指定フレームに達したら白フラッシュ(昇順前提)
+		while (nextFlashIndex < flashFrames.Length && elapsedFrames >= flashFrames[nextFlashIndex])
+		{
+			TriggerFlash();
+			nextFlashIndex++;
+		}
+
+		// フラッシュの戻り(白→透明)
+		if (flashImage != null && flashImage.color.a > 0f)
+		{
+			float a = flashImage.color.a - Time.deltaTime / Mathf.Max(flashFadeTime, 0.01f) * flashMaxAlpha;
+			flashImage.color = new Color(1f, 1f, 1f, Mathf.Max(0f, a));
+		}
+
+		// 消滅球体の開始
+		if (!sphereTriggered && elapsedFrames >= sphereStartFrame)
+		{
+			sphereTriggered = true;
+			StartCoroutine(SphereSwallow());
+		}
+	}
+
+	// 画面全体を白く光らせる(初回にオーバーレイCanvasを生成)
+	private void TriggerFlash()
+	{
+		if (flashImage == null)
+		{
+			flashCanvasGO = new GameObject("BossEndFlash");
+			Canvas canvas = flashCanvasGO.AddComponent<Canvas>();
+			canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+			canvas.sortingOrder = 30000; // 最前面
+
+			GameObject imgGO = new GameObject("White");
+			imgGO.transform.SetParent(flashCanvasGO.transform, false);
+			flashImage = imgGO.AddComponent<Image>();
+			RectTransform rt = flashImage.rectTransform;
+			rt.anchorMin = Vector2.zero;
+			rt.anchorMax = Vector2.one;
+			rt.offsetMin = Vector2.zero;
+			rt.offsetMax = Vector2.zero;
+		}
+		flashImage.color = new Color(1f, 1f, 1f, flashMaxAlpha);
+	}
+
+	// 球体がボスを包むように広がる → 包んだ間にボスを消す → しぼんで消える
+	private IEnumerator SphereSwallow()
+	{
+		Vector3 center = GetBossFeet();
+
+		if (spherePrefab != null)
+		{
+			vanishSphere = Instantiate(spherePrefab, center, Quaternion.identity);
+		}
+		else
+		{
+			// 球を自動生成。sphereMaterial(ホログラム等)があればそれを貼り、
+			// 無ければ sphereColor の単色球(仮ビジュアル)
+			vanishSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+			vanishSphere.name = "BossVanishSphere";
+			Destroy(vanishSphere.GetComponent<Collider>());
+			vanishSphere.transform.position = center;
+			MeshRenderer mr = vanishSphere.GetComponent<MeshRenderer>();
+			if (sphereMaterial != null)
+			{
+				mr.sharedMaterial = sphereMaterial;
+			}
+			else
+			{
+				vanishSphereMat = new Material(Shader.Find("Sprites/Default"));
+				vanishSphereMat.color = sphereColor;
+				mr.sharedMaterial = vanishSphereMat;
+			}
+			mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+			mr.receiveShadows = false;
+		}
+		vanishSphere.transform.localScale = Vector3.zero;
+
+		// 広がる: 早く→ゆっくり(3乗イーズアウト。勢いよく出て、最大サイズへ滑らかに収まる)
+		float t = 0f;
+		while (t < sphereExpandTime)
+		{
+			t += Time.deltaTime;
+			float k = 1f - Mathf.Pow(1f - Mathf.Clamp01(t / sphereExpandTime), 3f);
+			vanishSphere.transform.localScale = Vector3.one * (sphereMaxRadius * k * 2f);
+			yield return null;
+		}
+		vanishSphere.transform.localScale = Vector3.one * (sphereMaxRadius * 2f);
+
+		// 完全に包まれている間にボスを消す(球がしぼんだ時には居ない)。
+		// 球は加算半透明で中のボスが透けて見えるため、消す瞬間に白フラッシュを重ねて隠す
+		TriggerFlash();
+		if (boss != null) boss.gameObject.SetActive(false);
+
+		float h = 0f;
+		while (h < sphereHoldTime)
+		{
+			h += Time.deltaTime;
+			yield return null;
+		}
+
+		// しぼむ: ためて一気に(3乗イーズイン。じわっと縮み始めて加速し、シュッと消える)
+		t = 0f;
+		while (t < sphereShrinkTime)
+		{
+			t += Time.deltaTime;
+			float k = Mathf.Pow(Mathf.Clamp01(t / sphereShrinkTime), 3f);
+			vanishSphere.transform.localScale = Vector3.one * (sphereMaxRadius * (1f - k) * 2f);
+			yield return null;
+		}
+
+		Destroy(vanishSphere);
+		vanishSphere = null;
+		if (vanishSphereMat != null)
+		{
+			Destroy(vanishSphereMat);
+			vanishSphereMat = null;
+		}
+	}
+
+	// ボスの足元(レンダラー境界の底面中心)。球体の膨らむ中心に使う
+	private Vector3 GetBossFeet()
+	{
+		if (boss == null) return transform.position;
+		Bounds b = new Bounds(boss.transform.position, Vector3.zero);
+		bool has = false;
+		foreach (Renderer r in boss.GetComponentsInChildren<Renderer>())
+		{
+			if (!has) { b = r.bounds; has = true; }
+			else b.Encapsulate(r.bounds);
+		}
+		if (!has) return boss.transform.position;
+		return new Vector3(b.center.x, b.min.y, b.center.z);
+	}
+
+	// 演出まわりの後片付け
+	private void CleanupEffects()
+	{
+		if (flashCanvasGO != null) Destroy(flashCanvasGO);
+		flashCanvasGO = null;
+		flashImage = null;
+		if (vanishSphere != null) Destroy(vanishSphere);
+		vanishSphere = null;
+		if (vanishSphereMat != null) Destroy(vanishSphereMat);
+		vanishSphereMat = null;
+	}
+
 	void OnDestroy()
 	{
+		CleanupEffects();
 		if (playing)
 		{
 			playing = false;
