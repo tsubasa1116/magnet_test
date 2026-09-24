@@ -3,6 +3,7 @@ using UnityEngine;
 // Catch中(ZRホールド)に、画面中央のRayで「逆極」の対象に作用する。対象の種類で分岐:
 //    ・Grapple 点      → 立体機動(ワイヤーで飛びつく)
 //    ・RopewayMagnet    → ロープウェイに吸着して運ばれる
+//    ・ボスの手        → 攻撃で飛んできた手を本体から切り離し、物体として引き寄せる(左手N/右手S)
 //    ・それ以外(物体)  → 手元(handPoint)へ引き寄せる
 // 逆極の対応: プレイヤー S極 → "N_Pole" / N極 → "S_Pole"
 // ・ZRを離す(Catch終了)で全て解除。物体は保持中に極を切り替えると反発でぶっ飛ばす。
@@ -134,6 +135,13 @@ public class MagnetPull : MonoBehaviour
         // ジャンプの処理
         if (jumpCooldown > 0f) jumpCooldown -= Time.deltaTime;
 
+        // 掴んでいた物が消えた(爆弾が手元で爆発した等)→ 掴み状態だけ片付ける
+        if (!ReferenceEquals(held, null) && held == null)
+        {
+            DestroyEffect();
+            ClearHeld();
+        }
+
         if (!catchState.IsCatching)
         {
             EndInteraction();
@@ -192,7 +200,7 @@ public class MagnetPull : MonoBehaviour
             // 手元にくっついた後、設定したオフセット座標へ毎フレーム滑らかに移行させる
             if (attached)
             {
-                bool isEnemy = held.GetComponentInParent<enemy>() != null || held.GetComponentInParent<enemy_Sky>() != null;
+                bool isEnemy = HeldAsEnemy();
                 Vector3 targetLocalPos = isEnemy ? enemyAttachOffset : Vector3.zero;
                 Quaternion targetLocalRot = isEnemy ? Quaternion.Euler(0f, 180f, 0f) : Quaternion.identity;
 
@@ -320,10 +328,12 @@ public class MagnetPull : MonoBehaviour
 		if (aim != null && aim.IsLockedOn && aim.LockOnTarget != null)
 		{
 			Transform target = aim.LockOnTarget;
-			if (IsWantedTag(target)
-            && Vector3.Distance(transform.position, target.position) <= rayRange)
+			if (Vector3.Distance(transform.position, target.position) <= rayRange)
 			{
-				InteractWith(target);
+				// ボスの手に注目中: 逆極で攻撃中の手なら切り離して引き寄せる
+				BossHandMagnet hand = target.GetComponent<BossHandMagnet>();
+				if (hand != null) TryGrabBossHand(hand);
+				else if (IsWantedTag(target)) InteractWith(target);
 			}
 			return;
 		}
@@ -338,6 +348,15 @@ public class MagnetPull : MonoBehaviour
         {
             Collider col = hit.collider;
             if (col.transform.IsChildOf(transform)) continue; // 自分は無視
+
+            // ボスの手: 逆極で攻撃中なら切り離して引き寄せる。引き寄せられない手は遮蔽物扱い
+            BossHandMagnet hand = BossHandMagnet.FindFor(col);
+            if (hand != null)
+            {
+                if (TryGrabBossHand(hand)) return;
+                if (col.isTrigger) continue;
+                return;
+            }
 
             if (!IsWantedTag(col))
             {
@@ -376,7 +395,25 @@ public class MagnetPull : MonoBehaviour
 
 		// ④ それ以外：通常の物体引き寄せ
 		Rigidbody rb = target.GetComponentInParent<Rigidbody>();
-		if (rb != null) Grab(rb);
+		if (rb == null) return;
+
+		// 1回発射したボスの手は、ボスに戻るまで吸着できない
+		PunchArm spentArm = rb.GetComponent<PunchArm>();
+		if (spentArm != null && spentArm.IsSpent) return;
+
+		Grab(rb);
+	}
+
+	// ボスの手を引き寄せる: 本体から切り離した分離用の腕(NSオブジェクト)を通常の物体と同じく掴む
+	private bool TryGrabBossHand(BossHandMagnet hand)
+	{
+		if (!hand.CanBePulledBy(stateMachine.CurrentState)) return false;
+
+		Rigidbody arm = hand.DetachForMagnet();
+		if (arm == null) return false;
+
+		Grab(arm);
+		return true;
 	}
 
 	private void Grab(Rigidbody rb)
@@ -396,11 +433,8 @@ public class MagnetPull : MonoBehaviour
         }
 
         // 敵だったら「引き寄せられた」ことを通知
-        enemy enemyScript = rb.GetComponentInParent<enemy>();
-        if (enemyScript != null) enemyScript.OnMagnetGrabbed();
-
-        enemy_Sky enemySkyScript = rb.GetComponentInParent<enemy_Sky>();
-        if (enemySkyScript != null) enemySkyScript.OnMagnetGrabbed();
+        IMagnetEnemy magnetEnemy = rb.GetComponentInParent<IMagnetEnemy>();
+        if (magnetEnemy != null) magnetEnemy.OnMagnetGrabbed();
 
         attached = false;
         pullVel = Vector3.zero;
@@ -511,7 +545,7 @@ public class MagnetPull : MonoBehaviour
     {
         if (held == null) return;
 
-        bool isEnemy = held.GetComponentInParent<enemy>() != null || held.GetComponentInParent<enemy_Sky>() != null;
+        bool isEnemy = HeldAsEnemy();
         Vector3 targetPos = HandPos;
         Vector3 currentPos = held.transform.position;
         Vector3 to = targetPos - currentPos;
@@ -559,6 +593,17 @@ public class MagnetPull : MonoBehaviour
 
         if (heldAura != null) heldAura.SetHeld(true);
         DestroyEffect();
+
+        // 敵だったら「手元に届いた」ことを通知(爆弾はここから導火線が減り始める)
+        IMagnetEnemy magnetEnemy = held.GetComponentInParent<IMagnetEnemy>();
+        if (magnetEnemy != null) magnetEnemy.OnMagnetAttached();
+    }
+
+    // 掴んでいる物を敵用の持ち方(手の前で向き合わせる)で持つか。爆弾などは物体と同じく手元に持つ
+    private bool HeldAsEnemy()
+    {
+        IMagnetEnemy magnetEnemy = held.GetComponentInParent<IMagnetEnemy>();
+        return magnetEnemy != null && magnetEnemy.HoldAsEnemy;
     }
 
     // ZRを離した：物理を元に戻して落とす
@@ -599,11 +644,8 @@ public class MagnetPull : MonoBehaviour
         }
 
         // 敵だったら「そっと離された」ことを通知
-        enemy enemyScript = held.GetComponentInParent<enemy>();
-        if (enemyScript != null) enemyScript.OnMagnetReleased();
-
-        enemy_Sky enemySkyScript = held.GetComponentInParent<enemy_Sky>();
-        if (enemySkyScript != null) enemySkyScript.OnMagnetReleased();
+        IMagnetEnemy magnetEnemy = held.GetComponentInParent<IMagnetEnemy>();
+        if (magnetEnemy != null) magnetEnemy.OnMagnetReleased();
 
         ClearHeld();
     }
@@ -638,12 +680,16 @@ public class MagnetPull : MonoBehaviour
             if (arm != null && arm.bossScript != null)
             {
                 arm.bossScript.RestartArmTimer(arm.isLeft);
+                // ボスの手は1回発射したら、ボスに戻るまでもう吸着できない
+                arm.MarkThrownByPlayer();
             }
         }
 
-        // もし掴んでいる物が ThrowableObject なら Throw() を呼ぶ
+        // 吹っ飛ばした物は何でも「発射中」にする(当たった敵を倒す・吹っ飛ばした敵でバリアを削る判定に使う)。
+        // 箱や敵など ThrowableObject が付いていない物には、ここで付ける
         ThrowableObject throwable = held.GetComponent<ThrowableObject>();
-        if (throwable != null) throwable.Throw();
+        if (throwable == null) throwable = held.gameObject.AddComponent<ThrowableObject>();
+        throwable.Throw();
 
         // 画面中央(照準)で狙った方向へ飛ばす
         Vector3 dir = GetThrowDirection();
@@ -663,11 +709,8 @@ public class MagnetPull : MonoBehaviour
         held.AddForce(dir * repelForce, ForceMode.Impulse);
 
         // 敵だったら「吹っ飛ばされた」ことを通知
-        enemy enemyScript = held.GetComponentInParent<enemy>();
-        if (enemyScript != null) enemyScript.OnMagnetRepelled();
-
-        enemy_Sky enemySkyScript = held.GetComponentInParent<enemy_Sky>();
-        if (enemySkyScript != null) enemySkyScript.OnMagnetRepelled();
+        IMagnetEnemy magnetEnemy = held.GetComponentInParent<IMagnetEnemy>();
+        if (magnetEnemy != null) magnetEnemy.OnMagnetRepelled();
 
         ClearHeld();
     }

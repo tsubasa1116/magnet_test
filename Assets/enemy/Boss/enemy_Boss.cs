@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Android;
@@ -43,12 +44,10 @@ public class enemy_Boss : MonoBehaviour
     public float moveSpeed = 10.0f;      // ボスの移動速度
     public float targetDistance = 10.0f; // プレイヤーとの距離がこの値以上の時に追尾する
     public float stopDistance = 5.0f;    // プレイヤーとの距離がこの値以下の時に停止する
-    public float maxHP = 100.0f;         // 最大HP
+    public float maxHP = 50.0f;          // 最大HP(半分を切ると2段階目)
     public float currentHP;              // 現在のHP
-    public float barrierMaxHP = 100.0f;  // バリアの最大HP
-    public float currentBarrierHP;       // 現在のバリアHP
     public float takenDamage = 5.0f;     // 受けるダメージ量
-    public float revivTime = 5.0f;       // ダウンから復活するまでの時間
+    public float revivTime = 12.5f;      // ダウン(バリアが割れてコアがむき出し)から復活するまでの時間
     public float aimSpeed = 10.0f;　     // ボスの回転速度
     public float invincibleTime = 0.5f;  // 無敵時間
 
@@ -139,6 +138,10 @@ public class enemy_Boss : MonoBehaviour
     [SerializeField] private BossState[] addActions; // 行動パターンのリスト
     [SerializeField] private BossState[] addActionSecond; // 行動パターンのリスト
 
+    [Tooltip("2段階目で近づいた時に、両手連続パンチ(Rush)を使う確率(0〜1)。残りは大叩きつけ。Rushは2回連続では使わない")]
+    [SerializeField, Range(0f, 1f)] private float rushChanceSecond = 0.25f;
+    private BossState lastSecondAttack = BossState.Idle; // 2段階目で直前に使った攻撃
+
     private bool firstSummon = false;      // 1段階目の初回召喚フラグ
     private bool secondSummon = false;     // 2段階目の初回召喚フラグ
     private bool checkStartAction = false; // isStartActionの変更検知用
@@ -166,6 +169,52 @@ public class enemy_Boss : MonoBehaviour
     public float summonRadius = 5.0f;                    // ボスを中心とした召喚半径
     public int summonCount = 3;                          // 一度に召喚する数
 
+    [Header("召喚した敵が歩くNavMesh")]
+    [Tooltip("起動時にボスの足元にNavMeshが無ければ、ボスを中心としたこの範囲だけ実行時に生成する(ボス部屋にNavMeshを焼いていない時の保険)")]
+    [SerializeField] private Vector3 arenaNavMeshSize = new Vector3(120.0f, 30.0f, 120.0f);
+    [Tooltip("召喚位置からこの距離以内の一番近いNavMesh上に敵を出す")]
+    [SerializeField] private float summonNavSearchRadius = 8.0f;
+
+    private NavMeshDataInstance arenaNavMesh; // 実行時に生成したNavMesh(破棄時に外す)
+
+    [Header("被ダメージ(プレイヤーが飛ばした物)")]
+    [Tooltip("ボスの手を当てた時の基本ダメージ")]
+    [SerializeField] private float handHitDamage = 10.0f;
+    [Tooltip("普通のN/Sオブジェクトは、ボスの手の何倍のダメージか")]
+    [SerializeField] private float objectDamageRate = 0.3f;
+    [Tooltip("吹っ飛ばした敵は、ボスの手の何倍のダメージか")]
+    [SerializeField] private float enemyDamageRate = 0.5f;
+    [Tooltip("バリアを張っている時に、バリア以外(体・腕)へ当てた時の倍率(1/4)")]
+    [SerializeField] private float barrierUpBodyRate = 0.25f;
+    [Tooltip("バリアが割れてコアがむき出しの間に当てた時の倍率(大ダメージ)")]
+    [SerializeField] private float coreExposedRate = 3.0f;
+
+    [Header("被ダメージ演出(ダメージが大きいほど強くなる)")]
+    [Tooltip("このダメージ以上でヒットストップと震えが最大になる")]
+    [SerializeField] private float maxFeedbackDamage = 30.0f;
+    [Tooltip("ヒットストップの長さ(秒) 最小〜最大")]
+    [SerializeField] private float hitStopMin = 0.04f;
+    [SerializeField] private float hitStopMax = 0.25f;
+    [Tooltip("ボスの震えの大きさ(m) 最小〜最大")]
+    [SerializeField] private float shakeMin = 0.05f;
+    [SerializeField] private float shakeMax = 0.4f;
+    [Tooltip("ボスが震える時間(実時間の秒)")]
+    [SerializeField] private float shakeTime = 0.3f;
+    [Tooltip("バリアが割れた時の演出の強さ(ダメージ換算)")]
+    [SerializeField] private float barrierBreakFeedback = 15.0f;
+
+    // 被弾時の震え(実時間で減衰。ヒットストップ中も震えて見えるように)
+    private Vector3 shakeOffset;
+    private float shakeAmplitude;
+    private float shakeRemaining;
+
+    private static bool goingToResult; // リザルトへの遷移を二重に始めないように
+
+    public bool IsDown => isDown;
+
+    // バリアを張っているか(割れてコアがむき出しの間・復活の途中は false)
+    public bool IsBarrierUp => !isDown && barrier != null && barrier.gameObject.activeInHierarchy;
+
     [Header("SE")]
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private AudioClip summonSE;
@@ -179,17 +228,113 @@ public class enemy_Boss : MonoBehaviour
     void Start()
     {
         currentHP = maxHP;
-        currentBarrierHP = barrierMaxHP;
+        goingToResult = false;
 
         anim = GetComponent<Animator>();
         anim.SetBool("Idol", true);
         audioSource = GetComponent<AudioSource>();
+
+        SetupLockOnAndHands();
+        EnsureArenaNavMesh();
+    }
+
+    void OnDestroy()
+    {
+        if (arenaNavMesh.valid) arenaNavMesh.Remove();
+    }
+
+    void OnDisable()
+    {
+        // 撃破カットシーン等で止められた時に震えのズレを残さない
+        RemoveShake();
     }
 
     // =========================================
-    // ステート用更新処理
+    // 注目(ロックオン)部位と、手の磁力(N/S)の設定
     // =========================================
+    private void SetupLockOnAndHands()
+    {
+        if (barrier != null)
+        {
+            // お腹のバリア(割れている間は非表示になるので、その間は自動で注目対象から外れる)
+            LockOnPart barrierPart = LockOnPart.Attach(barrier.gameObject, LockOnPart.Kind.Enemy, transform);
+
+            // バリアが割れると出てくるコア。バリアの球の中心(=コアの位置)に注目点を置く。
+            // 親はバリアと同じボーンなので、ダウン中のアニメにも追従する
+            GameObject corePoint = new GameObject("CoreLockOnPoint");
+            corePoint.transform.SetParent(barrier.parent, false);
+            corePoint.transform.localPosition = barrier.localPosition;
+            LockOnPart corePart = LockOnPart.Attach(corePoint, LockOnPart.Kind.Enemy, transform,
+                () => currentHP > 0f && !barrier.gameObject.activeInHierarchy);
+
+            // バリアに注目中に割れたらコアへ、コアに注目中にバリアが戻ったらバリアへ、注目を引き継ぐ
+            barrierPart.Successor = corePart;
+            corePart.Successor = barrierPart;
+        }
+
+        // 左右の手: 極は分離用の腕のタグ(N_Pole/S_Pole)に合わせる(判別できなければ左N・右S)
+        SetupHand(armBone_L, true, HandPole(sepaArm, MagnetState.N), () => !isLeftArmDetached);
+        SetupHand(armBone_R, false, HandPole(sepaArmR, MagnetState.S), () => !isRightArmDetached);
+    }
+
+    private void SetupHand(Transform bone, bool isLeft, MagnetState pole, System.Func<bool> isAttached)
+    {
+        if (bone == null) return;
+
+        // 分離して見えなくなっている間は注目させない
+        LockOnPart.Kind kind = pole == MagnetState.N ? LockOnPart.Kind.NPole : LockOnPart.Kind.SPole;
+        LockOnPart.Attach(bone.gameObject, kind, transform, isAttached);
+
+        BossHandMagnet magnet = bone.GetComponent<BossHandMagnet>();
+        if (magnet == null) magnet = bone.gameObject.AddComponent<BossHandMagnet>();
+        magnet.Setup(this, isLeft, pole);
+    }
+
+    private static MagnetState HandPole(PunchArm arm, MagnetState fallback)
+    {
+        if (arm == null) return fallback;
+        if (arm.CompareTag("N_Pole")) return MagnetState.N;
+        if (arm.CompareTag("S_Pole")) return MagnetState.S;
+        return fallback;
+    }
+
+    // =========================================
+    // 召喚した敵用のNavMeshを用意する
+    // =========================================
+    // ボス部屋にNavMeshが焼かれていないと、召喚した敵のNavMeshAgentが生成に失敗し
+    // (Failed to create agent because it is not close enough to the NavMesh)一歩も動けない。
+    // 焼いてあればそれを使い、無ければボス周辺の地形コライダーから実行時に生成する。
+    private void EnsureArenaNavMesh()
+    {
+        if (NavMesh.SamplePosition(transform.position, out _, summonNavSearchRadius, NavMesh.AllAreas)) return;
+
+        Bounds bounds = new Bounds(transform.position, arenaNavMeshSize);
+        var sources = new List<NavMeshBuildSource>();
+        NavMeshBuilder.CollectSources(bounds, ~0, NavMeshCollectGeometry.PhysicsColliders, 0,
+            new List<NavMeshBuildMarkup>(), sources);
+
+        // 床・壁などの動かない地形だけを使う(ボス本体・プレイヤー・敵・投げる物などRigidbody付きは除外)
+        sources.RemoveAll(s => s.component is Collider c
+            && (c.isTrigger || c.attachedRigidbody != null || c.transform.IsChildOf(transform)));
+
+        NavMeshData data = NavMeshBuilder.BuildNavMeshData(
+            NavMesh.GetSettingsByID(0), sources, bounds, Vector3.zero, Quaternion.identity);
+        arenaNavMesh = NavMesh.AddNavMeshData(data);
+
+        Debug.LogWarning($"[enemy_Boss] ボス周辺にNavMeshが無いため実行時に生成しました(地形 {sources.Count} 個)。" +
+            "ボス部屋を含めてNavMeshをBakeすると、この処理は不要になります");
+    }
+
     void LateUpdate()
+    {
+        UpdateArms();
+        ApplyShake();
+    }
+
+    // =========================================
+    // ステート用更新処理(腕)
+    // =========================================
+    private void UpdateArms()
     {
         if (armBone_R == null || armBone_L == null) return;
 
@@ -439,6 +584,9 @@ public class enemy_Boss : MonoBehaviour
     // =========================================
     void Update()
     {
+        // 前フレームの震えのズレを戻してから、通常の移動・回転を行う
+        RemoveShake();
+
         if (target != null && bossMesh != null)
         {
             if (isLookPlayer)
@@ -494,15 +642,10 @@ public class enemy_Boss : MonoBehaviour
                 bossState = BossState.Rush;
             }
 
+            // デバッグ: リザルトへ遷移(本番はボス撃破カットシーンの後に同じ処理が走る)
             if (Input.GetKeyDown(KeyCode.H))
             {
-                SceneLoad.LoadDirect("ResultScene", FadeType.White);
-                GameManager.Instance.EndGame();
-
-                GameResultManager.SetResultData(
-                    GameManager.Instance.TotalKillCount,
-                    Mathf.FloorToInt(GameManager.Instance.ElapsedTime)
-                );
+                GoToResult();
             }
 
             if (Input.GetKeyDown(KeyCode.J))
@@ -585,17 +728,11 @@ public class enemy_Boss : MonoBehaviour
                 {
                     if (isSecond)
                     {
-                        int rand = Random.Range(0, 2);
-
-                        switch (rand)
-                        {
-                            case 0:
-                                bossState = BossState.SmashBig;
-                                break;
-                            case 1:
-                                bossState = BossState.Rush;
-                                break;
-                        }
+                        // 両手連続パンチ(Rush)は吸着できず反撃の隙が無いので、使う割合を抑え、2回連続では出さない。
+                        // それ以外は右手を吸着できる大叩きつけ(SmashBig)
+                        bool useRush = lastSecondAttack != BossState.Rush && Random.value < rushChanceSecond;
+                        bossState = useRush ? BossState.Rush : BossState.SmashBig;
+                        lastSecondAttack = bossState;
                     }
                     else
                     {
@@ -968,7 +1105,7 @@ public class enemy_Boss : MonoBehaviour
     {
         if (isStartAction)
         {
-            if (!isSecond && currentHP <= 50.0f)
+            if (!isSecond && currentHP <= maxHP * 0.5f)
             {
                 isSecond = true;
             }
@@ -1058,6 +1195,52 @@ public class enemy_Boss : MonoBehaviour
             isWaitForDetachR = true;
             detachTimerR = 0.0f;
         }
+    }
+
+    // ==========================================
+    // 攻撃で飛んできた手をプレイヤーの磁力で掴めるか
+    // (左手: ロケットパンチで飛んでいる間 / 右手: 叩きつけ中)
+    // ==========================================
+    public bool CanGrabHand(bool isLeft)
+    {
+        if (isLeft)
+            return !isLeftArmDetached && bossState == BossState.Punch && armState != ArmState.Idle;
+
+        return !isRightArmDetached && (bossState == BossState.SmashNormal || bossState == BossState.SmashBig);
+    }
+
+    // ==========================================
+    // プレイヤーの磁力で手を引き寄せられた:
+    // その場で本体から切り離し、代わりに掴ませる分離用の腕(NSオブジェクト)を返す
+    // ==========================================
+    public Rigidbody DetachHandForMagnet(bool isLeft)
+    {
+        if (!CanGrabHand(isLeft)) return null;
+
+        PunchArm arm = isLeft ? sepaArm : sepaArmR;
+        if (arm == null) return null;
+
+        // 物を当てた後の分離待ちが残っていても、後から二重に分離させない
+        if (isLeft)
+        {
+            isWaitForDetach = false;
+            ExecuteDetachArm();
+        }
+        else
+        {
+            isWaitForDetachR = false;
+            ExecuteDetachArmR();
+        }
+
+        // 手を奪われたので攻撃を打ち切り、怯んでから待機へ戻る
+        anim.SetTrigger(isLeft ? "Hit_L" : "Hit_R");
+        bossState = BossState.Idle;
+        armState = ArmState.Idle;
+        startAttack = false;
+        isTracking = false;
+        attackTimer = 0.0f;
+
+        return arm.GetComponent<Rigidbody>();
     }
 
     // ====================
@@ -1326,6 +1509,16 @@ public class enemy_Boss : MonoBehaviour
                 transform.position.z + randomCircle.y
             );
 
+            // NavMeshの上に出さないとNavMeshAgentが生成に失敗して動けないので、一番近いNavMesh上へ寄せる
+            if (NavMesh.SamplePosition(spawnPos, out NavMeshHit navHit, summonNavSearchRadius, NavMesh.AllAreas))
+            {
+                spawnPos = navHit.position;
+            }
+            else
+            {
+                Debug.LogWarning($"[enemy_Boss] 召喚位置 {spawnPos} の近くにNavMeshが無いため、召喚した敵は動けません");
+            }
+
             // 3種類の敵からランダムに1つ選択
             int randomIndex = Random.Range(0, summonPrefabs.Length);
             GameObject prefab = summonPrefabs[randomIndex];
@@ -1338,20 +1531,21 @@ public class enemy_Boss : MonoBehaviour
 
             if (targetPlayer != null)
             {
+                // 召喚した敵は索敵範囲に関係なく、最初からプレイヤーを狙わせる
                 // 1種類目の敵スクリプトを持っているかチェック
                 if (enemy.TryGetComponent(out enemy enemyNormal))
                 {
-                    enemyNormal.SetTarget(targetPlayer);
+                    enemyNormal.OnSummoned(targetPlayer);
                 }
                 // 持っていなければ2種類目をチェック
                 else if (enemy.TryGetComponent(out enemy_bomb enemyBomb))
                 {
-                    enemyBomb.SetTarget(targetPlayer);
+                    enemyBomb.OnSummoned(targetPlayer);
                 }
                 // 持っていなければ3種類目をチェック
                 else if (enemy.TryGetComponent(out enemy_Sky enemySky))
                 {
-                    enemySky.SetTarget(targetPlayer);
+                    enemySky.OnSummoned(targetPlayer);
                 }
             }
         }
@@ -1425,26 +1619,120 @@ public class enemy_Boss : MonoBehaviour
     }
 
     // ===================================
-    // バリアが攻撃された時に呼ばれる関数
+    // プレイヤーが飛ばした物がボスに当たった時(ThrowableObjectから呼ばれる)
+    //   ・バリアを張っている時にバリアへ当てた → バリアが割れる(BreakBarrier)
+    //   ・バリアを張っている時にバリア以外(体・腕)へ当てた → HPへ直接ダメージ。ただし半減
+    //   ・バリアが割れてコアがむき出しの時に当てた → HPへ大ダメージ
+    // 1回の発射で1回だけ(当たったら発射状態を解除する)
     // ===================================
-    public void TakeBarrierDamage(float damage)
+    public void OnThrownObjectHit(GameObject thrown, Collider hitCollider)
     {
-        if (isDown) return;
-
-        // バリアのHPを減らす
-        currentBarrierHP -= damage;
-        Debug.Log($"バリアに {damage} のダメージ！ (残りバリア: {currentBarrierHP}/{barrierMaxHP})");
-
-        // バリアのHPが0以下になったらダウンさせる
-        if (currentBarrierHP <= 0.0f)
+        if (barrier != null && hitCollider != null && hitCollider.transform.IsChildOf(barrier))
         {
+            OnBarrierHit(thrown);
+            return;
+        }
+
+        if (!isStartAction || currentHP <= 0f) return;
+        ThrowableObject throwable = thrown.GetComponent<ThrowableObject>();
+        if (throwable == null || !throwable.IsThrown) return;
+        throwable.ResetThrown();
+
+        float rate = IsBarrierUp ? barrierUpBodyRate : coreExposedRate;
+        ApplyHitDamage(ProjectileDamage(thrown) * rate);
+    }
+
+    // バリアに当たった(バリア自身の衝突・バリア付近を通過した判定から呼ばれる)
+    public void OnBarrierHit(GameObject thrown)
+    {
+        if (!isStartAction || currentHP <= 0f || !IsBarrierUp) return;
+        ThrowableObject throwable = thrown.GetComponent<ThrowableObject>();
+        if (throwable == null || !throwable.IsThrown) return;
+        throwable.ResetThrown();
+
+        BreakBarrier();
+    }
+
+    // バリアは1回当てると割れ、ダウンの間(revivTime)コアがむき出しになる。
+    // ダウン(Down)の処理がバリアを消し、復活後のアニメイベントでバリアが戻る
+    private void BreakBarrier()
+    {
+        Debug.Log("[enemy_Boss] バリアが割れた！コアがむき出し");
+        bossState = BossState.Down;
+        PlayHitFeedback(barrierBreakFeedback);
+    }
+
+    // 飛ばした物の種類ごとの基本ダメージ
+    private float ProjectileDamage(GameObject thrown)
+    {
+        if (thrown.GetComponent<PunchArm>() != null) return handHitDamage;                      // ボスの手
+        if (thrown.GetComponent<IMagnetEnemy>() != null) return handHitDamage * enemyDamageRate; // 吹っ飛ばした敵
+        return handHitDamage * objectDamageRate;                                                // 普通のN/Sオブジェクト
+    }
+
+    // HPを減らす。ダメージが大きいほどヒットストップと震えも大きい。
+    // HPが0になると BossEndCutscene が撃破カットシーンを再生し、その後リザルトへ進む
+    private void ApplyHitDamage(float damage)
+    {
+        if (damage <= 0f || currentHP <= 0f) return;
+
+        currentHP = Mathf.Clamp(currentHP - damage, 0.0f, maxHP);
+        if (hpBarScript != null) hpBarScript.SyncHP(currentHP, maxHP);
+        Debug.Log($"[enemy_Boss] {damage:0.#} ダメージ！ (残りHP {currentHP:0.#}/{maxHP}) {(IsBarrierUp ? "バリア越し(1/4)" : "コアむき出し")}");
+
+        PlayHitFeedback(damage);
+
+        if (currentHP <= 0f && bossState != BossState.Down)
+        {
+            isDown = false;
             bossState = BossState.Down;
-            currentBarrierHP = barrierMaxHP; // バリアHP全回復
         }
-        else
-        {
-            // バリアが削れていくときの演出（色変化？エフェクト？）
-        }
+    }
+
+    // ヒットストップとボスの震え(ダメージ量に応じて強くする)
+    private void PlayHitFeedback(float damage)
+    {
+        float t = Mathf.Clamp01(damage / Mathf.Max(maxFeedbackDamage, 0.01f));
+        HitStop.Play(Mathf.Lerp(hitStopMin, hitStopMax, t));
+
+        shakeAmplitude = Mathf.Lerp(shakeMin, shakeMax, t);
+        shakeRemaining = shakeTime;
+    }
+
+    // 震え: LateUpdateで位置をずらし、次のUpdateの最初に戻す(移動・回転の処理には影響させない)。
+    // ヒットストップ中も震えて見えるよう実時間で減衰させる
+    private void ApplyShake()
+    {
+        if (shakeRemaining <= 0f) return;
+
+        shakeRemaining -= Time.unscaledDeltaTime;
+        float fade = Mathf.Clamp01(shakeRemaining / Mathf.Max(shakeTime, 0.01f));
+        shakeOffset = Random.insideUnitSphere * shakeAmplitude * fade;
+        transform.position += shakeOffset;
+    }
+
+    private void RemoveShake()
+    {
+        if (shakeOffset == Vector3.zero) return;
+        transform.position -= shakeOffset;
+        shakeOffset = Vector3.zero;
+    }
+
+    // ===================================
+    // リザルトへ遷移(ボス撃破カットシーンの後と、デバッグのHキーから呼ぶ)
+    // ===================================
+    public static void GoToResult()
+    {
+        if (goingToResult) return;
+        goingToResult = true;
+
+        SceneLoad.LoadDirect("ResultScene", FadeType.White);
+        GameManager.Instance.EndGame();
+
+        GameResultManager.SetResultData(
+            GameManager.Instance.TotalKillCount,
+            Mathf.FloorToInt(GameManager.Instance.ElapsedTime)
+        );
     }
     public void EventChargeSound()
     {

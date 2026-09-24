@@ -7,8 +7,9 @@
 //   → オブジェクト全体ではなく「視線を邪魔している部分だけ」に穴が開く
 // さらに _FadeT (0→1) をスクリプトが時間で動かし、じわっとかかる/戻る。
 //
-// PlayerAim が Shader.Find("Custom/ObstacleDitherFade") で使う(Resources配下に置くこと)。
-// _ObstacleFadePlayerPos は PlayerAim が毎フレーム SetGlobalVector で設定する。
+// 現在は PlayerAim が「カメラが近い時のプレイヤー自身の半透明化」に使う(Resources配下に置くこと)。
+// その用途では _HoleRadius を非常に大きくして、視線に関係なく全体を均一に抜いている。
+// (壁・床を半透明にする遮蔽物フェードは廃止。_ObstacleFadePlayerPos は現在どこからも設定されない)
 Shader "Custom/ObstacleDitherFade"
 {
     Properties

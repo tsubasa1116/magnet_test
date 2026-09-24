@@ -14,6 +14,7 @@ using Cinemachine;
 //     戦闘カメラから「滑らかに入り」「滑らかに戻す」。
 //   - スキップ不可・操作不可(再生中はプレイヤーの入力/移動を止める)。
 //   - 終了後: ボスはクリップ最終ポーズ(本体消失・両手が地面に残る)のまま停止し、復活しない。
+//     goToResultAfter が有効なら、そのままリザルトへ遷移する(enemy_Boss.GoToResult)。
 //
 // デバッグ: debugKillKey(既定K)でボスHPを0にして即撃破テストできる。
 public class BossEndCutscene : MonoBehaviour
@@ -67,6 +68,11 @@ public class BossEndCutscene : MonoBehaviour
 
 	[Header("デバッグ: このキーでボスHPを0にして撃破カットシーンを起動(Noneで無効)")]
 	[SerializeField] private KeyCode debugKillKey = KeyCode.K;
+
+	[Header("終了後はリザルトへ進む")]
+	[SerializeField] private bool goToResultAfter = true;
+	[Tooltip("カットシーンが終わってからリザルトへの遷移(白フェード)を始めるまでの秒数")]
+	[SerializeField] private float resultDelay = 0.3f;
 
 	// 進行状態
 	private bool hasPlayed;
@@ -354,7 +360,17 @@ public class BossEndCutscene : MonoBehaviour
 		cameraNode = null;
 		rigCamera = null;
 
+		// 撃破ムービーが終わったらリザルトへ(Hキーのデバッグ遷移と同じ処理)
+		if (goToResultAfter) StartCoroutine(GoToResultRoutine());
+
 		StartCoroutine(FinishRoutine());
+	}
+
+	private IEnumerator GoToResultRoutine()
+	{
+		float deadline = Time.time + resultDelay;
+		while (Time.time < deadline) yield return null;
+		enemy_Boss.GoToResult();
 	}
 
 	private IEnumerator FinishRoutine()
@@ -363,7 +379,8 @@ public class BossEndCutscene : MonoBehaviour
 		float deadline = Time.time + wait;
 		while (Time.time < deadline) yield return null;
 
-		RestorePlayer();
+		// リザルトへ進む場合は、フェード中に動けないよう操作は止めたままにする
+		if (!goToResultAfter) RestorePlayer();
 
 		if (brain != null && blendSaved) brain.m_DefaultBlend = savedBlend;
 		blendSaved = false;
