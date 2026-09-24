@@ -1,11 +1,12 @@
 using System.Collections;
+using System.Collections.Generic;
 using Unity.VisualScripting.Antlr3.Runtime;
 using UnityEngine;
 using UnityEngine.AI;
 
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(Rigidbody))] // 磁力などの物理演算で制御するために必要
-public class enemy_bomb : MonoBehaviour
+public class enemy_bomb : MonoBehaviour, IMagnetEnemy
 {
     private enum EnemyState
     {
@@ -47,6 +48,22 @@ public class enemy_bomb : MonoBehaviour
     [SerializeField] private GameObject explosionEffect;
     [SerializeField] private GameObject enemyHitEffect;
 
+    [Header("磁力で掴まれた時(持ち続けると手元で爆発)")]
+    [Tooltip("手元に届いてから爆発するまでの秒数。この間に投げないとプレイヤーが大ダメージを受ける")]
+    [SerializeField] private float heldFuseTime = 4.0f;
+    [Tooltip("手元で爆発した時にプレイヤーが受けるダメージ")]
+    [SerializeField] private int heldExplosionDamage = 30;
+    [Tooltip("点滅(通常色⇔白)の間隔(秒)。手元に届いた直後はこの間隔")]
+    [SerializeField] private float blinkIntervalStart = 0.4f;
+    [Tooltip("点滅(通常色⇔白)の間隔(秒)。爆発直前はこの間隔まで速くなる")]
+    [SerializeField] private float blinkIntervalEnd = 0.04f;
+    [Tooltip("点滅で白く光る時のマテリアル。未指定なら真っ白な無発光マテリアルを自動で作る")]
+    [SerializeField] private Material flashMaterial;
+    [Tooltip("吹っ飛ばされてから何にも当たらなかった時に自爆するまでの秒数")]
+    [SerializeField] private float thrownFuseTime = 3.0f;
+    [Tooltip("そっと離された直後、プレイヤーに触れても爆発しない猶予(秒)")]
+    [SerializeField] private float releaseGraceTime = 1.0f;
+
     private float currentHp;
     private NavMeshAgent agent;
     private Rigidbody rb; // 物理演算用
@@ -63,10 +80,38 @@ public class enemy_bomb : MonoBehaviour
 
     private Animator anim;
 
+    // ボスに召喚された敵は索敵範囲に関係なく、最初からプレイヤーを狙い続ける
+    private bool alwaysAggro = false;
+
+    private bool isDead = false; // 同じフレームに複数回当たっても二重に倒れないように
+
+    // 磁力での状態
+    private bool isHeld = false;           // プレイヤーに掴まれている
+    private bool isAttached = false;       // 手元に届いている(ここから導火線が減っていく)
+    private bool isThrownByPlayer = false; // 吹っ飛ばされている(何かに当たると爆発)
+    private float fuseTimer;
+    private float blinkTimer;
+    private bool isFlashing = false;       // 点滅で白くなっている最中か
+    private float ignorePlayerUntil;       // そっと離された直後はプレイヤーに触れても爆発しない
+    private Renderer[] blinkRenderers;     // 点滅させる見た目(元々表示されているメッシュだけ)
+    private Material[][] normalMaterials;  // 点滅用: 通常のマテリアル
+    private Material[][] flashMaterials;   // 点滅用: 白のマテリアル
+
+    private static Material defaultFlashMaterial; // flashMaterial未指定時に全爆弾で共有する白
+
     public void SetTarget(Transform player)
     {
         targetPlayer = player;
     }
+
+    public void OnSummoned(Transform player)
+    {
+        targetPlayer = player;
+        alwaysAggro = true;
+    }
+
+    private bool CanSeePlayer(float distanceToPlayer) => alwaysAggro || distanceToPlayer <= found;
+    private bool LostPlayer(float distanceToPlayer) => !alwaysAggro && distanceToPlayer > found + 5.0f;
     void Start()
     {
         currentHp = maxHp;
@@ -90,7 +135,37 @@ public class enemy_bomb : MonoBehaviour
         if (markExclamation != null) markExclamation.SetActive(false);
         if (markQuestion != null) markQuestion.SetActive(false);
 
+        // 点滅対象: 表示中のメッシュだけ(非表示の当たり判定用メッシュや！？マークは触らない)
+        var renderers = new List<Renderer>();
+        foreach (Renderer r in GetComponentsInChildren<Renderer>(true))
+        {
+            if (r.enabled && (r is MeshRenderer || r is SkinnedMeshRenderer)) renderers.Add(r);
+        }
+        blinkRenderers = renderers.ToArray();
+
+        // 点滅は「通常色⇔白」なので、白に差し替えるマテリアルを用意しておく
+        // (爆弾のシェーダーグラフには色のプロパティが無いため、色替えではなく差し替えで白くする)
+        Material white = flashMaterial != null ? flashMaterial : GetDefaultFlashMaterial();
+        normalMaterials = new Material[blinkRenderers.Length][];
+        flashMaterials = new Material[blinkRenderers.Length][];
+        for (int i = 0; i < blinkRenderers.Length; i++)
+        {
+            normalMaterials[i] = blinkRenderers[i].sharedMaterials;
+            flashMaterials[i] = new Material[normalMaterials[i].Length];
+            for (int j = 0; j < flashMaterials[i].Length; j++) flashMaterials[i][j] = white;
+        }
+
         anim.SetBool("Idol", true);
+    }
+
+    private static Material GetDefaultFlashMaterial()
+    {
+        if (defaultFlashMaterial == null)
+        {
+            // Sprites/Default は常にビルドに含まれる無発光シェーダー(ロックオンマーカーと同じ)
+            defaultFlashMaterial = new Material(Shader.Find("Sprites/Default")) { color = Color.white };
+        }
+        return defaultFlashMaterial;
     }
 
     private void OnEnable()
@@ -121,6 +196,21 @@ public class enemy_bomb : MonoBehaviour
 
     void Update()
     {
+        // 掴まれている間: 手元に届いたら導火線が減り、点滅がだんだん速くなる。尽きたら手元で爆発
+        if (isHeld)
+        {
+            if (isAttached) UpdateHeldFuse();
+            return;
+        }
+
+        // 吹っ飛ばされている間はAIを止める(何かに当たると爆発。当たらなくても時間で自爆)
+        if (isThrownByPlayer)
+        {
+            fuseTimer -= Time.deltaTime;
+            if (fuseTimer <= 0f) Explode(0);
+            return;
+        }
+
         if (targetPlayer == null) return;
 
         PlayerHealth health = targetPlayer.GetComponent<PlayerHealth>();
@@ -138,7 +228,7 @@ public class enemy_bomb : MonoBehaviour
         switch (currentState)
         {
             case EnemyState.Wait:
-                if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
+                if (CanSeePlayer(distanceToPlayer)) ChangeState(EnemyState.Notice);
                 break;
 
             case EnemyState.Notice:
@@ -148,7 +238,7 @@ public class enemy_bomb : MonoBehaviour
                 break;
 
             case EnemyState.Attack:
-                if (distanceToPlayer > found + 5.0f)
+                if (LostPlayer(distanceToPlayer))
                 {
                     ChangeState(EnemyState.Search);
                 }
@@ -180,7 +270,7 @@ public class enemy_bomb : MonoBehaviour
                 break;
 
             case EnemyState.Search:
-                if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
+                if (CanSeePlayer(distanceToPlayer)) ChangeState(EnemyState.Notice);
                 else
                 {
                     searchTimer -= Time.deltaTime;
@@ -193,7 +283,7 @@ public class enemy_bomb : MonoBehaviour
                 break;
 
             case EnemyState.Return:
-                if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
+                if (CanSeePlayer(distanceToPlayer)) ChangeState(EnemyState.Notice);
                 else if (agent.remainingDistance < 0.5f)
                 {
                     ChangeState(EnemyState.Wait);
@@ -362,7 +452,8 @@ public class enemy_bomb : MonoBehaviour
                 }
                 agent.enabled = true;
             }
-            agent.isStopped = false;
+            // NavMeshの外で有効化した時は止める・動かすができない(エラーになる)ので乗っている時だけ
+            if (agent.isOnNavMesh) agent.isStopped = false;
             isHover = true;  // フワフワを再開
         }
 
@@ -388,7 +479,7 @@ public class enemy_bomb : MonoBehaviour
             if (!hasFoundPlayer)
             {
                 hasFoundPlayer = true;
-                CombatStateManager.Instance.EnterCombat(this.gameObject);
+                CombatStateManager.NotifyEnter(gameObject);
             }
 
             if (markExclamation != null)
@@ -401,7 +492,7 @@ public class enemy_bomb : MonoBehaviour
             if (hasFoundPlayer)
             {
                 hasFoundPlayer = false;
-                CombatStateManager.Instance.ExitCombat(this.gameObject);
+                CombatStateManager.NotifyExit(gameObject);
             }
 
             if (markQuestion != null)
@@ -444,41 +535,153 @@ public class enemy_bomb : MonoBehaviour
         if (mark != null) mark.SetActive(false);
     }
 
+    // 体当たり: 爆発してプレイヤーにダメージ
     private void Attack()
     {
-        PlayerHealth playerHealth = targetPlayer.GetComponent<PlayerHealth>();
-        if (playerHealth != null) playerHealth.TakeDamage(attackDamage, transform.position);
+        Explode(attackDamage);
+    }
 
-        Die();  // 自爆
+    // 爆発してやられる。playerDamage > 0 ならプレイヤーにダメージを与える
+    private void Explode(int playerDamage)
+    {
+        if (isDead) return;
+
+        if (playerDamage > 0)
+        {
+            PlayerHealth playerHealth = targetPlayer != null
+                ? targetPlayer.GetComponent<PlayerHealth>()
+                : FindAnyObjectByType<PlayerHealth>();
+            if (playerHealth != null) playerHealth.TakeDamage(playerDamage, transform.position);
+        }
+
+        Die(); // 爆発エフェクトはDieで出す
     }
 
     private void OnCollisionEnter(Collision collision)
     {
-        // 突撃でダメージ判定
-        if (currentState == EnemyState.Attack)
-        {
-            if (collision.gameObject.CompareTag("Player"))
-            {
-                Attack();
+        if (isDead || isHeld) return;
 
-                if (explosionEffect != null) Instantiate(explosionEffect, transform.position, Quaternion.identity);
-            }
+        bool hitPlayer = collision.gameObject.CompareTag("Player");
+
+        // 吹っ飛ばされている最中: プレイヤー以外の何かに当たったら爆発
+        if (isThrownByPlayer)
+        {
+            if (!hitPlayer) TakeDamage(currentHp);
+            return;
         }
 
-        // 投げられたオブジェクトとの衝突判定
-        ThrowableObject throwable = collision.gameObject.GetComponent<ThrowableObject>();
+        // プレイヤーに当たったら爆発してダメージ(そっと離された直後は除く)
+        if (hitPlayer)
+        {
+            if (Time.time >= ignorePlayerUntil) Attack();
+            return;
+        }
 
+        // 投げられた物が当たったら爆発
+        ThrowableObject throwable = collision.gameObject.GetComponent<ThrowableObject>();
         if (throwable != null && throwable.IsThrown)
         {
-            TakeDamage(throwable.Damage);
-
             // 一度だけダメージを与える
             throwable.ResetThrown();
+            TakeDamage(currentHp);
+        }
+    }
+
+    // ==========================================
+    // 磁力システムからの通知受け取り口
+    // ==========================================
+
+    // 爆弾は敵用の持ち方(手の前で向き合わせる)ではなく、物体と同じく手元にそのまま持つ
+    public bool HoldAsEnemy => false;
+
+    public void OnMagnetGrabbed()
+    {
+        isHeld = true;
+        isAttached = false;
+        isThrownByPlayer = false;
+
+        StopAllCoroutines();
+        if (agent.enabled) agent.enabled = false;
+        isHover = false;
+
+        // 引き寄せ中・保持中はアニメを止める(アニメが位置を書き戻して手元に来ないのを防ぐ)
+        if (anim != null) anim.enabled = false;
+    }
+
+    public void OnMagnetAttached()
+    {
+        // 手元に届いたら導火線に点火。持ち続けると手元で爆発する
+        isAttached = true;
+        fuseTimer = heldFuseTime;
+        blinkTimer = blinkIntervalStart;
+    }
+
+    public void OnMagnetReleased()
+    {
+        // そっと離された: 導火線を止めて、その場から再びプレイヤーを狙う
+        EndHeld();
+        ignorePlayerUntil = Time.time + releaseGraceTime;
+
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+        ChangeState(EnemyState.Notice);
+    }
+
+    public void OnMagnetRepelled()
+    {
+        // 吹っ飛ばされた: 何かに当たったら爆発する
+        EndHeld();
+        isThrownByPlayer = true;
+        fuseTimer = thrownFuseTime;
+    }
+
+    // 掴まれた状態を終える(点滅を止めて通常の見た目・アニメに戻す)
+    private void EndHeld()
+    {
+        isHeld = false;
+        isAttached = false;
+        SetFlash(false);
+        if (anim != null) anim.enabled = true;
+    }
+
+    // 掴まれている間の導火線。残りが少ないほど速く点滅し、尽きたら手元で爆発して大ダメージ
+    private void UpdateHeldFuse()
+    {
+        fuseTimer -= Time.deltaTime;
+        if (fuseTimer <= 0f)
+        {
+            Explode(heldExplosionDamage);
+            return;
+        }
+
+        float remaining01 = Mathf.Clamp01(fuseTimer / heldFuseTime);
+        blinkTimer -= Time.deltaTime;
+        if (blinkTimer <= 0f)
+        {
+            blinkTimer = Mathf.Lerp(blinkIntervalEnd, blinkIntervalStart, remaining01);
+            SetFlash(!isFlashing);
+        }
+    }
+
+    // 点滅: true で白、false で通常の見た目
+    private void SetFlash(bool white)
+    {
+        isFlashing = white;
+        if (blinkRenderers == null) return;
+        for (int i = 0; i < blinkRenderers.Length; i++)
+        {
+            if (blinkRenderers[i] != null)
+                blinkRenderers[i].sharedMaterials = white ? flashMaterials[i] : normalMaterials[i];
         }
     }
 
     public void TakeDamage(float damageAmount)
     {
+        if (isDead) return;
+
         currentHp -= damageAmount;
 
         // ダメージを受けたときのエフェクトを再生
@@ -493,12 +696,15 @@ public class enemy_bomb : MonoBehaviour
 
     private void Die()
     {
+        if (isDead) return;
+        isDead = true;
+
         if (hasFoundPlayer)
         {
             hasFoundPlayer = false;
         }
 
-        CombatStateManager.Instance.ExitCombat(this.gameObject);
+        CombatStateManager.NotifyExit(gameObject);
         if (explosionEffect != null) Instantiate(explosionEffect, transform.position, Quaternion.identity);
         //audioSource.PlayOneShot(explosionSE); 
         Destroy(gameObject/*, explosionSE.length*/);

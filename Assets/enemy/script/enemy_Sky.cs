@@ -4,7 +4,7 @@ using UnityEngine.AI;
 
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(Rigidbody))]
-public class enemy_Sky : MonoBehaviour
+public class enemy_Sky : MonoBehaviour, IMagnetEnemy
 {
     public enum EnemyState
     {
@@ -94,10 +94,26 @@ public class enemy_Sky : MonoBehaviour
 
     private bool IsAgentActiveAndOnNavMesh => agent != null && agent.enabled && agent.isOnNavMesh;
 
+    // ボスに召喚された敵は索敵範囲に関係なく、最初からプレイヤーを狙い続ける
+    private bool alwaysAggro = false;
+
+    // プレイヤーに吹っ飛ばされている最中か(この間に何かに当たるとやられる)。そっと離された時は立たない
+    private bool isRepelled = false;
+    private bool isDead = false; // 同じフレームに複数回当たっても二重に倒れないように
+
     public void SetTarget(Transform player)
     {
         targetPlayer = player;
     }
+
+    public void OnSummoned(Transform player)
+    {
+        targetPlayer = player;
+        alwaysAggro = true;
+    }
+
+    private bool CanSeePlayer(float distanceToPlayer) => alwaysAggro || distanceToPlayer <= found;
+    private bool LostPlayer(float distanceToPlayer) => !alwaysAggro && distanceToPlayer > found + 5.0f;
 
     void Start()
     {
@@ -221,7 +237,7 @@ public class enemy_Sky : MonoBehaviour
         switch (currentState)
         {
             case EnemyState.Wait:
-                if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
+                if (CanSeePlayer(distanceToPlayer)) ChangeState(EnemyState.Notice);
                 break;
 
             case EnemyState.Notice:
@@ -230,7 +246,7 @@ public class enemy_Sky : MonoBehaviour
                 break;
 
             case EnemyState.Attack:
-                if (distanceToPlayer > found + 5.0f)
+                if (LostPlayer(distanceToPlayer))
                 {
                     ChangeState(EnemyState.Search);
                 }
@@ -267,7 +283,7 @@ public class enemy_Sky : MonoBehaviour
                 break;
 
             case EnemyState.Search:
-                if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
+                if (CanSeePlayer(distanceToPlayer)) ChangeState(EnemyState.Notice);
                 break;
         }
 
@@ -286,9 +302,14 @@ public class enemy_Sky : MonoBehaviour
     // 磁力システムインターフェース
     // ==========================================
 
+    public bool HoldAsEnemy => true;
+
+    public void OnMagnetAttached() { }
+
     public void OnMagnetGrabbed()
     {
         isMagnetized = false;
+        isRepelled = false;
 
         // ★【ガクッ対策】吸収された瞬間、見た目の位置が変わらないように「現在のワールド座標」を一時保存
         Vector3 visualWorldPos = modelTransform != null ? modelTransform.position : transform.position;
@@ -324,6 +345,7 @@ public class enemy_Sky : MonoBehaviour
 
     public void OnMagnetReleased()
     {
+        isRepelled = false;
         ChangeState(EnemyState.MagnetThrown);
         recoveryCooldown = 0.2f;
         thrownSafetyTimer = ThrownSafetyDuration;
@@ -340,6 +362,7 @@ public class enemy_Sky : MonoBehaviour
 
     public void OnMagnetRepelled()
     {
+        isRepelled = true;
         ChangeState(EnemyState.MagnetThrown);
         recoveryCooldown = 0.5f;
         thrownSafetyTimer = ThrownSafetyDuration;
@@ -390,6 +413,8 @@ public class enemy_Sky : MonoBehaviour
         NavMeshHit hit;
         if (NavMesh.SamplePosition(transform.position, out hit, 10.0f, NavMesh.AllAreas))
         {
+            isRepelled = false;
+
             if (rb != null)
             {
                 rb.isKinematic = true;
@@ -532,7 +557,7 @@ public class enemy_Sky : MonoBehaviour
             if (!hasFoundPlayer)
             {
                 hasFoundPlayer = true;
-                CombatStateManager.Instance.EnterCombat(this.gameObject);
+                CombatStateManager.NotifyEnter(gameObject);
             }
 
             if (markExclamation != null)
@@ -549,7 +574,7 @@ public class enemy_Sky : MonoBehaviour
             if (hasFoundPlayer)
             {
                 hasFoundPlayer = false;
-                CombatStateManager.Instance.ExitCombat(this.gameObject);
+                CombatStateManager.NotifyExit(gameObject);
             }
 
             if (markQuestion != null)
@@ -602,6 +627,15 @@ public class enemy_Sky : MonoBehaviour
             return;
         }
 
+        // プレイヤーに吹っ飛ばされている最中に、何か(プレイヤー以外)に当たったらやられる
+        if (isRepelled)
+        {
+            if (collision.gameObject.CompareTag("Player")) return;
+            TakeDamage(currentHp);
+            return;
+        }
+
+        // そっと離されて落ちている最中に何かに激突した時の判定
         if (currentState == EnemyState.MagnetThrown)
         {
             if (collision.gameObject.CompareTag("Player")) return;
@@ -627,6 +661,8 @@ public class enemy_Sky : MonoBehaviour
 
     public void TakeDamage(float damageAmount)
     {
+        if (isDead) return;
+
         currentHp -= damageAmount;
 
         // ダメージを受けたときのエフェクトを再生
@@ -641,12 +677,15 @@ public class enemy_Sky : MonoBehaviour
 
     private void Die()
     {
+        if (isDead) return;
+        isDead = true;
+
         if (hasFoundPlayer)
         {
             hasFoundPlayer = false;
         }
 
-        CombatStateManager.Instance.ExitCombat(this.gameObject);
+        CombatStateManager.NotifyExit(gameObject);
 
         if (enemyDeathEffect != null) Instantiate(enemyDeathEffect, transform.position, Quaternion.identity);
         Destroy(gameObject);

@@ -54,16 +54,9 @@ public class PlayerRespawn : MonoBehaviour
             checkpointPosition = savedCheckpointPosition;
             checkpointRotation = savedCheckpointRotation;
 
-            transform.SetPositionAndRotation(savedCheckpointPosition, savedCheckpointRotation);
+            TeleportTo(savedCheckpointPosition, savedCheckpointRotation);
 
             Debug.Log($"[PlayerRespawn] チェックポイントへ移動={savedCheckpointPosition}");
-
-            if (rb != null)
-            {
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
-            }
-
             Debug.Log($"[PlayerRespawn] 移動後の実位置={transform.position}");
         }
 
@@ -71,13 +64,27 @@ public class PlayerRespawn : MonoBehaviour
         lastPosition = transform.position;
     }
 
+    // PlayerMovementがRigidbodyを補間(Interpolate)にしているため、
+    // Transformだけ書き換えると物理側の姿勢(シーン初期位置)で上書きされてしまう。
+    // Rigidbodyにも同じ姿勢を入れ、即座に物理へ反映させる
+    private void TeleportTo(Vector3 position, Quaternion rotation)
+    {
+        transform.SetPositionAndRotation(position, rotation);
+        if (rb != null)
+        {
+            rb.position = position;
+            rb.rotation = rotation;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+        Physics.SyncTransforms();
+    }
+
     private void Start()
     {
         if (ContinueFromCheckpoint && hasSavedCheckpoint)
         {
-            transform.SetPositionAndRotation(savedCheckpointPosition, savedCheckpointRotation);
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
+            TeleportTo(savedCheckpointPosition, savedCheckpointRotation);
 
             Debug.Log($"[PlayerRespawn] Startで再配置: {savedCheckpointPosition}");
         }
@@ -164,14 +171,12 @@ public class PlayerRespawn : MonoBehaviour
     {
         Debug.Log($"[PlayerRespawn] リスポーン実行 Position={checkpointPosition} Rotation={checkpointRotation.eulerAngles}");
 
-        rb.linearVelocity = Vector3.zero;
-        rb.angularVelocity = Vector3.zero;
-
-        transform.SetPositionAndRotation(checkpointPosition, checkpointRotation);
+        TeleportTo(checkpointPosition, checkpointRotation);
 
         ragdoll.DisableRagdoll();   // ラグドール解除
         health.Revive();            // HP回復・死亡状態解除
 
-        AudioManager.Instance.PlayBGM(respawnBGMName);
+        // AudioManagerはタイトルから来た時だけいるので、直接再生時(null)は鳴らさない
+        if (AudioManager.Instance != null) AudioManager.Instance.PlayBGM(respawnBGMName);
     }
 }

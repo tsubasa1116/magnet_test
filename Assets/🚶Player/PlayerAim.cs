@@ -34,7 +34,7 @@ public class PlayerAim : MonoBehaviour
 	[SerializeField] private float lookUpSpeedScale = 0.85f;
 
 	[Header("ロックオン設定(R3押し込み)")]
-	[Tooltip("ロックオン対象のタグ(吸い寄せオブジェクトと敵)")]
+	[Tooltip("ロックオン対象のタグ(吸い寄せオブジェクトと敵)。Enemy / N_Enemy / S_Enemy はここに無くても常に対象。ボスのバリア・手は LockOnPart で対象になる")]
 	[SerializeField] private string[] lockOnTags = { "Enemy", "N_Pole", "S_Pole" };
 	[SerializeField] private float lockOnRange = 30f;
 	[Tooltip("ロックオン中にカメラが対象へ向く速さ(大きいほどキビキビ)")]
@@ -50,21 +50,13 @@ public class PlayerAim : MonoBehaviour
 	[Tooltip("ロックオン中の肩寄せ(0.5=中央, 小さいほど右肩越しになり狙っている対象が見やすい)")]
 	[SerializeField] private float lockOnScreenX = 0.35f;
 
-	[Header("遮蔽物の半透明化(ディザ方式)")]
-	[Tooltip("カメラとプレイヤーの間に入った物(壁・柱・敵など)を網点状に抜いて半透明に見せる。カメラが寄る挙動(Cinemachine Collider)は無効化される")]
-	[SerializeField] private bool fadeObstacles = true;
-	[Tooltip("穴の中心(視線上)の不透明度(0=完全に透明、1=不透明)")]
-	[SerializeField, Range(0f, 1f)] private float obstacleAlpha = 0.15f;
-	[Tooltip("視線(カメラ→プレイヤーの線)からこの距離までは最強で抜ける(穴の半径)")]
-	[SerializeField] private float holeRadius = 1.2f;
-	[Tooltip("穴の縁のぼかし幅。この幅をかけてなだらかに不透明へ戻る")]
-	[SerializeField] private float holeSoftness = 1.5f;
-	[Tooltip("ディザがかかるまでの時間(秒)。いきなりではなくじわっとかかる")]
-	[SerializeField] private float fadeInTime = 0.2f;
-	[Tooltip("ディザが戻るまでの時間(秒)")]
-	[SerializeField] private float fadeOutTime = 0.3f;
-	[Tooltip("カメラ位置からこの半径内に重なっているコライダーも抜く(巨大な物の中にカメラが入ると、内側からのレイが当たらず素通しになるため)")]
-	[SerializeField] private float cameraOverlapRadius = 0.8f;
+	[Header("カメラが近い時のプレイヤー半透明化(ディザ方式)")]
+	[Tooltip("見上げた時や壁際でカメラがプレイヤーの体にこの距離まで近づくと、徐々に半透明になり始める")]
+	[SerializeField] private float selfFadeStartDistance = 1.8f;
+	[Tooltip("この距離まで近づくと一番薄くなる")]
+	[SerializeField] private float selfFadeEndDistance = 0.5f;
+	[Tooltip("一番薄い時の不透明度(0=完全に透明、1=不透明)")]
+	[SerializeField, Range(0f, 1f)] private float selfFadeMinAlpha = 0.2f;
 
 	[Header("死亡時カメラ(バラバラに飛ぶ頭を追従・ズーム)")]
 	[Tooltip("死亡時のズームFOV(小さいほどアップ)")]
@@ -117,12 +109,15 @@ public class PlayerAim : MonoBehaviour
 	private MagnetPull magnetPull;
 	private CinemachineInputProvider inputProvider;
 
-	// 遮蔽物フェードの状態(元マテリアルの退避先と、生成した差し替えマテリアル)
-	private readonly Dictionary<Renderer, Material[]> fadedRenderers = new Dictionary<Renderer, Material[]>();
-	private readonly Dictionary<Renderer, Material[]> fadeInstances = new Dictionary<Renderer, Material[]>();
-	private readonly Dictionary<Renderer, float> fadeWeights = new Dictionary<Renderer, float>(); // 0..1の時間フェード量
-	private readonly HashSet<Renderer> blockedThisFrame = new HashSet<Renderer>();
 	private Shader ditherShader; // ディザ半透明シェーダー(Resources/ObstacleDitherFade)
+
+	// カメラが近い時のプレイヤー自身の半透明化
+	private Renderer[] selfRenderers;
+	private Material[][] selfOriginals; // 半透明中に退避している元マテリアル
+	private Material[][] selfDither;    // 半透明用のディザマテリアル(使い回す)
+	private Collider selfCollider;      // カメラとの距離を測る体の当たり判定
+	private float selfFadeT;            // 0=不透明 → 1=一番薄い
+	private bool selfFadeApplied;
 
 	// 死亡時カメラ(ラグドールで飛ぶ頭を追従・注視)
 	private PlayerHealth health;
@@ -134,10 +129,16 @@ public class PlayerAim : MonoBehaviour
 	private Coroutine slowMoRoutine;
 	private float baseFixedDeltaTime; // スロー中は物理刻みも一緒に縮める(カクつき防止)
 
+	// シーンに保存された lockOnTags に関係なく常に注目できる敵タグ
+	// (磁石で引き寄せられる敵は N_Enemy / S_Enemy タグなので、Enemy だけだと注目できない)
+	private static readonly string[] AlwaysLockOnTags = { "Enemy", "N_Enemy", "S_Enemy" };
+	private string[] candidateTags;
+
 	// ロックオン状態
 	private bool locked;               // 対象がDestroyされてもロック中と分かるよう明示フラグで持つ
 	private Transform lockTarget;
 	private Collider lockTargetCol;
+	private LockOnPart lockTargetPart; // 部位(ボスのバリア・手など)にロック中ならその部位
 	private Transform marker;          // マーカーのルート(カメラへ正対させる)
 	private Transform markerSpinner;   // 回転する枠部分(自動生成時のみ)
 	private Material markerMat;
@@ -170,6 +171,11 @@ public class PlayerAim : MonoBehaviour
 		}
 
 		baseFixedDeltaTime = Time.fixedDeltaTime;
+
+		var tags = new List<string>(lockOnTags);
+		foreach (string t in AlwaysLockOnTags)
+			if (!tags.Contains(t)) tags.Add(t);
+		candidateTags = tags.ToArray();
 	}
 
 	void Start()
@@ -181,26 +187,23 @@ public class PlayerAim : MonoBehaviour
 		normalYMaxSpeed = baseYAxisSpeed;
 		freeLook.m_YAxis.m_MaxSpeed = baseYAxisSpeed;
 
-		// 遮蔽物フェードを使う場合、Cinemachineの「障害物回避でカメラが寄る」機能は止める
-		// (ドアップになる代わりに、遮蔽物側を半透明にして見せる)
-		if (fadeObstacles)
-		{
-			var cinemachineCollider = freeLook.GetComponent<CinemachineCollider>();
-			if (cinemachineCollider != null) cinemachineCollider.enabled = false;
-		}
+		// 壁や床は半透明にしない。カメラが壁・床にめり込む時は CinemachineCollider が手前へ寄せ、
+		// 寄りすぎてプレイヤーで画面が埋まる分はプレイヤー側を半透明にして見せる(UpdateSelfFade)
 		for (int i = 0; i < 3; i++)
 			composers[i] = freeLook.GetRig(i).GetCinemachineComponent<CinemachineComposer>();
 		if (composers[1] != null) normalScreenX = composers[1].m_ScreenX;
 
-		// 遮蔽物用ディザ半透明シェーダー(Assets/Resources/ObstacleDitherFade.shader)
+		// プレイヤー半透明化用のディザシェーダー(Assets/Resources/ObstacleDitherFade.shader)
 		ditherShader = Shader.Find("Custom/ObstacleDitherFade");
-		if (fadeObstacles && ditherShader == null)
+		if (ditherShader == null)
 			Debug.LogWarning("[PlayerAim] ObstacleDitherFade シェーダーが見つかりません(Resources配下にあるか確認)");
 
 		// 死亡時に追従する頭ボーンを控えておく(Genericリグなので名前で検索)
 		originalLookAt = freeLook.LookAt;
 		originalFollow = freeLook.Follow;
 		headBone = FindHeadBone();
+
+		SetupSelfFade();
 
 		// プレイ中はカーソルを隠す
 		ApplyCursorState();
@@ -240,9 +243,9 @@ public class PlayerAim : MonoBehaviour
 	{
 		if (freeLook == null || headBone == null) return;
 
-		// ロックオン/遮蔽フェードは後始末してから頭を追う
+		// ロックオン/プレイヤーの半透明化は後始末してから頭を追う
 		Unlock();
-		RestoreAllFaded();
+		RestoreSelfFade();
 
 		freeLook.Follow = headBone;
 		freeLook.LookAt = headBone;
@@ -329,6 +332,7 @@ public class PlayerAim : MonoBehaviour
 			health.OnDamaged -= OnPlayerHealthChanged;
 		}
 		if (marker != null) Destroy(marker.gameObject);
+		DestroySelfFadeMaterials();
 		if (markerMat != null) Destroy(markerMat);
 	}
 
@@ -343,163 +347,120 @@ public class PlayerAim : MonoBehaviour
 	{
 		// 死亡等でこのコンポーネントが切られたら、カメラ操作を必ずプレイヤーに返す
 		Unlock();
-		RestoreAllFaded();
+		RestoreSelfFade();
 	}
 
-	// --- 遮蔽物の半透明化 ---
-
-	// カメラとプレイヤーの間にある物(壁・柱・敵・箱など)を半透明にし、
-	// どいたら元のマテリアルに戻す
-	private void UpdateObstacleFade()
+	// 見た目(テクスチャ・色)を元マテリアルからディザマテリアルへコピー
+	private static void CopyLook(Material src, Material dst)
 	{
-		if (!fadeObstacles || mainCamera == null) return;
-
-		blockedThisFrame.Clear();
-
-		Vector3 origin = mainCamera.transform.position;
-		Vector3 target = transform.position + Vector3.up * 1f;
-		Vector3 diff = target - origin;
-
-		// シェーダーの「視線の円筒切り取り」用にプレイヤー側の端点を毎フレーム渡す
-		Shader.SetGlobalVector("_ObstacleFadePlayerPos", target);
-
-		// ① カメラとプレイヤーの間を遮っている物
-		foreach (RaycastHit hit in Physics.RaycastAll(
-			origin, diff.normalized, diff.magnitude, ~0, QueryTriggerInteraction.Ignore))
+		if (src == null) return;
+		string texProp = src.HasProperty("_BaseMap") ? "_BaseMap"
+			: (src.HasProperty("_MainTex") ? "_MainTex" : null);
+		if (texProp != null && src.GetTexture(texProp) != null)
 		{
-			FadeCollider(hit.collider);
+			dst.SetTexture("_BaseMap", src.GetTexture(texProp));
+			dst.SetTextureScale("_BaseMap", src.GetTextureScale(texProp));
+			dst.SetTextureOffset("_BaseMap", src.GetTextureOffset(texProp));
 		}
-
-		// ② カメラ位置に重なっている物。
-		// 巨大な物のコライダー内部にカメラが入ると「内側から撃つレイは当たらない」ため
-		// ①では検出できず素通しになる。重なり判定で拾って抜く。
-		// (見えているのはカメラ前へはみ出した部分＝カメラに近いので、距離ディザが最大強度で効く)
-		foreach (Collider col in Physics.OverlapSphere(
-			origin, cameraOverlapRadius, ~0, QueryTriggerInteraction.Ignore))
-		{
-			FadeCollider(col);
-		}
-
-		// 時間フェード: 遮っている間は1へ、遮らなくなったら0へじわっと動かし、
-		// 0まで戻りきったものだけ元のマテリアルへ復元する(いきなりかからない/戻らない)
-		var restore = new List<Renderer>();
-		var animKeys = new List<Renderer>(fadeWeights.Keys);
-		foreach (Renderer r in animKeys)
-		{
-			if (r == null) { restore.Add(r); continue; }
-
-			float w = fadeWeights[r];
-			w = blockedThisFrame.Contains(r)
-				? Mathf.MoveTowards(w, 1f, Time.deltaTime / Mathf.Max(fadeInTime, 0.01f))
-				: Mathf.MoveTowards(w, 0f, Time.deltaTime / Mathf.Max(fadeOutTime, 0.01f));
-			fadeWeights[r] = w;
-
-			if (w <= 0f) { restore.Add(r); continue; }
-
-			if (fadeInstances.TryGetValue(r, out Material[] mats))
-				foreach (Material m in mats)
-					if (m != null) m.SetFloat("_FadeT", w);
-		}
-		foreach (Renderer r in restore)
-		{
-			if (r != null && fadedRenderers.ContainsKey(r)) r.sharedMaterials = fadedRenderers[r];
-			fadedRenderers.Remove(r);
-			fadeWeights.Remove(r);
-			DestroyFadeInstances(r);
-		}
+		if (src.HasProperty("_BaseColor")) dst.SetColor("_BaseColor", src.GetColor("_BaseColor"));
+		else if (src.HasProperty("_Color")) dst.SetColor("_BaseColor", src.GetColor("_Color"));
 	}
 
-	// 対象コライダー配下のメッシュをフェードする(自分・引き寄せ中の保持物は対象外)
-	private void FadeCollider(Collider col)
-	{
-		Transform ht = col.transform;
-		if (ht.IsChildOf(transform)) return; // 自分は対象外
-		// 磁石で引き寄せ中の物は対象外(カメラ前を横切るたびチラつくのを防ぐ)
-		if (magnetPull != null && magnetPull.HeldObject != null
-			&& ht.IsChildOf(magnetPull.HeldObject)) return;
+	// --- カメラが近い時のプレイヤー自身の半透明化 ---
 
-		foreach (Renderer r in col.GetComponentsInChildren<Renderer>())
-		{
-			if (r == null) continue;
-			// メッシュ系だけ差し替える(パーティクルやスプライトはシェーダー互換が無いため)
-			if (!(r is MeshRenderer) && !(r is SkinnedMeshRenderer)) continue;
-			FadeRenderer(r);
-			blockedThisFrame.Add(r);
-		}
+	private void SetupSelfFade()
+	{
+		// 自分の見た目(メッシュ)だけ。後から手に付く掴んだ物やエフェクトは含めない
+		var list = new List<Renderer>();
+		foreach (Renderer r in GetComponentsInChildren<Renderer>(true))
+			if (r is SkinnedMeshRenderer || r is MeshRenderer) list.Add(r);
+		selfRenderers = list.ToArray();
+		selfOriginals = new Material[selfRenderers.Length][];
+		selfDither = new Material[selfRenderers.Length][];
+
+		foreach (Collider c in GetComponents<Collider>())
+			if (!c.isTrigger) { selfCollider = c; break; }
 	}
 
-	// マテリアルを「ディザ半透明」の差し替えマテリアルへ置き換える。
-	// アルファブレンドではなく網点で抜く方式なので、前後関係が壊れず
-	// 内部の面が透けて汚くならない(中途半端な透過にならない)
-	private void FadeRenderer(Renderer r)
+	// 見上げた時(カメラが足元まで寄る)や壁際などでカメラがプレイヤーに近づくほど、
+	// プレイヤーを網点で薄くして、画面いっぱいにプレイヤーが映って見づらくなるのを防ぐ
+	private void UpdateSelfFade()
 	{
-		if (fadedRenderers.ContainsKey(r)) return;
-		if (ditherShader == null) return;
+		if (selfRenderers == null || selfRenderers.Length == 0 || ditherShader == null || mainCamera == null) return;
 
-		Material[] originals = r.sharedMaterials;
-		fadedRenderers[r] = originals; // 元マテリアルを退避(戻す時はこれを再代入)
+		Vector3 camPos = mainCamera.transform.position;
+		Vector3 closest = selfCollider != null ? selfCollider.ClosestPoint(camPos) : transform.position + Vector3.up;
+		float dist = Vector3.Distance(camPos, closest);
 
-		var faded = new Material[originals.Length];
-		for (int i = 0; i < originals.Length; i++)
+		// 死亡カメラは頭に寄るので、その間は薄くしない
+		float target = health != null && health.IsDead ? 0f
+			: Mathf.InverseLerp(selfFadeStartDistance, selfFadeEndDistance, dist);
+		selfFadeT = Mathf.MoveTowards(selfFadeT, target, Time.deltaTime * 6f);
+
+		if (selfFadeT <= 0.001f)
 		{
-			Material src = originals[i];
-			Material m = new Material(ditherShader);
-			if (src != null)
-			{
-				// 見た目(テクスチャ・色)は元マテリアルからコピー
-				string texProp = src.HasProperty("_BaseMap") ? "_BaseMap"
-					: (src.HasProperty("_MainTex") ? "_MainTex" : null);
-				if (texProp != null && src.GetTexture(texProp) != null)
-				{
-					m.SetTexture("_BaseMap", src.GetTexture(texProp));
-					m.SetTextureScale("_BaseMap", src.GetTextureScale(texProp));
-					m.SetTextureOffset("_BaseMap", src.GetTextureOffset(texProp));
-				}
-				if (src.HasProperty("_BaseColor")) m.SetColor("_BaseColor", src.GetColor("_BaseColor"));
-				else if (src.HasProperty("_Color")) m.SetColor("_BaseColor", src.GetColor("_Color"));
-			}
-			m.SetFloat("_Alpha", obstacleAlpha);
-			m.SetFloat("_HoleRadius", holeRadius);
-			m.SetFloat("_HoleSoftness", holeSoftness);
-			m.SetFloat("_FadeT", 0f); // 0から時間をかけてじわっとかける
-			faded[i] = m;
-		}
-		fadeInstances[r] = faded;
-		fadeWeights[r] = 0f;
-		r.sharedMaterials = faded;
-	}
-
-	// 差し替え用に生成したマテリアルを破棄(リーク防止)
-	private void DestroyFadeInstances(Renderer r)
-	{
-		if (r == null || !fadeInstances.TryGetValue(r, out Material[] mats))
-		{
-			// 破棄済みレンダラーの分も掃除する
-			var deadKeys = new List<Renderer>();
-			foreach (var kv in fadeInstances)
-				if (kv.Key == null) deadKeys.Add(kv.Key);
-			foreach (var k in deadKeys)
-			{
-				foreach (Material m in fadeInstances[k]) if (m != null) Destroy(m);
-				fadeInstances.Remove(k);
-			}
+			RestoreSelfFade();
 			return;
 		}
-		foreach (Material m in mats) if (m != null) Destroy(m);
-		fadeInstances.Remove(r);
+
+		if (!selfFadeApplied) ApplySelfFade();
+
+		for (int i = 0; i < selfRenderers.Length; i++)
+		{
+			if (selfRenderers[i] == null || selfDither[i] == null) continue;
+			for (int j = 0; j < selfDither[i].Length; j++)
+			{
+				// 極の切替・表情差分でテクスチャが変わるので毎フレーム写す
+				CopyLook(selfOriginals[i][j], selfDither[i][j]);
+				selfDither[i][j].SetFloat("_FadeT", selfFadeT);
+			}
+		}
 	}
 
-	private void RestoreAllFaded()
+	private void ApplySelfFade()
 	{
-		foreach (var kv in fadedRenderers)
-			if (kv.Key != null) kv.Key.sharedMaterials = kv.Value;
-		fadedRenderers.Clear();
-		fadeWeights.Clear();
+		for (int i = 0; i < selfRenderers.Length; i++)
+		{
+			Renderer r = selfRenderers[i];
+			if (r == null) continue;
 
-		foreach (var kv in fadeInstances)
-			foreach (Material m in kv.Value)
-				if (m != null) Destroy(m);
-		fadeInstances.Clear();
+			selfOriginals[i] = r.sharedMaterials;
+			if (selfDither[i] == null || selfDither[i].Length != selfOriginals[i].Length)
+			{
+				selfDither[i] = new Material[selfOriginals[i].Length];
+				for (int j = 0; j < selfDither[i].Length; j++)
+				{
+					Material m = new Material(ditherShader);
+					m.SetFloat("_Alpha", selfFadeMinAlpha);
+					// シェーダーの「視線の円筒で抜く穴」を体全体を覆う大きさにして、全体を均一に薄くする
+					m.SetFloat("_HoleRadius", 100000f);
+					m.SetFloat("_HoleSoftness", 1f);
+					selfDither[i][j] = m;
+				}
+			}
+			r.sharedMaterials = selfDither[i];
+		}
+		selfFadeApplied = true;
+	}
+
+	private void RestoreSelfFade()
+	{
+		if (!selfFadeApplied) return;
+		for (int i = 0; i < selfRenderers.Length; i++)
+			if (selfRenderers[i] != null && selfOriginals[i] != null)
+				selfRenderers[i].sharedMaterials = selfOriginals[i];
+		selfFadeApplied = false;
+		selfFadeT = 0f;
+	}
+
+	private void DestroySelfFadeMaterials()
+	{
+		RestoreSelfFade();
+		if (selfDither == null) return;
+		foreach (Material[] mats in selfDither)
+			if (mats != null)
+				foreach (Material m in mats)
+					if (m != null) Destroy(m);
 	}
 
 	void Update()
@@ -563,12 +524,13 @@ public class PlayerAim : MonoBehaviour
 		float bestScore = float.MaxValue;
 		Transform best = null;
 		Collider bestCol = null;
+		LockOnPart bestPart = null;
 
-		foreach (var (t, col, point) in GatherCandidates())
+		foreach (var (t, col, point, losRoot, part) in GatherCandidates())
 		{
 			if (t == exclude) continue;
 			if (Vector3.Distance(transform.position, point) > lockOnRange) continue;
-			if (!HasLineOfSight(point, t)) continue;
+			if (!HasLineOfSight(point, losRoot)) continue;
 
 			// 画面中央に近いものを優先し、距離で同点解消
 			float score = Vector3.Angle(fwd, point - camPos)
@@ -578,6 +540,7 @@ public class PlayerAim : MonoBehaviour
 				bestScore = score;
 				best = t;
 				bestCol = col;
+				bestPart = part;
 			}
 		}
 
@@ -586,6 +549,7 @@ public class PlayerAim : MonoBehaviour
 		locked = true;
 		lockTarget = best;
 		lockTargetCol = bestCol;
+		lockTargetPart = bestPart;
 		switchArmed = false; // スティックが一度中立に戻るまで照準切替しない
 		// ロックオン中は通常のカメラ操作を止める(スティックは照準切替に使う)
 		if (inputProvider != null) inputProvider.enabled = false;
@@ -596,6 +560,7 @@ public class PlayerAim : MonoBehaviour
 		locked = false;
 		lockTarget = null;
 		lockTargetCol = null;
+		lockTargetPart = null;
 		if (inputProvider != null) inputProvider.enabled = true;
 		if (marker != null) marker.gameObject.SetActive(false);
 	}
@@ -611,6 +576,25 @@ public class PlayerAim : MonoBehaviour
 		{
 			Unlock();
 			return;
+		}
+
+		// 部位が注目できなくなった(ボスの手が分離した・バリアが割れた等)。
+		// 引き継ぎ先が決まっている部位(バリア→中のコア)ならそちらへ移し、それ以外は静かに外す。
+		// (同じ本体の別部位へ勝手に乗り換えると、掴んだ手の次に狙う先を選び直せないため)
+		if (lockTargetPart != null && !lockTargetPart.IsAvailable)
+		{
+			LockOnPart next = lockTargetPart.Successor;
+			if (next != null && next.IsAvailable)
+			{
+				lockTarget = next.transform;
+				lockTargetCol = null;
+				lockTargetPart = next;
+			}
+			else
+			{
+				Unlock();
+				return;
+			}
 		}
 
 		// 対象が消えた(Destroy含む)・離れすぎた → 近くの別対象へ乗り換え(いなければ解除)
@@ -668,12 +652,13 @@ public class PlayerAim : MonoBehaviour
 		float bestScore = float.MaxValue;
 		Transform best = null;
 		Collider bestCol = null;
+		LockOnPart bestPart = null;
 
-		foreach (var (t, col, point) in GatherCandidates())
+		foreach (var (t, col, point, losRoot, part) in GatherCandidates())
 		{
 			if (t == lockTarget) continue;
 			if (Vector3.Distance(transform.position, point) > lockOnRange) continue;
-			if (!HasLineOfSight(point, t)) continue;
+			if (!HasLineOfSight(point, losRoot)) continue;
 
 			Vector3 vp = mainCamera.WorldToViewportPoint(point);
 			if (vp.z <= 0f) continue; // カメラの真後ろは対象外
@@ -691,6 +676,7 @@ public class PlayerAim : MonoBehaviour
 				bestScore = score;
 				best = t;
 				bestCol = col;
+				bestPart = part;
 			}
 		}
 
@@ -698,14 +684,24 @@ public class PlayerAim : MonoBehaviour
 		{
 			lockTarget = best;
 			lockTargetCol = bestCol;
+			lockTargetPart = bestPart;
 		}
 	}
 
-	// ロックオン候補(タグで収集)。自分自身と、いま磁力で掴んでいる物は除外
-	private List<(Transform t, Collider col, Vector3 point)> GatherCandidates()
+	// ロックオン候補(タグ＋注目部位で収集)。自分自身と、いま磁力で掴んでいる物は除外。
+	// losRoot は遮蔽判定で無視する範囲(部位なら本体ごと無視する)
+	private List<(Transform t, Collider col, Vector3 point, Transform losRoot, LockOnPart part)> GatherCandidates()
 	{
-		var list = new List<(Transform, Collider, Vector3)>();
-		foreach (string tag in lockOnTags)
+		var list = new List<(Transform, Collider, Vector3, Transform, LockOnPart)>();
+
+		foreach (LockOnPart part in LockOnPart.Active)
+		{
+			if (part == null || !part.IsAvailable) continue;
+			if (IsHeldOrSelf(part.transform)) continue;
+			list.Add((part.transform, null, part.Point, part.OwnerRoot, part));
+		}
+
+		foreach (string tag in candidateTags)
 		{
 			GameObject[] objs;
 			try { objs = GameObject.FindGameObjectsWithTag(tag); }
@@ -714,16 +710,23 @@ public class PlayerAim : MonoBehaviour
 			foreach (var go in objs)
 			{
 				Transform t = go.transform;
-				if (t.IsChildOf(transform)) continue;
-				if (magnetPull != null && magnetPull.HeldObject != null
-					&& (t == magnetPull.HeldObject || t.IsChildOf(magnetPull.HeldObject))) continue;
+				if (IsHeldOrSelf(t)) continue;
+				if (go.TryGetComponent(out LockOnPart _)) continue; // 部位として登録済み
 
 				Collider col = go.GetComponentInChildren<Collider>();
 				Vector3 point = col != null ? col.bounds.center : t.position;
-				list.Add((t, col, point));
+				list.Add((t, col, point, t, null));
 			}
 		}
 		return list;
+	}
+
+	// 自分自身、または磁力で掴んでいる物か
+	private bool IsHeldOrSelf(Transform t)
+	{
+		if (t.IsChildOf(transform)) return true;
+		return magnetPull != null && magnetPull.HeldObject != null
+			&& (t == magnetPull.HeldObject || t.IsChildOf(magnetPull.HeldObject));
 	}
 
 	// カメラから対象までの間に壁(自分と対象以外のソリッド)が無いか
@@ -744,6 +747,7 @@ public class PlayerAim : MonoBehaviour
 
 	private Vector3 LockPoint()
 	{
+		if (lockTargetPart != null) return lockTargetPart.Point;
 		if (lockTargetCol != null) return lockTargetCol.bounds.center;
 		return lockTarget != null ? lockTarget.position : Vector3.zero;
 	}
@@ -753,7 +757,7 @@ public class PlayerAim : MonoBehaviour
 	// カメラ確定後の位置に合わせたいので LateUpdate で更新
 	void LateUpdate()
 	{
-		UpdateObstacleFade();
+		UpdateSelfFade();
 
 		if (!locked || lockTarget == null)
 		{
@@ -768,7 +772,11 @@ public class PlayerAim : MonoBehaviour
 
 		// 対象の大きさに合わせて枠のサイズを調整
 		float size = 1f;
-		if (lockTargetCol != null)
+		if (lockTargetPart != null)
+		{
+			size = lockTargetPart.Size;
+		}
+		else if (lockTargetCol != null)
 		{
 			Vector3 e = lockTargetCol.bounds.extents;
 			size = Mathf.Max(e.x, e.y, e.z) * 2f;
@@ -783,7 +791,17 @@ public class PlayerAim : MonoBehaviour
 
 	private Color ColorForTarget()
 	{
-		if (lockTarget.CompareTag("Enemy")) return enemyMarkerColor;
+		if (lockTargetPart != null)
+		{
+			switch (lockTargetPart.TargetKind)
+			{
+				case LockOnPart.Kind.NPole: return nPoleMarkerColor;
+				case LockOnPart.Kind.SPole: return sPoleMarkerColor;
+				default: return enemyMarkerColor;
+			}
+		}
+		if (lockTarget.CompareTag("Enemy") || lockTarget.CompareTag("N_Enemy") || lockTarget.CompareTag("S_Enemy"))
+			return enemyMarkerColor;
 		if (lockTarget.CompareTag("N_Pole")) return nPoleMarkerColor;
 		if (lockTarget.CompareTag("S_Pole")) return sPoleMarkerColor;
 		return Color.white;

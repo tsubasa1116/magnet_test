@@ -4,7 +4,7 @@ using UnityEngine.AI;
 
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(Rigidbody))]
-public class enemy : MonoBehaviour
+public class enemy : MonoBehaviour, IMagnetEnemy
 {
     public enum EnemyState
     {
@@ -68,9 +68,25 @@ public class enemy : MonoBehaviour
     // 吹っ飛ばされた直後に即着地判定されるのを防ぐタイマー
     private float recoveryCooldown = 0f;
 
+    // ボスに召喚された敵は索敵範囲に関係なく、最初からプレイヤーを追い続ける
+    private bool alwaysAggro = false;
+
+    // プレイヤーに吹っ飛ばされている最中か(この間に何かに当たるとやられる)。そっと離された時は立たない
+    private bool isRepelled = false;
+    private bool isDead = false; // 同じフレームに複数回当たっても二重に倒れないように
+
     private bool IsAgentActiveAndOnNavMesh => agent != null && agent.enabled && agent.isOnNavMesh;
 
     public void SetTarget(Transform player) => targetPlayer = player;
+
+    public void OnSummoned(Transform player)
+    {
+        targetPlayer = player;
+        alwaysAggro = true;
+    }
+
+    private bool CanSeePlayer(float distanceToPlayer) => alwaysAggro || distanceToPlayer <= found;
+    private bool LostPlayer(float distanceToPlayer) => !alwaysAggro && distanceToPlayer > found + 5.0f;
 
     void Start()
     {
@@ -148,7 +164,7 @@ public class enemy : MonoBehaviour
         switch (currentState)
         {
             case EnemyState.Wait:
-                if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
+                if (CanSeePlayer(distanceToPlayer)) ChangeState(EnemyState.Notice);
                 break;
             case EnemyState.Notice:
                 noticeTimer -= Time.deltaTime;
@@ -156,7 +172,7 @@ public class enemy : MonoBehaviour
                 break;
             case EnemyState.Chase:
                 if (distanceToPlayer <= attackRange) ChangeState(EnemyState.Attack);
-                else if (distanceToPlayer > found + 5.0f) ChangeState(EnemyState.Search);
+                else if (LostPlayer(distanceToPlayer)) ChangeState(EnemyState.Search);
                 else agent.SetDestination(targetPlayer.position);
                 break;
             case EnemyState.Attack:
@@ -175,7 +191,7 @@ public class enemy : MonoBehaviour
                 }
                 break;
             case EnemyState.Search:
-                if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
+                if (CanSeePlayer(distanceToPlayer)) ChangeState(EnemyState.Notice);
                 else
                 {
                     searchTimer -= Time.deltaTime;
@@ -184,7 +200,7 @@ public class enemy : MonoBehaviour
                 }
                 break;
             case EnemyState.Return:
-                if (distanceToPlayer <= found) ChangeState(EnemyState.Notice);
+                if (CanSeePlayer(distanceToPlayer)) ChangeState(EnemyState.Notice);
                 else if (IsAgentActiveAndOnNavMesh && agent.remainingDistance < 0.5f) ChangeState(EnemyState.Wait);
                 break;
         }
@@ -194,8 +210,13 @@ public class enemy : MonoBehaviour
     // 磁力システムからの通知受け取り口
     // ==========================================
 
+    public bool HoldAsEnemy => true;
+
+    public void OnMagnetAttached() { }
+
     public void OnMagnetGrabbed()
     {
+        isRepelled = false;
         if (agent.enabled) agent.enabled = false;
         ChangeState(EnemyState.MagnetPulled);
 
@@ -205,6 +226,7 @@ public class enemy : MonoBehaviour
 
     public void OnMagnetReleased()
     {
+        isRepelled = false;
         ChangeState(EnemyState.MagnetThrown);
         recoveryCooldown = 0.2f; // そっと離した場合はすぐ着地判定してOK
 
@@ -214,6 +236,7 @@ public class enemy : MonoBehaviour
 
     public void OnMagnetRepelled()
     {
+        isRepelled = true;
         ChangeState(EnemyState.MagnetThrown);
         recoveryCooldown = 0.5f; // 吹っ飛んだ直後に着地させないよう0.5秒の猶予
 
@@ -261,6 +284,7 @@ public class enemy : MonoBehaviour
         NavMeshHit hit;
         if (NavMesh.SamplePosition(transform.position, out hit, 5.0f, NavMesh.AllAreas))
         {
+            isRepelled = false;
             rb.isKinematic = true;
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
@@ -318,7 +342,7 @@ public class enemy : MonoBehaviour
             if (!hasFoundPlayer)
             {
                 hasFoundPlayer = true;
-                CombatStateManager.Instance.EnterCombat(this.gameObject);
+                CombatStateManager.NotifyEnter(gameObject);
             }
 
             if (markExclamation != null)
@@ -342,7 +366,7 @@ public class enemy : MonoBehaviour
         {
             if (anim != null) { anim.SetBool("run", false); anim.SetBool("idle", false); anim.SetBool("walk", true); }
             if (markQuestion != null) markQuestion.SetActive(true);
-            CombatStateManager.Instance.ExitCombat(this.gameObject);
+            CombatStateManager.NotifyExit(gameObject);
             StartCoroutine(HideMark(markQuestion, 1.5f));
             searchTimer = searchTime;
             WanderAround();
@@ -421,6 +445,8 @@ public class enemy : MonoBehaviour
 
     public void TakeDamage(float damageAmount)
     {
+        if (isDead) return;
+
         currentHp -= damageAmount;
         if (enemyHitEffect != null) Instantiate(enemyHitEffect, transform.position, Quaternion.identity);
 
@@ -443,7 +469,15 @@ public class enemy : MonoBehaviour
             return;
         }
 
-        // ② 自身が「ぶっ飛んでいる最中（MagnetThrown）」に何かに激突した時の判定
+        // ② プレイヤーに吹っ飛ばされている最中に、何か(プレイヤー以外)に当たったらやられる
+        if (isRepelled)
+        {
+            if (collision.gameObject.CompareTag("Player")) return;
+            TakeDamage(currentHp);
+            return;
+        }
+
+        // ③ そっと離されて落ちている最中（MagnetThrown）に何かに激突した時の判定
         if (currentState == EnemyState.MagnetThrown)
         {
             if (collision.gameObject.CompareTag("Player")) return;
@@ -500,11 +534,14 @@ public class enemy : MonoBehaviour
 
     private void Die()
     {
+        if (isDead) return;
+        isDead = true;
+
         if (hasFoundPlayer)
         {
             hasFoundPlayer = false;
         }
-        CombatStateManager.Instance.ExitCombat(this.gameObject);
+        CombatStateManager.NotifyExit(gameObject);
 
         if (enemyDeathEffect != null)
             Instantiate(enemyDeathEffect, transform.position, Quaternion.identity);
