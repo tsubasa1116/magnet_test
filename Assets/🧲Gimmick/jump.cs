@@ -35,7 +35,7 @@ public class jump : MonoBehaviour
         if (jumpEffect != null)
         {
             Vector3 pos = playerRb.transform.position;
-            pos.y = 1.5f;
+            pos.y += 0.7f;
             Instantiate(jumpEffect, pos, Quaternion.identity);
         }
     }
