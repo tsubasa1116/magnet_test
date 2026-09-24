@@ -49,13 +49,24 @@ public class PlayerRespawn : MonoBehaviour
         {
             checkpointPosition = savedCheckpointPosition;
             checkpointRotation = savedCheckpointRotation;
-            transform.SetPositionAndRotation(savedCheckpointPosition, savedCheckpointRotation);
-            if (rb != null)
-            {
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
-            }
+            TeleportTo(savedCheckpointPosition, savedCheckpointRotation);
         }
+    }
+
+    // PlayerMovementがRigidbodyを補間(Interpolate)にしているため、
+    // Transformだけ書き換えると物理側の姿勢(シーン初期位置)で上書きされてしまう。
+    // Rigidbodyにも同じ姿勢を入れ、即座に物理へ反映させる
+    private void TeleportTo(Vector3 position, Quaternion rotation)
+    {
+        transform.SetPositionAndRotation(position, rotation);
+        if (rb != null)
+        {
+            rb.position = position;
+            rb.rotation = rotation;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+        Physics.SyncTransforms();
     }
 
     private void Start()
@@ -118,10 +129,7 @@ public class PlayerRespawn : MonoBehaviour
 
     public void Respawn()
     {
-        rb.linearVelocity = Vector3.zero;
-        rb.angularVelocity = Vector3.zero;
-
-        transform.SetPositionAndRotation(checkpointPosition, checkpointRotation);
+        TeleportTo(checkpointPosition, checkpointRotation);
 
         ragdoll.DisableRagdoll();   // ラグドール解除
         health.Revive();            // HP回復・死亡状態解除
