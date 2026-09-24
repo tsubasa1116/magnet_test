@@ -189,6 +189,8 @@ public class PlayerMovement : MonoBehaviour
 		// jumpConsumed: 離陸直後は接地判定がまだtrueのため、連打で2段ジャンプになるのを防ぐ
 		if (value.isPressed && isGrounded && !jumpConsumed)
 		{
+			//AudioManager.Instance.PlayJumpSE();
+
 			jumpConsumed = true;
 			lastJumpTime = Time.time;
 			rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
@@ -197,7 +199,6 @@ public class PlayerMovement : MonoBehaviour
 	}
 
     // --- 移動 ---
-
     private void Move()
     {
         // ロープウェイ・GrapplePhysicsが全て移動を管理する

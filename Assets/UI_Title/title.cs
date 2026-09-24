@@ -191,6 +191,7 @@ public class title : MonoBehaviour
                     {
                         UISE.Instance.StartUI();
                         SceneLoad.LoadWithLoadingScreen("SampleScene", FadeType.Black);
+                        AudioManager.Instance.PlayBGM("Normal");
                     }
                     else if (cursorIndex == 1)
                     {

@@ -29,6 +29,8 @@ public class PlayerRespawn : MonoBehaviour
     private PlayerHealth health;
     private PlayerRagdoll ragdoll;
 
+    private string respawnBGMName = "Normal";
+
     // GameOver画面の「チェックポイントから再開」がシーン読込前に呼ぶ
     public static void BeginContinueFromCheckpoint()
     {
@@ -44,23 +46,42 @@ public class PlayerRespawn : MonoBehaviour
         checkpointPosition = transform.position;
         checkpointRotation = transform.rotation;
 
-        // コンティニューでシーンが読み直された場合はセーブポイントから開始
+        Debug.Log($"[PlayerRespawn] Awake 初期位置={checkpointPosition}");
+        Debug.Log($"[PlayerRespawn] Continue={ContinueFromCheckpoint} Saved={hasSavedCheckpoint}");
+
         if (ContinueFromCheckpoint && hasSavedCheckpoint)
         {
             checkpointPosition = savedCheckpointPosition;
             checkpointRotation = savedCheckpointRotation;
+
             transform.SetPositionAndRotation(savedCheckpointPosition, savedCheckpointRotation);
+
+            Debug.Log($"[PlayerRespawn] チェックポイントへ移動={savedCheckpointPosition}");
+
             if (rb != null)
             {
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
             }
+
+            Debug.Log($"[PlayerRespawn] 移動後の実位置={transform.position}");
         }
+
+        Debug.Log($"[PlayerRespawn] Awake終了位置={transform.position}");
+        lastPosition = transform.position;
     }
 
     private void Start()
     {
-        // GameStartCutscene等が全員フラグを読み終わる初回フレームの後に消費する
+        if (ContinueFromCheckpoint && hasSavedCheckpoint)
+        {
+            transform.SetPositionAndRotation(savedCheckpointPosition, savedCheckpointRotation);
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+
+            Debug.Log($"[PlayerRespawn] Startで再配置: {savedCheckpointPosition}");
+        }
+
         if (ContinueFromCheckpoint) StartCoroutine(ClearContinueFlag());
     }
 
@@ -85,6 +106,22 @@ public class PlayerRespawn : MonoBehaviour
         StartCoroutine(RespawnCoroutine());
     }
 
+    private Vector3 lastPosition;
+
+    private void Update()
+    {
+        if (transform.position != lastPosition)
+        {
+            if (PlayerRespawn.ContinueFromCheckpoint)
+            {
+                Debug.LogError($"[PlayerRespawn] チェックポイント復帰中に位置変更: {lastPosition} → {transform.position}");
+                Debug.LogError(System.Environment.StackTrace);
+            }
+
+            lastPosition = transform.position;
+        }
+    }
+
     // 死亡: 倒れる演出を見せてからGameOver画面へ。
     // 復活するかどうかはGameOver画面(コンティニュー/タイトル)でプレイヤーが選ぶ
     private IEnumerator RespawnCoroutine()
@@ -104,20 +141,29 @@ public class PlayerRespawn : MonoBehaviour
         }
     }
 
-    public void SetCheckpoint(Transform point)
+    public void SetCheckpoint(Transform checkpoint, float rotationY)
     {
-        checkpointPosition = point.position;
-        checkpointRotation = point.rotation;
+        checkpointPosition = checkpoint.position;
+        checkpointRotation = Quaternion.Euler(0f, rotationY, 0f);
 
         // コンティニュー(シーン再読込)用にstaticにも控える
         hasSavedCheckpoint = true;
-        savedCheckpointPosition = point.position;
-        savedCheckpointRotation = point.rotation;
+        savedCheckpointPosition = checkpoint.position;
+        savedCheckpointRotation = Quaternion.Euler(0f, rotationY, 0f);
         SavedSceneName = SceneManager.GetActiveScene().name;
+
+        Debug.Log($"[PlayerRespawn] チェックポイント保存 Position={checkpointPosition} RotationY={rotationY}");
+    }
+
+    public void SetRespawnBGM(string bgmName)
+    {
+        respawnBGMName = bgmName;
     }
 
     public void Respawn()
     {
+        Debug.Log($"[PlayerRespawn] リスポーン実行 Position={checkpointPosition} Rotation={checkpointRotation.eulerAngles}");
+
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
 
@@ -125,5 +171,7 @@ public class PlayerRespawn : MonoBehaviour
 
         ragdoll.DisableRagdoll();   // ラグドール解除
         health.Revive();            // HP回復・死亡状態解除
+
+        AudioManager.Instance.PlayBGM(respawnBGMName);
     }
 }

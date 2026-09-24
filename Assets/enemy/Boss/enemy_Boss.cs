@@ -496,6 +496,8 @@ public class enemy_Boss : MonoBehaviour
 
             if (Input.GetKeyDown(KeyCode.H))
             {
+                AudioManager.Instance.StopBGM();
+
                 SceneLoad.LoadDirect("ResultScene", FadeType.White);
                 GameManager.Instance.EndGame();
 

@@ -110,7 +110,6 @@ public class pauseManager : MonoBehaviour
         AudioManager.Instance.PlayBGM("Field");
     }
 
-
     void Update()
     {
         if (isPause)

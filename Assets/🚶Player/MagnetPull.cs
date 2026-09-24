@@ -616,11 +616,7 @@ public class MagnetPull : MonoBehaviour
         // 発射エフェクトを再生
         PlayReleaseEffect();
         if (audioSource != null && repelSE != null)
-        {
             audioSource.PlayOneShot(repelSE);
-        }
-
-      
 
         Collider playerCol = GetComponent<Collider>();
 
