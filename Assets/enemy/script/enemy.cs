@@ -27,6 +27,8 @@ public class enemy : MonoBehaviour, IMagnetEnemy
     [SerializeField] private float searchRadius = 5.0f;
     [SerializeField] private float noticeTime = 1.0f;
     [SerializeField] private float lookBackSpeed = 8.0f;
+    [Tooltip("置いた位置からこの距離以内のNavMeshに乗せる(広すぎると上下の別の階のNavMeshへ移ってしまう)")]
+    [SerializeField] private float navPlaceRadius = 2.0f;
 
     [Header("参照")]
     [SerializeField] private Transform targetPlayer;
@@ -98,6 +100,11 @@ public class enemy : MonoBehaviour, IMagnetEnemy
         audioSource = GetComponent<AudioSource>(); // ←追加
 
         if (rb != null) rb.isKinematic = true;
+
+        // Projectから直接置いた敵はtargetPlayerが空なので、シーン内のプレイヤーを探して狙う
+        targetPlayer = EnemyTargetFinder.ResolvePlayer(targetPlayer);
+        // 置いた位置がNavMeshから少しずれていても乗れるように寄せる
+        EnemyTargetFinder.TryPlaceOnNavMesh(agent, navPlaceRadius);
         startPosition = transform.position;
 
         if (markExclamation != null) markExclamation.SetActive(false);
@@ -156,7 +163,12 @@ public class enemy : MonoBehaviour, IMagnetEnemy
             currentState == EnemyState.MagnetThrown ||
             currentState == EnemyState.Hit) return;
 
-        if (!IsAgentActiveAndOnNavMesh) return;
+        if (!IsAgentActiveAndOnNavMesh)
+        {
+            // NavMeshが後から作られる場所(ボス部屋)でも乗れるように、乗れるまで寄せ直す
+            EnemyTargetFinder.TryPlaceOnNavMesh(agent, navPlaceRadius);
+            return;
+        }
         if (targetPlayer == null) return;
 
         float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);

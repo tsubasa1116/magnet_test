@@ -34,6 +34,8 @@ public class enemy_bomb : MonoBehaviour, IMagnetEnemy
     [SerializeField] private float hoverRange  = 0.5f;  // ふわふわの揺れ幅
     [SerializeField] private float hoverSpeed  = 2.0f;  // ふわふわの揺れる速度
     [SerializeField] private bool  isHover     = true;
+    [Tooltip("置いた位置からこの距離(+浮遊の高さ)以内のNavMeshに乗せる(空中に置いても動けるように)")]
+    [SerializeField] private float navPlaceRadius = 5.0f;
 
     [Header("磁力")] // 磁力(引力・斥力)の設定
     [SerializeField] private float magnetRadius = 8.0f;  // 磁力などを感知する距離
@@ -129,6 +131,11 @@ public class enemy_bomb : MonoBehaviour, IMagnetEnemy
         // 初期高さをセット
         if (agent != null) agent.baseOffset = hoverHeight;
 
+        // Projectから直接置いた敵はtargetPlayerが空なので、シーン内のプレイヤーを探して狙う
+        targetPlayer = EnemyTargetFinder.ResolvePlayer(targetPlayer);
+        // 置いた位置がNavMeshから浮いていても乗れるように寄せる
+        EnemyTargetFinder.TryPlaceOnNavMesh(agent, navPlaceRadius + hoverHeight);
+
         startPosition = transform.position;
         timeOffset = Random.Range(0.0f, 100.0f); // 複数の敵がいても動きが揃わないようにする
 
@@ -223,6 +230,9 @@ public class enemy_bomb : MonoBehaviour, IMagnetEnemy
         // 磁力で飛ばされている間はAIをストップする
         if (isMagnetized) return;
 
+        // NavMeshが後から作られる場所(ボス部屋)でも乗れるように、乗れるまで寄せ直す
+        if (agent.enabled && !agent.isOnNavMesh) EnemyTargetFinder.TryPlaceOnNavMesh(agent, navPlaceRadius + hoverHeight);
+
         float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.position);
 
         switch (currentState)
@@ -275,7 +285,7 @@ public class enemy_bomb : MonoBehaviour, IMagnetEnemy
                 {
                     searchTimer -= Time.deltaTime;
                     if (searchTimer <= 0) ChangeState(EnemyState.Return);
-                    else if (agent.remainingDistance < 0.5f)
+                    else if (agent.isOnNavMesh && agent.remainingDistance < 0.5f)
                     {
                         WanderAround();
                     }
@@ -284,7 +294,7 @@ public class enemy_bomb : MonoBehaviour, IMagnetEnemy
 
             case EnemyState.Return:
                 if (CanSeePlayer(distanceToPlayer)) ChangeState(EnemyState.Notice);
-                else if (agent.remainingDistance < 0.5f)
+                else if (agent.isOnNavMesh && agent.remainingDistance < 0.5f)
                 {
                     ChangeState(EnemyState.Wait);
                     anim.SetBool("Idol", true);
@@ -510,14 +520,14 @@ public class enemy_bomb : MonoBehaviour, IMagnetEnemy
                 hasFoundPlayer = false;
             }
 
-            agent.SetDestination(startPosition);
+            if (agent.isOnNavMesh) agent.SetDestination(startPosition);
         }
     }
 
     // 探索中にランダムな位置を目的地に設定する処理
     private void WanderAround()
     {
-        if (!agent.enabled) return;
+        if (!agent.enabled || !agent.isOnNavMesh) return;
         Vector3 randomPos = transform.position + Random.insideUnitSphere * searchRadius;
         NavMeshHit hit;
 

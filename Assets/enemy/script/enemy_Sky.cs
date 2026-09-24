@@ -37,6 +37,8 @@ public class enemy_Sky : MonoBehaviour, IMagnetEnemy
     [SerializeField] private float hoverHeight = 2.0f;     // 地面からの基本の高さ
     [SerializeField] private float hoverRange = 0.5f;
     [SerializeField] private float hoverSpeed = 2.0f;
+    [Tooltip("置いた位置からこの距離(+浮遊の高さ)以内のNavMeshに乗せる(空中に置いても動けるように)")]
+    [SerializeField] private float navPlaceRadius = 5.0f;
 
     [Header("環境磁力（ステージ用）")]
     [SerializeField] private float magnetRadius = 8.0f;
@@ -94,6 +96,9 @@ public class enemy_Sky : MonoBehaviour, IMagnetEnemy
 
     private bool IsAgentActiveAndOnNavMesh => agent != null && agent.enabled && agent.isOnNavMesh;
 
+    // レーザーの狙い位置。EffectPointが見つからない時はプレイヤーの足元から同じ高さ(0.5m)を狙う
+    private Vector3 AimPoint => effectPoint != null ? effectPoint.position : targetPlayer.position + Vector3.up * 0.5f;
+
     // ボスに召喚された敵は索敵範囲に関係なく、最初からプレイヤーを狙い続ける
     private bool alwaysAggro = false;
 
@@ -140,6 +145,12 @@ public class enemy_Sky : MonoBehaviour, IMagnetEnemy
         {
             originalModelLocalPosition = modelTransform.localPosition;
         }
+
+        // Projectから直接置いた敵はtargetPlayerとレーザーの狙い位置が空なので、シーン内のプレイヤーから補う
+        targetPlayer = EnemyTargetFinder.ResolvePlayer(targetPlayer);
+        if (effectPoint == null) effectPoint = EnemyTargetFinder.FindEffectPoint(targetPlayer);
+        // 置いた位置がNavMeshから浮いていても乗れるように寄せる
+        EnemyTargetFinder.TryPlaceOnNavMesh(agent, navPlaceRadius + hoverHeight);
 
         startPosition = transform.position;
         timeOffset = Random.Range(0f, 100f);
@@ -221,6 +232,11 @@ public class enemy_Sky : MonoBehaviour, IMagnetEnemy
         if (IsAgentActiveAndOnNavMesh)
         {
             agent.baseOffset = hoverHeight + Mathf.Sin((Time.time + timeOffset) * hoverSpeed) * hoverRange;
+        }
+        else if (agent != null && agent.enabled)
+        {
+            // NavMeshが後から作られる場所(ボス部屋)でも乗れるように、乗れるまで寄せ直す
+            EnemyTargetFinder.TryPlaceOnNavMesh(agent, navPlaceRadius + hoverHeight);
         }
 
 
@@ -488,7 +504,7 @@ public class enemy_Sky : MonoBehaviour, IMagnetEnemy
         if (Laser  == null || targetPlayer == null) return;
 
         // プレイヤーの方向を計算[]
-        Vector3 targetPos = effectPoint.position;
+        Vector3 targetPos = AimPoint;
         targetPos.y += 0.4f;
 
         Vector3 direction = (targetPos - transform.position).normalized;
@@ -512,7 +528,7 @@ public class enemy_Sky : MonoBehaviour, IMagnetEnemy
         if (originPrefab == null || firePoint == null || targetPlayer == null) return null;
 
         // FirePoint からプレイヤーへ向けて生成し、予告エフェクトが常にプレイヤー側を向くようにする。
-        Vector3 directionToPlayer = effectPoint.position - firePoint.position;
+        Vector3 directionToPlayer = AimPoint - firePoint.position;
         if (directionToPlayer.sqrMagnitude < Mathf.Epsilon) return null;
 
         GameObject origin = Instantiate(
