@@ -108,5 +108,8 @@ public class SlideDoorAndButton : MonoBehaviour
 
         // プレイヤーやギミック用オブジェクトがぶつかったら作動
         isPressed = true;
+
+        // 開扉SEを再生
+        AudioManager.Instance.PlayDoorSE();
     }
 }

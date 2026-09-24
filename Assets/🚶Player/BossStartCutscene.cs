@@ -139,7 +139,9 @@ public class BossStartCutscene : MonoBehaviour
 	// 外部(スクリプトや別トリガー)からも起動できるように公開
 	public void Play()
 	{
-		if (hasPlayed || playing) return;
+        AudioManager.Instance.PlayBGM("Boss");
+
+        if (hasPlayed || playing) return;
 		if (actorClip == null || playbackTemplate == null)
 		{
 			Debug.LogWarning("[BossStartCutscene] actorClip / playbackTemplate が未設定のため再生できません");

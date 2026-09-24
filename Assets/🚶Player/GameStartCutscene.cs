@@ -96,16 +96,19 @@ public class GameStartCutscene : MonoBehaviour
 		}
 	}
 
-	private void Play()
-	{
-		// ゲームオーバーからのコンティニュー時はオープニングを再生しない
-		// (プレイヤーはPlayerRespawnがセーブポイントへ配置済み)
-		if (PlayerRespawn.ContinueFromCheckpoint)
-		{
-			if (Nyuxtu3.Instance != null) Nyuxtu3.Instance.ShowUI();
-			enabled = false;
-			return;
-		}
+    private void Play()
+    {
+        Debug.Log($"[GameStartCutscene] Play開始 Continue={PlayerRespawn.ContinueFromCheckpoint}");
+
+        // ゲームオーバーからのコンティニュー時はオープニングを再生しない
+        // (プレイヤーはPlayerRespawnがセーブポイントへ配置済み)
+        if (PlayerRespawn.ContinueFromCheckpoint)
+        {
+            Debug.Log("[GameStartCutscene] チェックポイント復帰なのでカットシーンをスキップ");
+            if (Nyuxtu3.Instance != null) Nyuxtu3.Instance.ShowUI();
+            enabled = false;
+            return;
+        }
 
 		if (actorPrefab == null || playbackTemplate == null)
 		{
@@ -171,13 +174,14 @@ public class GameStartCutscene : MonoBehaviour
 
 		HidePlayer();
 
-		// 「プレイ開始→カットシーン→プレイ再開」方式:
-		// プレイヤーは非表示のままカットシーンの裏で先に落下・着地させておく。
-		// (初期配置は埋まり防止で空中にあるため。終了時にはもう落下要素が無い)
-		StartCoroutine(SettlePlayerEarly());
+        // 「プレイ開始→カットシーン→プレイ再開」方式:
+        // プレイヤーは非表示のままカットシーンの裏で先に落下・着地させておく。
+        // (初期配置は埋まり防止で空中にあるため。終了時にはもう落下要素が無い)
+        if (!PlayerRespawn.ContinueFromCheckpoint)
+            StartCoroutine(SettlePlayerEarly());
 
-		// メインカメラを乗っ取る
-		mainCam = Camera.main;
+        // メインカメラを乗っ取る
+        mainCam = Camera.main;
 		if (mainCam != null)
 		{
 			brain = mainCam.GetComponent<CinemachineBrain>();

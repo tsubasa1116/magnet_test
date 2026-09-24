@@ -66,7 +66,9 @@ public class PlayerHealth : MonoBehaviour
 	{
         if (IsDead || IsInvincible) return;
 
-		Hp = Mathf.Max(0, Hp - amount);
+        AudioManager.Instance.PlayDamageSE();
+
+        Hp = Mathf.Max(0, Hp - amount);
 
 		invincibleUntil = Time.time + invincibleTime; // 無敵開始(点滅はPlayerEffectsが行う)
 		ApplyKnockback(sourcePosition);
@@ -101,6 +103,7 @@ public class PlayerHealth : MonoBehaviour
 	{
 		IsDead = true;
 		OnDied?.Invoke();
+        AudioManager.Instance.StopBGM();
         OnPlayerDied?.Invoke();    // ゲーム全体へ通知
         ragdoll.EnableRagdoll();
     }

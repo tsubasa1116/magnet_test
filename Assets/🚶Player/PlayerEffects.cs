@@ -137,7 +137,8 @@ public class PlayerEffects : MonoBehaviour
     private void OnPoleChanged(MagnetState s)
 	{
 		Spawn(s == MagnetState.N ? nPoleChangeEffect : sPoleChangeEffect, poleEffectLife);
-	}
+        AudioManager.Instance.PlayMagnetSE();
+    }
 
     private void OnHit()
 	{
